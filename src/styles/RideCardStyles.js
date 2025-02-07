@@ -21,11 +21,11 @@ export default StyleSheet.create({
         fontWeight: 'bold',
     },
     price: {
-        fontSize: 14,
-        color: 'green',
+        fontSize: 17,
+        color: '#007AFF',
     },
     icon: {
         fontSize: 18,
-        color: 'blue',
+        color: '#0e2439',
     },
 });
