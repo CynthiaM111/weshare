@@ -5,21 +5,22 @@ const HomeStyles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 20,
+        marginTop: 40,
     },
     header: {
-        fontSize: 20,
-        color: '#0e2439',
+        fontSize: 18,
+        color: '#000000',
         fontFamily: 'KGRedHands',
     },
     postRideButton: {
-        backgroundColor: '#0e2439', // Light blue
+        backgroundColor: '#f2f230', 
         paddingVertical: 10,
         paddingHorizontal: 15,
         borderRadius: 8,
     },
     postRideButtonText: {
-        color: '#fff',
+        color: '#0e2439',
         fontSize: 14,
         fontWeight: 'bold',
         fontFamily: 'KGRedHands',
@@ -43,7 +44,7 @@ const HomeStyles = StyleSheet.create({
     },
     searchButton: {
         borderWidth: 1,
-        borderColor: '#0e2439', // Bootstrap success green
+        borderColor: '#black', // Bootstrap success green
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 8,

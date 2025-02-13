@@ -4,7 +4,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import ServicesScreen from '../screens/ServicesScreen';
 import ActivityScreen from '../screens/ActivityScreen';
-import AccountScreen from '../screens/AccountScreen';
+import AccountStackNavigator from './AccountStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -12,8 +12,8 @@ export default function BottomTabNav() {
     return (
         <Tab.Navigator
             screenOptions={{
-                tabBarStyle: { backgroundColor: '#fff', height: 60 },
-                tabBarLabelStyle: { fontSize: 12, marginBottom: 5 },
+                tabBarStyle: { backgroundColor: '#fff', height: 60, marginBottom: 15 },
+                tabBarLabelStyle: { fontSize: 12, marginBottom: 2 },
                 tabBarIconStyle: { marginTop: 5 },
                 tabBarActiveTintColor: '#007AFF',
                 tabBarInactiveTintColor: '#777',
@@ -43,7 +43,7 @@ export default function BottomTabNav() {
             />
             <Tab.Screen
                 name="Account"
-                component={AccountScreen}
+                component={AccountStackNavigator}
                 options={{
                     tabBarIcon: ({ color, size }) => <FontAwesome5 name="user" size={size} color={color} />
                 }}
