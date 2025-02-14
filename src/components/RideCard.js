@@ -18,7 +18,7 @@ export default function RideCard({ ride }) {
 
     const heightInterpolation = animation.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, 100], // Adjust height as needed
+        outputRange: [0, 123], // Adjust height as needed
     });
 
     return (
@@ -34,8 +34,9 @@ export default function RideCard({ ride }) {
             <Animated.View style={[RideDetailsStyles.container, { height: heightInterpolation, overflow: 'hidden' }]}>
                 <View style={RideDetailsStyles.detailsWrapper}>
                     <Text style={RideDetailsStyles.detail}>Departure: {ride.departureTime}</Text>
+                    <Text style={RideDetailsStyles.detail}>Date: {ride.departureDate}</Text>
                     <Text style={RideDetailsStyles.detail}>Driver: {ride.driver}</Text>
-                    <Text style={RideDetailsStyles.detail}>Seats Available: {ride.seats}</Text>
+                    <Text style={RideDetailsStyles.detail}>Seats Available: {ride.availableSeats}</Text>
                 </View>
             </Animated.View>
         </View>

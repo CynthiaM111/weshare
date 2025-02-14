@@ -1,69 +1,102 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, Text, Alert, ActivityIndicator } from 'react-native';
+import { View, FlatList, Text, Alert, ActivityIndicator, Button } from 'react-native';
 import axios from 'axios';
 import GlobalStyles from '../styles/GlobalStyles';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import RideCard from '../components/RideCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { jwtDecode } from 'jwt-decode';
+import { getToken,isAuthenticated } from '../services/authService';
 
 export default function HomeScreen({ navigation }) {
     const [rides, setRides] = useState([]);
     const [bookedRides, setBookedRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    const TEMP_USER_ID = "60b6a3f8c6a7463ad6f7a29d"; // Hardcoded for testing
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
     const baseUrl = 'http://10.48.96.152:4000';
 
-    useEffect(() => {
-        fetchRides(TEMP_USER_ID);
-    }, []);
-
-    const fetchRides = async (userId) => {
+    const checkAuthAndFetchRides = async () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${baseUrl}/users/${userId}/rides`);
-             // Debug log
+            const token = await getToken();
+            const authenticated = await isAuthenticated();
+            if (!authenticated) {
+                setError('Please login to see rides');
+                setLoading(false);
+                return;
+            }
+            setIsLoggedIn(true);
+            // Create axios instance with authorization header
+            if (!token) {
+                setError('Authentication required. Please login to see rides');
+                setLoading(false);
+                return;
+            }
+            const axiosInstance = axios.create({
+                baseURL: baseUrl,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            // Check if response.data is an array
-            if (Array.isArray(response.data)) {
-                setRides(response.data);
-            }
-            // If response.data has a specific structure with rides property
-            else if (response.data && response.data.rides) {
-                setRides(response.data.rides);
-            }
-            // If response.data has both rides and bookedRides
-            else if (response.data && response.data.bookedRides) {
-                setRides(response.data.bookedRides);
-            }
-            // If no recognized structure, log error
-            else {
-                console.error('Unexpected data structure:', response.data);
-                setError('Unexpected data structure received');
-            }
+            // Decode token to get userId
+            const decodedToken = jwtDecode(token);
+            const userId = decodedToken.userId;
+            
+            const response = await axiosInstance.get(`/users/${userId}/rides`);
 
+            if (response.data.userRides) {
+                setRides(response.data.userRides);
+            }
             if (response.data.bookedRides) {
                 setBookedRides(response.data.bookedRides);
             }
         } catch (error) {
             console.error("Error fetching rides:", error);
-            setError('Failed to load rides');
-            Alert.alert("Error", "Failed to load rides. Please try again later.");
+            if (error.response?.status === 401) {
+                // Token expired or invalid
+                await AsyncStorage.removeItem('token');
+                setError('Session expired. Please login again');
+                navigation.navigate('Account');
+            } else {
+                setError('Failed to load rides');
+                Alert.alert("Error", "Failed to load rides. Please try again later.");
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    // If there's an error, display it
+    // Refresh rides when the screen comes into focus
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            checkAuthAndFetchRides();
+        });
+
+        return unsubscribe;
+    }, [navigation]);
+
+    // Initial load
+    useEffect(() => {
+        checkAuthAndFetchRides();
+    }, []);
+
+    // If there's an error, display it with login button if needed
     if (error) {
         return (
             <View style={[GlobalStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
                 <Text style={{ color: 'red' }}>{error}</Text>
-                <Text style={{ marginTop: 10 }} onPress={() => fetchRides(TEMP_USER_ID)}>
-                    Tap to retry
-                </Text>
+                {error === 'Please login to see rides' && (
+                    <Button
+                        title="Login"
+                        onPress={() => navigation.navigate('Account')}
+                        style={{ marginTop: 10 }}
+                    />
+                )}
             </View>
         );
     }
