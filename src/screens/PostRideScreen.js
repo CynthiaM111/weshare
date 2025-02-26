@@ -7,7 +7,7 @@ import axios from 'axios';
 
 export default function PostRideScreen() {
     const navigation = useNavigation();
-    const baseUrl = 'http://10.48.96.152:4000';
+    const baseUrl = 'http://10.48.29.77:4000';
 
     const handleSubmit = async (rideData) => {
         try {

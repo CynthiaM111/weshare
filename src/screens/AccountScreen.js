@@ -39,6 +39,7 @@ export default function AccountScreen({ navigation }) {
             setSuccess(response.message);
             setIsLoggedIn(false);
             await AsyncStorage.removeItem('token');
+            
             setTimeout(() => {
                 navigation.navigate('Login');
             }, 1500);

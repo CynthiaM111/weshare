@@ -45,6 +45,9 @@ const LoginScreen = () => {
                     value={emailOrPhone}
                     onChangeText={setEmailOrPhone}
                     style={styles.input}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+               
                 />
                 <Input
                     placeholder="Password"
@@ -52,6 +55,8 @@ const LoginScreen = () => {
                     onChangeText={setPassword}
                     secureTextEntry
                     style={styles.input}
+                    autoCapitalize="none"
+                    autoComplete="off"
                 />
 
                 <Button

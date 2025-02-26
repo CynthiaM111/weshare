@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://10.48.96.152:4000/auth';
+const API_URL = 'http://10.48.29.77:4000/auth';
 
 // Save token to local storage
 const storeToken = async (token) => {

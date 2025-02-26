@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Layout, Text, Input, Button, Alert, StyleSheet } from '@ui-kitten/components';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Layout, Text, Input, Button } from '@ui-kitten/components';
+import { Alert } from 'react-native';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import moment from 'moment';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import PostRideStyles from '../styles/PostRideStyles';
@@ -8,16 +10,24 @@ import PostRideStyles from '../styles/PostRideStyles';
 const PostRideForm = ({ onSubmit }) => {
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [selectedTime, setSelectedTime] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(moment());
+    const [selectedTime, setSelectedTime] = useState(moment());
     const [seats, setSeats] = useState('');
     const [price, setPrice] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const navigation = useNavigation();
+
     const handleSubmit = () => {
         if (!from || !to || !selectedDate || !selectedTime || !seats || !price) {
-            Alert.alert('Error', 'All fields are required');
+            let missingFields = [];
+            if (!from) missingFields.push('"From"');
+            if (!to) missingFields.push('"To"');
+            if (!selectedDate) missingFields.push('"Departure Date"');
+            if (!selectedTime) missingFields.push('"Departure Time"');
+            if (!seats) missingFields.push('"Available Seats"');
+            if (!price) missingFields.push('"Price"');
+            Alert.alert('Missing Fields', `Please fill in the following field(s): ${missingFields.join(', ')}.`);
             return;
         }
         if (parseInt(seats) <= 0) {
@@ -32,31 +42,33 @@ const PostRideForm = ({ onSubmit }) => {
             from,
             to,
             departureTime: formatTime(selectedTime), // Format time to 24-hour format
-            departureDate: selectedDate.toLocaleDateString(),
+            departureDate: selectedDate.format('YYYY-MM-DD'),
             availableSeats: parseInt(seats),
             price: parseFloat(price)
         });
     };
 
-    const onDateChange = (event, selectedDate) => {
+    const onDateChange = (selectedDate) => {
         setShowDatePicker(false);
-        if (selectedDate) {
-            setSelectedDate(selectedDate);
-        }
+        setSelectedDate(moment(selectedDate));
     };
 
-    const onTimeChange = (event, selectedTime) => {
+    const onTimeChange = (selectedTime) => {
         setShowTimePicker(false);
-        if (selectedTime) {
-            setSelectedTime(selectedTime);
-        }
+        setSelectedTime(moment(selectedTime));
     };
 
-    // Function to format time in 24-hour format (HH:mm)
-    const formatTime = (date) => {
-        const hours = date.getHours().toString().padStart(2, '0'); // Ensure 2 digits
-        const minutes = date.getMinutes().toString().padStart(2, '0'); // Ensure 2 digits
-        return `${hours}:${minutes}`;
+    const handleDateCancel = () => {
+        setShowDatePicker(false);
+
+    };
+
+    const handleTimeCancel = () => {
+        setShowTimePicker(false);
+        setShowDatePicker(false);
+    };
+    const formatTime = (momentObj) => {
+        return momentObj.format('HH:mm');
     };
 
     
@@ -99,32 +111,30 @@ const PostRideForm = ({ onSubmit }) => {
             <Input
                 style={PostRideStyles.input}
                 placeholder="Departure Date"
-                value={selectedDate.toLocaleDateString()}
+                value={selectedDate.format('YYYY-MM-DD')}
                 onFocus={() => setShowDatePicker(true)}
             />
-            {showDatePicker && (
-                <DateTimePicker
-                    value={selectedDate}
-                    mode="date"
-                    display="default"
-                    onChange={onDateChange}
-                />
-            )}
+            <DateTimePickerModal
+                isVisible={showDatePicker}
+                mode="date"
+                date={selectedDate.toDate()}
+                onConfirm={onDateChange}
+                onCancel={handleDateCancel}
+            />
             <Input
                 style={PostRideStyles.input}
                 placeholder="Departure Time"
                 value={formatTime(selectedTime)} // Display time in 24-hour format
                 onFocus={() => setShowTimePicker(true)}
             />
-            {showTimePicker && (
-                <DateTimePicker
-                    value={selectedTime}
-                    mode="time"
-                    display="default"
-                    onChange={onTimeChange}
-                    is24Hour={true} // Use 24-hour format
-                />
-            )}
+            <DateTimePickerModal
+                isVisible={showTimePicker}
+                mode="time"
+                date={selectedTime.toDate()}
+                onConfirm={onTimeChange}
+                onCancel={handleTimeCancel}
+                is24Hour={true} // Use 24-hour format
+            />
             <Button 
                 onPress={handleSubmit} 
                 style={PostRideStyles.button}
