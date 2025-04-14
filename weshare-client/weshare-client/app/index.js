@@ -26,7 +26,7 @@ export default function HomeScreen() {
           style={styles.searchInput}
           placeholder="City, town, address, or place"
         />
-        <Text style={styles.searchLabel}>To</Text>
+        <Text style={styles.searchLabel}>To Kigalie</Text>
         <TextInput
           style={styles.searchInput}
           placeholder="City, town, address, or place"
