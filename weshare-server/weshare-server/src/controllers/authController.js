@@ -75,7 +75,46 @@ const login = async (req, res) => {
         res.status(500).json({ error: 'Login failed', details: error.message });
     }
 };
+const status = async (req, res) => {
+    try {
+        // Get token from Authorization header
+        const authHeader = req.headers.authorization;
 
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ isAuthenticated: false });
+        }
+
+        const token = authHeader.split(' ')[1];
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Check if user exists (either agency or regular user)
+        let user;
+        if (decoded.role === 'agency') {
+            user = await Agency.findById(decoded.id);
+        } else {
+            user = await User.findById(decoded.id);
+        }
+
+        if (!user) {
+            return res.status(401).json({ isAuthenticated: false });
+        }
+
+        // Return minimal user info and auth status
+        res.status(200).json({
+            isAuthenticated: true,
+            role: decoded.role,
+            userId: user._id,
+            email: user.email,
+            name: user.name,
+            // Add any other relevant user info you need on the frontend
+        });
+    } catch (error) {
+        // Token is invalid or expired
+        res.status(200).json({ isAuthenticated: false });
+    }
+};
 // Middleware to protect routes
 const protect = async (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1]; // Expect "Bearer <token>"
@@ -100,4 +139,4 @@ const agencyOnly = (req, res, next) => {
     next();
 };
 
-module.exports = { signup, login, protect, agencyOnly };
+module.exports = { signup, login, protect, agencyOnly, status };

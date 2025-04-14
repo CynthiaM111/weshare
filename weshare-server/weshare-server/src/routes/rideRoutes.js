@@ -6,8 +6,8 @@ const authController = require('../controllers/authController');
 router.post('/rides', authController.protect, authController.agencyOnly, rideController.createRide);
 router.get('/rides', rideController.getRides);
 router.get('/rides/:id', rideController.getRideById);
-router.put('/rides/:id', rideController.updateRide);
-router.delete('/rides/:id', rideController.deleteRide);
+router.put('/rides/:id', authController.protect, authController.agencyOnly, rideController.updateRide);
+router.delete('/rides/:id', authController.protect, authController.agencyOnly, rideController.deleteRide);
 // router.post('/rides/:id/book', rideController.bookRide);
 
 module.exports = router;
