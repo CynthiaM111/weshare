@@ -10,7 +10,14 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        backgroundColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
     },
     headerTitle: {
         fontSize: 24,
@@ -21,37 +28,56 @@ export const styles = StyleSheet.create({
     },
     searchContainer: {
         flex: 1,
-        padding: 20,
-        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: 10,
     },
     searchLabel: {
         fontSize: 16,
-        marginBottom: 5,
+        marginBottom: 8,
     },
     searchInput: {
         borderWidth: 1,
         borderColor: '#ccc',
-        borderRadius: 5,
+        borderRadius: 8,
         padding: 15,
         marginBottom: 15,
-        
-        
+        fontSize: 16,
     },
     optionalFields: {
-        marginBottom: 20,
+        marginBottom: 15,
     },
     optionalLabel: {
         fontSize: 14,
         color: '#666',
-        marginBottom: 5,
+        marginBottom: 8,
     },
     optionalInput: {
         borderWidth: 1,
         borderColor: '#ccc',
-        borderRadius: 5,
+        borderRadius: 8,
         padding: 15,
-        marginBottom: 10,
-       
+        fontSize: 16,
+    },
+    dateTimeContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+    },
+    dateInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        padding: 15,
+        marginRight: 10,
+    },
+    timeInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        padding: 15,
+        marginLeft: 10,
     },
     optionsContainer: {
         marginBottom: 20,
@@ -67,9 +93,11 @@ export const styles = StyleSheet.create({
     },
     findButton: {
         backgroundColor: '#0a2472',
-        padding: 15,
-        borderRadius: 5,
+        padding: 16,
+        borderRadius: 8,
         alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 20,
     },
     findButtonText: {
         color: '#fff',
@@ -79,16 +107,17 @@ export const styles = StyleSheet.create({
     bottomNav: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        padding: 10,
+        paddingVertical: 12,
         backgroundColor: '#fff',
-       
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
     },
     navItem: {
         alignItems: 'center',
-        paddingBottom: 10,
+        paddingHorizontal: 10,
     },
     navText: {
-        fontSize: 16,
-        marginTop: 5,
+        fontSize: 12,
+        marginTop: 4,
     },
 });
