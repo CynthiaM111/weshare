@@ -56,6 +56,8 @@ const rideSchema = new mongoose.Schema({
 });
 
 rideSchema.index({ from: 1, to: 1, departure_time: 1 });
+rideSchema.index({ departure_time: 1 });
+rideSchema.index({ status: 1, departure_time: 1 });
 
 const Ride = mongoose.model('Ride', rideSchema);
 
