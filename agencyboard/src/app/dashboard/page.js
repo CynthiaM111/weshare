@@ -186,7 +186,7 @@ export default function Dashboard() {
     return (
         <div className="min-h-screen bg-gray-100 p-6">
             <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center">
+                <div className="flex justify-between items-center gap-4">
                     <h1 className="text-3xl font-bold text-gray-800">Ride Management Dashboard</h1>
                     {currentAgency && (
                         <p className="text-gray-600">Welcome, {currentAgency.name}</p>
