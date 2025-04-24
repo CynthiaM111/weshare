@@ -149,7 +149,7 @@ const deleteRide = async (req, res) => {
 // GET /rides/search?from=&to=&departure_time=&date=
 const searchRides = async (req, res) => {
     try {
-        const { from, to, departure_time, date } = req.query;
+        const { from, to, exact_match } = req.query;
 
         if (!from || !to ) {
             return res.status(400).json({error: 'At least origin or destination is required'})
@@ -157,29 +157,15 @@ const searchRides = async (req, res) => {
 
         // Base query conditions
         const query = {
-            from: new RegExp(from, 'i'),
-            to: new RegExp(to, 'i'),
             status: 'active',
             departure_time: { $gte: new Date() }
         };
+        const exact = String(exact_match).toLowerCase() === 'true';
+        query.from = exact ? from.trim() : new RegExp(from.trim(), 'i');
+        query.to = exact ? to.trim() : new RegExp(to.trim(), 'i');
 
-        // Handle departure_time if provided
-        if (departure_time) {
-            const searchDate = new Date(departure_time);
-            if (isNaN(searchDate.getTime())) {
-                return res.status(400).json({ error: 'Invalid date format' });
-            }
+        
 
-            // Search within ±3 hours of requested time
-            const startWindow = new Date(searchDate);
-            startWindow.setHours(startWindow.getHours() - 3);
-
-            const endWindow = new Date(searchDate);
-            endWindow.setHours(endWindow.getHours() + 3);
-
-            query.departure_time.$gte = startWindow;
-            query.departure_time.$lte = endWindow;
-        }
 
         const rides = await Ride.aggregate([
             { $match: query },
@@ -192,6 +178,7 @@ const searchRides = async (req, res) => {
             { $sort: { departure_time: 1 } },
             { $limit: 50 }
         ]);
+        
 
         res.status(200).json(rides.length ? rides : []);
 
