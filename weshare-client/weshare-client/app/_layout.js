@@ -5,6 +5,10 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import * as eva from '@eva-design/eva';
+import { ApplicationProvider } from '@ui-kitten/components';
+
+//
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -16,11 +20,12 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <ApplicationProvider {...eva} theme={eva.light}>
     <View style={{ flex: 1 }}>
       {/* Main Navigation Structure */}
       <Tabs screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#4CAF50',
+        tabBarActiveTintColor: '#cf1259',
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: {
           paddingBottom: 5,
@@ -28,9 +33,15 @@ export default function RootLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          marginBottom: 5,
+          marginBottom: 10,
         },
       }}>
+        <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
+        }}
+        />
         <Tabs.Screen
           name="(home)"
           options={{
@@ -83,5 +94,6 @@ export default function RootLayout() {
         </View>
       )}
     </View>
+    </ApplicationProvider>
   );
 }

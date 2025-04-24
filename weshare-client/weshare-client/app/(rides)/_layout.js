@@ -1,5 +1,5 @@
 // app/(rides)/_layout.js
-import { Stack } from "expo-router";
+import { Stack } from 'expo-router';
 
 export default function RidesLayout() {
     return (
@@ -12,20 +12,19 @@ export default function RidesLayout() {
                 headerTitleStyle: {
                     fontWeight: 'bold',
                 },
+                headerBackTitle: 'Back',
             }}
         >
             <Stack.Screen
                 name="index"
                 options={{
                     title: 'Available Rides',
-                    headerBackTitle: 'Back'
                 }}
             />
             <Stack.Screen
                 name="[id]"
                 options={{
                     title: 'Ride Details',
-                    headerBackTitle: 'Back'
                 }}
             />
         </Stack>

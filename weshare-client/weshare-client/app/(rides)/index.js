@@ -4,10 +4,8 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import RideCard from '../../components/RideCard';
-import BottomNav from '../../components/BottomNav';
 
 export default function RidesScreen() {
-    const [activeTab, setActiveTab] = useState('Rides');
     const router = useRouter();
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -18,10 +16,10 @@ export default function RidesScreen() {
 
     const fetchRides = async () => {
         try {
-            const response = await axios.get('http://localhost:5002/api/rides');
+            const response = await axios.get('http://10.48.21.202:5002/api/rides');
             setRides(response.data);
         } catch (error) {
-            console.error('Error fetching rides:', error);
+            console.error('Error fetching rides in index.js of (rides):', error);
         } finally {
             setLoading(false);
         }
@@ -42,13 +40,17 @@ export default function RidesScreen() {
                 renderItem={({ item }) => (
                     <RideCard
                         ride={item}
-                        onPress={() => router.push(`/rides/${item._id}`)}
+                        onPress={() => router.push(`/(rides)/${item._id}`)}
                     />
                 )}
                 keyExtractor={item => item._id}
                 contentContainerStyle={{ padding: 16 }}
+                ListEmptyComponent={
+                    <Text style={{ textAlign: 'center', marginTop: 24 }}>
+                        No rides available
+                    </Text>
+                }
             />
-            {/* <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} /> */}
         </View>
     );
 }

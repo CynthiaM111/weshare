@@ -1,10 +1,18 @@
 // styles/HomeScreenStyles.js
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: 'gray',
+        borderRadius: 5,
+        padding: 10,
+        margin: 10,
+        fontSize: 16,
     },
     header: {
         flexDirection: 'row',
@@ -92,7 +100,7 @@ export const styles = StyleSheet.create({
         fontSize: 16,
     },
     findButton: {
-        backgroundColor: '#0a2472',
+        backgroundColor: 'royalblue',
         padding: 16,
         borderRadius: 8,
         alignItems: 'center',
@@ -119,5 +127,38 @@ export const styles = StyleSheet.create({
     navText: {
         fontSize: 12,
         marginTop: 4,
+    },
+    iosButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    iosButton: {
+        backgroundColor: '#0a2472',
+        padding: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 20,
+    },
+    pickerContainer: {
+        backgroundColor: '#333', // Dark background for the picker
+        borderRadius: Platform.OS === 'ios' ? 10 : 0,
+        padding: Platform.OS === 'ios' ? 10 : 0,
+        margin: 10,
+        height: Platform.OS === 'ios' ? 200 : 'auto',
+    },
+    buttonContainer: {
+        margin: 10,
+    },
+    dateTimeInput: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingRight: 12,
+    },
+    dateTimeText: {
+        fontSize: 16,
+        color: '#000',
     },
 });
