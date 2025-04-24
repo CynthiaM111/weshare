@@ -6,7 +6,7 @@ export default function RidesLayout() {
         <Stack
             screenOptions={{
                 headerStyle: {
-                    backgroundColor: '#4CAF50',
+                    backgroundColor: 'royalblue',
                 },
                 headerTintColor: '#fff',
                 headerTitleStyle: {

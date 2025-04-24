@@ -110,10 +110,10 @@ const styles = StyleSheet.create({
     },
     price: {
         fontWeight: 'bold',
-        color: '#2e86de',
+        color: 'royalblue',
     },
     bookButton: {
-        backgroundColor: '#2e86de',
+        backgroundColor: 'royalblue',
         padding: 16,
         borderRadius: 8,
         alignItems: 'center',
