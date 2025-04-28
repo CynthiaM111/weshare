@@ -6,10 +6,14 @@ const authController = require('../controllers/authController');
 router.post('/rides', authController.protect, authController.agencyOnly, rideController.createRide);
 router.get('/rides', rideController.getRides);
 router.get('/rides/search', rideController.searchRides);
+router.get('/rides/booked', authController.protect, rideController.getUserRides);
 router.get('/rides/:id', rideController.getRideById);
 router.put('/rides/:id', authController.protect, authController.agencyOnly, rideController.updateRide);
 router.delete('/rides/:id', authController.protect, authController.agencyOnly, rideController.deleteRide);
 
-// router.post('/rides/:id/book', rideController.bookRide);
+// Protected routes (require authentication)
+router.post('/rides/:rideId/book', authController.protect, rideController.bookRide);
+
+router.delete('/rides/:rideId/cancel', authController.protect, rideController.cancelRideBooking);
 
 module.exports = router;

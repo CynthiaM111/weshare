@@ -1,6 +1,7 @@
 const Ride = require('../models/ride');
 const Agency = require('../models/agency');
 const redisClient = require('../Utilities/redisClient');
+const User = require('../models/user');
 
 
 // Helper function to clear Redis cache
@@ -191,38 +192,104 @@ const searchRides = async (req, res) => {
     }
 };
 
-    // POST /rides/:id/book - Book seats on a ride (Users)
-    // const bookRide = async (req, res) => {
-    //     try {
-    //         const { id } = req.params;
-    //         const { seatsToBook } = req.body; // Number of seats to book
+// POST /rides/:id/book - Book seats on a ride (Users)
+const bookRide = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const userId = req.user.id; // From auth middleware
 
-    //         if (!seatsToBook || seatsToBook <= 0) {
-    //             return res.status(400).json({ error: 'Invalid number of seats to book' });
-    //         }
+        // Find the ride
+        const ride = await Ride.findById(rideId);
+        if (!ride) {
+            return res.status(404).json({ error: 'Ride not found' });
+        }
 
-    //         const ride = await Ride.findById(id);
-    //         if (!ride || ride.status !== 'active') {
-    //             return res.status(404).json({ error: 'Ride not found or not available' });
-    //         }
+        // Check if seats are available
+        if (ride.available_seats <= 0) {
+            return res.status(400).json({ error: 'No seats available' });
+        }
 
-    //         const availableSeats = ride.seats - ride.booked_seats;
-    //         if (seatsToBook > availableSeats) {
-    //             return res.status(400).json({ error: 'Not enough seats available' });
-    //         }
+        // Check if user already booked this ride
+        if (ride.booked_users.includes(userId)) {
+            return res.status(400).json({ error: 'You have already booked this ride' });
+        }
 
-    //         ride.booked_seats += seatsToBook;
-    //         if (ride.booked_seats === ride.seats) {
-    //             ride.status = 'completed'; // Mark as full if all seats are booked
-    //         }
+        // Update the ride
+        ride.booked_users.push(userId);
+        ride.available_seats -= 1;
+        await ride.save();
 
-    //         await ride.save();
-    //         await clearCache(); // Clear cache after booking
-    //         res.status(200).json({ message: 'Seats booked successfully', ride });
-    //     } catch (error) {
-    //         res.status(500).json({ error: 'Failed to book ride', details: error.message });
-    //     }
-    ;
+        // Add to user's booked rides
+        const user = await User.findById(userId);
+        user.booked_rides.push(rideId);
+        await user.save();
+
+        res.status(200).json({ message: 'Ride booked successfully', ride });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to book ride', details: error.message });
+    }
+};
+
+const getUserRides = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // Find user and populate booked rides with agency details
+        const user = await User.findById(userId).populate({
+            path: 'booked_rides',
+            populate: {
+                path: 'agencyId',
+                select: 'name email'  // Only select necessary fields
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        
+
+        res.status(200).json(user.booked_rides);
+    } catch (error) {
+        console.error('Error in getUserRides:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch user rides', 
+            details: error.message 
+        });
+    }
+};
+
+const cancelRideBooking = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const userId = req.user.id;
+
+        // Find and update the ride
+        const ride = await Ride.findById(rideId);
+        if (!ride) {
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        // Check if user has booked this ride
+        if (!ride.booked_users.includes(userId)) {
+            return res.status(400).json({ error: 'You have not booked this ride' });
+        }
+
+        // Remove user from booked_users and increase available seats
+        ride.booked_users = ride.booked_users.filter(id => id.toString() !== userId);
+        ride.available_seats += 1;
+        await ride.save();
+
+        // Remove ride from user's booked_rides
+        const user = await User.findById(userId);
+        user.booked_rides = user.booked_rides.filter(id => id.toString() !== rideId);
+        await user.save();
+
+        res.status(200).json({ message: 'Booking cancelled successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to cancel booking', details: error.message });
+    }
+};
 
 module.exports = {
     createRide,
@@ -231,5 +298,8 @@ module.exports = {
     updateRide,
     deleteRide,
     searchRides,
-    // bookRide,
+    bookRide,
+    getUserRides,
+    cancelRideBooking
+    
 };

@@ -1,14 +1,15 @@
-const express = require('express');
+import express from 'express';
 const app = express();
 const port = 5002;
-const cors = require('cors');
-const mongoose = require('mongoose');
-const rideRoutes = require('./src/routes/rideRoutes');
-const agencyRoutes = require('./src/routes/agencyRoutes');
-const authRoutes = require('./src/routes/authRoutes');
+import cors from 'cors';
+import mongoose from 'mongoose';
+import rideRoutes from './src/routes/rideRoutes.js';
+import agencyRoutes from './src/routes/agencyRoutes.js';
+import authRoutes from './src/routes/authRoutes.js';
 
 app.use(express.json());
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 app.use(cors());
 
@@ -19,7 +20,8 @@ mongoose.connect(process.env.MONGODB_URI)
     .catch((err) => {
         console.log(err);
     });
-    
+
+
 // Test Route
 app.get('/', (req, res) => {
     res.send('Transit Backend Running!');

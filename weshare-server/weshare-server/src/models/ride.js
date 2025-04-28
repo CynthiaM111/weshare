@@ -51,6 +51,10 @@ const rideSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    booked_users: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, 
 });

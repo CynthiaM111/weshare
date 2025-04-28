@@ -8,6 +8,10 @@ const userSchema = new mongoose.Schema({
     contact_number: { type: String, required: true },
 
     created_at: { type: Date, default: Date.now },
+    booked_rides: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Ride'
+    }]
 });
 
 const User = mongoose.model('User', userSchema);

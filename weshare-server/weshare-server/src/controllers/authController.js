@@ -30,7 +30,7 @@ const signup = async (req, res) => {
             return res.status(201).json({ message: 'Agency created successfully' });
         } else {
             // Default to normal user
-            const user = new User({ name, email, password: hashedPassword, role: 'user' });
+            const user = new User({ name, email, password: hashedPassword, role: 'user', contact_number });
             await user.save();
             return res.status(201).json({ message: 'User created successfully. Please use the mobile app to log in.' });
         }
