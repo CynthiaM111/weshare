@@ -1,7 +1,11 @@
 // app/(rides)/_layout.js
 import { Stack } from 'expo-router';
+import { Button } from '@ui-kitten/components';
+import { useRouter } from 'expo-router';
 
 export default function RidesLayout() {
+    const router = useRouter();
+
     return (
         <Stack
             screenOptions={{
@@ -25,6 +29,12 @@ export default function RidesLayout() {
                 name="[id]"
                 options={{
                     title: 'Ride Details',
+                }}
+            />
+            <Stack.Screen
+                name="booked"
+                options={{
+                    title: 'Booked Rides',
                 }}
             />
         </Stack>

@@ -1,16 +1,27 @@
-// app/_layout.js
-import { Stack, Tabs } from "expo-router";
+import { Stack, Tabs, useRouter } from "expo-router";
 import SplashScreen from "../components/SplashScreen";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
-
 import * as eva from '@eva-design/eva';
 import { ApplicationProvider } from '@ui-kitten/components';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-//
+// Wrap your app with AuthProvider
 export default function RootLayout() {
+  return (
+    <ApplicationProvider {...eva} theme={eva.light}>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </ApplicationProvider>
+  );
+}
+
+function RootLayoutNav() {
   const [showSplash, setShowSplash] = useState(true);
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -19,10 +30,18 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Show loading indicator while checking auth state
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // Show main app layout for all users
   return (
-    <ApplicationProvider {...eva} theme={eva.light}>
     <View style={{ flex: 1 }}>
-      {/* Main Navigation Structure */}
       <Tabs screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#cf1259',
@@ -36,12 +55,7 @@ export default function RootLayout() {
           marginBottom: 10,
         },
       }}>
-        <Tabs.Screen
-        name="index"
-        options={{
-          href: null,
-        }}
-        />
+        {/* Visible tabs first */}
         <Tabs.Screen
           name="(home)"
           options={{
@@ -78,6 +92,20 @@ export default function RootLayout() {
             tabBarLabel: 'Profile',
           }}
         />
+
+        {/* Hidden screens at the end */}
+        <Tabs.Screen
+          name="index"
+          options={{ href: null }}
+        />
+        <Tabs.Screen
+          name="(auth)/login"
+          options={{ tabBarButton: () => null, tabBarItemStyle: {display: 'none'} }}
+        />
+        <Tabs.Screen
+          name="(auth)/signup"
+          options={{ tabBarButton: () => null, tabBarItemStyle: {display: 'none'} }}
+        />
       </Tabs>
 
       {/* Splash Screen Overlay */}
@@ -94,6 +122,5 @@ export default function RootLayout() {
         </View>
       )}
     </View>
-    </ApplicationProvider>
   );
 }
