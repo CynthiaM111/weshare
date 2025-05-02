@@ -1,64 +1,54 @@
-// app/_components/RideCard.js
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useAuth } from '../app/context/AuthContext';
-import { Button, Text as KittenText } from '@ui-kitten/components';
-import axios from 'axios';
-import { useRouter } from 'expo-router';
+// components/RideCard.js
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function RideCard({ ride, onPress, onBookingSuccess }) {
-    const { user } = useAuth();
-    const router = useRouter();
-
-
-    const handleBooking = async () => {
-        if (!user) {
-            // Redirect to login if not authenticated
-            router.push('/(auth)/login');
-            return;
-        }
-
-        try {
-            const response = await axios.post(
-                `http://10.48.21.202:5002/api/rides/${ride._id}/book`,
-                {},
-                {
-                    headers: {
-                        Authorization: `Bearer ${user.token}`
-                    }
-                }
-            );
-            Alert.alert('Success', 'Ride booked successfully!');
-            if (onBookingSuccess) {
-                onBookingSuccess();
-            }
-            router.push('/(rides)/booked');
-        } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to book ride');
-        }
-    };
-
+export default function RideCard({ ride, onPress, isBooked, availableSeats, isFull }) {
     return (
-        <TouchableOpacity style={styles.card} onPress={onPress}>
-            <Text style={styles.route}>{ride.from} → {ride.to}</Text>
-            <Text style={styles.time}>
-                {new Date(ride.departure_time).toLocaleString()}
-            </Text>
-            <View style={styles.footer}>
-                <Text style={styles.seats}>
-                    {ride.available_seats} seats left
+        <TouchableOpacity onPress={onPress} style={[
+            styles.card,
+            isBooked && styles.bookedCard,
+            isFull && styles.fullCard
+        ]}>
+            <View style={styles.header}>
+                <Text style={styles.route}>
+                    {ride.from} → {ride.to}
                 </Text>
-                <Text style={styles.price}>${ride.price}</Text>
+                {isBooked && (
+                    <View style={styles.bookedBadge}>
+                        <Text style={styles.bookedBadgeText}>Booked</Text>
+                    </View>
+                )}
+                {isFull && !isBooked && (
+                    <View style={styles.fullBadge}>
+                        <Text style={styles.fullBadgeText}>Full</Text>
+                    </View>
+                )}
             </View>
-            <Button 
-                onPress={handleBooking}
-                disabled={ride.available_seats <= 0}
-                status={ride.available_seats > 0 ? 'primary' : 'basic'}
-                style={styles.bookButton}
-            >
-                <KittenText>
-                    {ride.available_seats > 0 ? 'Book Now' : 'Fully Booked'}
-                </KittenText>
-            </Button>
+
+            <View style={styles.details}>
+                <View style={styles.detailRow}>
+                    <Ionicons name="time-outline" size={16} color="#666" />
+                    <Text style={styles.detailText}>
+                        {new Date(ride.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                    <Ionicons name="people-outline" size={16} color="#666" />
+                    <Text style={styles.detailText}>
+                        {availableSeats} seat{availableSeats !== 1 ? 's' : ''} available
+                    </Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                    <Ionicons name="pricetag-outline" size={16} color="#666" />
+                    <Text style={styles.detailText}>${ride.price}</Text>
+                </View>
+            </View>
+
+            {ride.agencyId?.name && (
+                <Text style={styles.agencyText}>{ride.agencyId.name}</Text>
+            )}
         </TouchableOpacity>
     );
 }
@@ -67,33 +57,69 @@ const styles = StyleSheet.create({
     card: {
         backgroundColor: 'white',
         padding: 16,
-        marginBottom: 12,
         borderRadius: 8,
-        elevation: 2,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
     },
-    route: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 4,
+    bookedCard: {
+        borderLeftWidth: 4,
+        borderLeftColor: '#4CAF50',
     },
-    time: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 8,
+    fullCard: {
+        opacity: 0.7,
     },
-    footer: {
+    header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 12,
     },
-    seats: {
-        color: '#444',
-    },
-    price: {
+    route: {
+        fontSize: 16,
         fontWeight: 'bold',
-        color: '#2e86de',
+        flex: 1,
     },
-    bookButton: {
-        marginTop: 8,
+    bookedBadge: {
+        backgroundColor: '#4CAF50',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+        marginLeft: 8,
+    },
+    bookedBadgeText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    fullBadge: {
+        backgroundColor: '#f44336',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+        marginLeft: 8,
+    },
+    fullBadgeText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    details: {
+        marginBottom: 8,
+    },
+    detailRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    detailText: {
+        marginLeft: 8,
+        fontSize: 14,
+        color: '#666',
+    },
+    agencyText: {
+        fontSize: 12,
+        color: '#888',
+        fontStyle: 'italic',
     },
 });

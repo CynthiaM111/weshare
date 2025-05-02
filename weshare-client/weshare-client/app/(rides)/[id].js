@@ -1,29 +1,50 @@
 // app/(rides)/[id].js
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { config } from '../../config';
+import { useAuth } from '../context/AuthContext';
 
 export default function RideDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { user } = useAuth();
     const [ride, setRide] = useState(null);
     const [loading, setLoading] = useState(true);
    
-
     useEffect(() => {
         fetchRideDetails();
     }, []);
 
     const fetchRideDetails = async () => {
         try {
-            const response = await axios.get(`http://10.48.21.202:5002/api/rides/${id}`);
+            const response = await axios.get(`${config.API_URL}/rides/${id}`);
             setRide(response.data);
         } catch (error) {
             console.error('Error fetching ride details in [id].js:', error);
             router.back();
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBookRide = async () => {
+        try {
+            await axios.post(
+                `${config.API_URL}/rides/${id}/book`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${user.token}`
+                    }
+                }
+            );
+            Alert.alert('Success', 'Ride booked successfully!');
+            router.push('/(rides)/booked'); // Redirect to booked rides screen
+        } catch (error) {
+            console.error('Booking error:', error);
+            Alert.alert('Error', error.response?.data?.error || 'Failed to book ride');
         }
     };
 
@@ -67,7 +88,7 @@ export default function RideDetails() {
 
             <TouchableOpacity
                 style={styles.bookButton}
-                onPress={() => console.log('Book ride')}
+                onPress={handleBookRide}
             >
                 <Text style={styles.bookButtonText}>Book This Ride</Text>
             </TouchableOpacity>

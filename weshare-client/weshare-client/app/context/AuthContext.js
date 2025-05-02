@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { jwtDecode } from 'jwt-decode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { config } from '../../config';
 
 const AuthContext = createContext();
 
@@ -22,7 +23,7 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
 
-            const response = await axios.get('http://10.48.21.202:5002/api/auth/status', {
+            const response = await axios.get(`${config.API_URL}/auth/status`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -51,7 +52,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await axios.post('http://10.48.21.202:5002/api/auth/login', {
+            const response = await axios.post(`${config.API_URL}/auth/login`, {
                 email,
                 password,
             });
@@ -81,7 +82,7 @@ export const AuthProvider = ({ children }) => {
 
     const signup = async (userData, role) => {
         try {
-            const response = await axios.post('http://10.48.21.202:5002/api/auth/signup', {
+            const response = await axios.post(`${config.API_URL}/auth/signup`, {
                 ...userData,
                 role,
             });

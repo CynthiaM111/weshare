@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Text } from '@ui-kitten/components';
 import axios from 'axios';
 import RideCard from '../../components/RideCard';
+import { config } from '../../config';
 
 export default function BookedRidesScreen() {
     const [bookedRides, setBookedRides] = useState([]);
@@ -13,7 +14,7 @@ export default function BookedRidesScreen() {
     const fetchBookedRides = async () => {
         try {
             const response = await axios.get(
-                'http://10.48.21.202:5002/api/rides/booked',
+                `${config.API_URL}/rides/booked`,
                 {
                     headers: {
                         Authorization: `Bearer ${user.token}`
@@ -46,7 +47,7 @@ export default function BookedRidesScreen() {
     const handleCancelBooking = async (rideId) => {
         try {
             await axios.delete(
-                `http://10.48.21.202:5002/api/rides/${rideId}/cancel`,
+                `${config.API_URL}/rides/${rideId}/cancel`,
                 {
                     headers: {
                         Authorization: `Bearer ${user.token}`

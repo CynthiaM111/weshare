@@ -5,11 +5,13 @@ import { styles } from '../../styles/HomeScreenStyles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import { config } from '../../config';
 
 export default function HomeScreen() {
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const router = useRouter();
+    
 
     const handleSearch = async () => {
         try {
@@ -18,19 +20,21 @@ export default function HomeScreen() {
                 return;
             }
 
-
-            const response = await axios.get(`http://10.48.21.202:5002/api/rides/search`, {
-                params: {
-                    from: from.trim(),  // Trim whitespace
-                    to: to.trim(),      // Trim whitespace
-                    exact_match: 'true'   // Add flag for exact match
-                },
-                paramsSerializer: params => {
-                    return Object.entries(params)
-                        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-                        .join('&');
+            const response = await axios.get(
+                `${config.API_URL}/rides/search`,
+                {
+                    params: {
+                        from: from.trim(),  // Trim whitespace
+                        to: to.trim(),      // Trim whitespace
+                        exact_match: 'true'   // Add flag for exact match
+                    },
+                    paramsSerializer: params => {
+                        return Object.entries(params)
+                            .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+                            .join('&');
+                    }
                 }
-            });
+            );
 
             if (response.data.length > 0) {
                 router.push({
