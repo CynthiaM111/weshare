@@ -1,14 +1,48 @@
-// components/RideCard.js
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
+import { config } from '../config';
+import { useAuth } from '../app/context/AuthContext';
 
-export default function RideCard({ ride, onPress, isBooked, availableSeats, isFull }) {
+export default function RideCard({
+    ride,
+    onPress,
+    isBooked,
+    availableSeats
+}) {
+    const { user } = useAuth();
+    const [showCancelButton, setShowCancelButton] = useState(isBooked);
+
+    const isFull = availableSeats <= 0;
+
+    const handleCancelBooking = async (rideId) => {
+        try {
+            await axios.delete(
+                `${config.API_URL}/rides/${rideId}/cancel`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${user.token}`
+                    }
+                }
+            );
+            Alert.alert('Success', 'Booking cancelled successfully');
+            setShowCancelButton(false);
+            // Optionally refresh rides if you pass a callback prop
+        } catch (error) {
+            Alert.alert('Error', error.response?.data?.error || 'Failed to cancel booking');
+        }
+    };
+
     return (
-        <TouchableOpacity onPress={onPress} style={[
-            styles.card,
-            isBooked && styles.bookedCard,
-            isFull && styles.fullCard
-        ]}>
+        <TouchableOpacity
+            onPress={onPress}
+            style={[
+                styles.card,
+                isBooked && styles.bookedCard,
+                isFull && !isBooked && styles.fullCard
+            ]}
+        >
             <View style={styles.header}>
                 <Text style={styles.route}>
                     {ride.from} → {ride.to}
@@ -48,6 +82,24 @@ export default function RideCard({ ride, onPress, isBooked, availableSeats, isFu
 
             {ride.agencyId?.name && (
                 <Text style={styles.agencyText}>{ride.agencyId.name}</Text>
+            )}
+
+            {isBooked ? (
+                <View style={styles.bookingStatusContainer}>
+                    {/* <Text style={styles.alreadyBookedText}>Already Booked</Text> */}
+                    {showCancelButton && (
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={() => handleCancelBooking(ride._id)}
+                        >
+                            <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            ) : (
+                <Text style={isFull ? styles.fullyBookedText : styles.availableText}>
+                    {isFull ? "Fully Booked" : `${availableSeats} Seats Available`}
+                </Text>
             )}
         </TouchableOpacity>
     );
@@ -122,4 +174,31 @@ const styles = StyleSheet.create({
         color: '#888',
         fontStyle: 'italic',
     },
+    bookingStatusContainer: {
+        alignItems: 'center',
+        gap: 8
+    },
+    alreadyBookedText: {
+        color: '#4CAF50',
+        fontWeight: 'bold'
+    },
+    cancelButton: {
+        backgroundColor: '#ff4444',
+        padding: 8,
+        borderRadius: 4,
+        marginTop: 4
+    },
+    cancelButtonText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold'
+    },
+    fullyBookedText: {
+        color: '#f44336',
+        fontWeight: 'bold'
+    },
+    availableText: {
+        color: '#666',
+        fontWeight: 'bold'
+    }
 });

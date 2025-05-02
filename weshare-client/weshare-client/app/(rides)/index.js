@@ -22,6 +22,7 @@ export default function RidesScreen() {
         booked: true
     });
 
+
     // Parse the rides from params on component mount
     useEffect(() => {
         if (params.rides) {
@@ -112,6 +113,25 @@ export default function RidesScreen() {
     // Check if we have any rides to show (from search or bookings)
     const hasSearchResults = searchResults.length > 0;
     const hasBookings = userBookings.length > 0;
+
+    const handleCancelBooking = async (rideId) => {
+        try {
+            await axios.delete(`${config.API_URL}/rides/${rideId}/cancel`, {
+                headers: { Authorization: `Bearer ${user.token}` }
+            });
+            
+            // Remove the booking from userBookings
+            const newUserBookings = new Set(userBookings);
+            newUserBookings.delete(rideId);
+            setUserBookings(newUserBookings);
+            
+            // Refresh the rides data
+            onRefresh();
+        } catch (error) {
+            console.error('Error canceling booking:', error);
+            alert('Failed to cancel booking. Please try again.');
+        }
+    };
 
     return (
         <View style={{ flex: 1, padding: 16 }}>
@@ -265,6 +285,7 @@ export default function RidesScreen() {
                                                         onPress={() => router.push(`/(rides)/${ride._id}`)}
                                                         isBooked={true}
                                                         availableSeats={ride.seats - (ride.booked_seats || 0)}
+                                                        showCancelButton={false}
                                                     />
                                                 ))}
                                             </View>
