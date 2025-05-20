@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const rideSchema = new mongoose.Schema({
+    categoryId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'DestinationCategory',
+        required: true
+    },
     from: {
         type: String,
         required: true,
@@ -15,6 +20,10 @@ const rideSchema = new mongoose.Schema({
         type: Date,
         required: true,
     },
+    estimatedArrivalTime: {
+        type: Date,
+        required: true,
+    },
     seats: {
         type: Number,
         required: true,
@@ -23,6 +32,10 @@ const rideSchema = new mongoose.Schema({
     agencyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Agency',
+        required: true,
+    },
+    licensePlate: {
+        type: String,
         required: true,
     },
     status: {

@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import rideRoutes from './src/routes/rideRoutes.js';
 import agencyRoutes from './src/routes/agencyRoutes.js';
 import authRoutes from './src/routes/authRoutes.js';
+import destinationCategoryRoutes from './src/routes/destinationCategoryRoutes.js';
 
 app.use(express.json());
 import dotenv from 'dotenv';
@@ -28,6 +29,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api', rideRoutes);
+app.use('/api', destinationCategoryRoutes);
 app.use('/api/agencies', agencyRoutes);
 app.use('/api/auth', authRoutes);
 app.listen(port, () => {

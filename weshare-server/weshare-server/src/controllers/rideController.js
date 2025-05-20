@@ -2,6 +2,7 @@ const Ride = require('../models/ride');
 const Agency = require('../models/agency');
 const redisClient = require('../Utilities/redisClient');
 const User = require('../models/user');
+const DestinationCategory = require('../models/destinationCategory');
 
 
 // Helper function to clear Redis cache
@@ -12,15 +13,41 @@ const clearCache = async () => {
 // POST /rides - Create a new ride (Agency)
 const createRide = async (req, res) => {
     try {
-        const { from, to, departure_time, seats, agencyId, price } = req.body;
+        const {
+            categoryId,
+            departure_time,
+            seats,
+            price,
+            licensePlate
+        } = req.body;
+
+        // Verify category exists and belongs to agency
+        const category = await DestinationCategory.findOne({
+            _id: categoryId,
+            agencyId: req.user.id,
+            isActive: true
+        });
+
+        if (!category) {
+            return res.status(404).json({ error: 'Destination category not found' });
+        }
+
+        // Calculate estimated arrival time
+        const departureTime = new Date(departure_time);
+        const estimatedArrivalTime = new Date(departureTime);
+        estimatedArrivalTime.setHours(estimatedArrivalTime.getHours() + category.averageTime);
 
         const ride = new Ride({
-            from,
-            to,
-            departure_time: new Date(departure_time),
+            categoryId,
+            from: category.from,
+            to: category.to,
+            departure_time: departureTime,
+            estimatedArrivalTime,
             seats,
-            agencyId,
             price: price || 0,
+            licensePlate,
+            agencyId: req.user.id,
+            booked_seats: 0
         });
 
         await ride.save();
@@ -54,14 +81,17 @@ const getRides = async (req, res) => {
                     from: 1,
                     to: 1,
                     departure_time: 1,
+                    estimatedArrivalTime: 1,
                     seats: 1,
                     agencyId: 1,
                     price: 1,
                     status: 1,
                     booked_seats: 1,
+                    categoryId: 1,
+                    licensePlate: 1,
                     created_at: 1,
                     updated_at: 1,
-                    available_seats: { $subtract: ['$seats', '$booked_seats'] }, // Calculate available seats
+                    available_seats: { $subtract: ['$seats', '$booked_seats'] },
                 },
             },
             // Filter for rides with available seats > 0
@@ -76,8 +106,11 @@ const getRides = async (req, res) => {
             },
         ]);
 
-        // Populate agency details (since aggregate doesn't do this automatically)
-        await Ride.populate(rides, { path: 'agencyId', select: 'name email' });
+        // Populate agency and category details
+        await Ride.populate(rides, [
+            { path: 'agencyId', select: 'name email' },
+            { path: 'categoryId', select: 'from to averageTime' }
+        ]);
 
         // Cache the result for 5 minutes
         await redisClient.setEx('available_rides', 300, JSON.stringify(rides));
@@ -91,7 +124,8 @@ const getRides = async (req, res) => {
 const getRideById = async (req, res) => {
     try {
         const ride = await Ride.findById(req.params.id)
-            .populate('agencyId', 'name email');
+            .populate('agencyId', 'name email')
+            .populate('categoryId', 'from to averageTime');
 
         if (!ride) {
             return res.status(404).json({ error: 'Ride not found' });
@@ -113,18 +147,29 @@ const updateRide = async (req, res) => {
             delete updates.booked_seats;
         }
 
-        const ride = await Ride.findByIdAndUpdate(
+        // If updating departure time, recalculate ETA
+        if (updates.departure_time) {
+            const ride = await Ride.findById(id).populate('categoryId');
+            if (ride && ride.categoryId) {
+                const departureTime = new Date(updates.departure_time);
+                const estimatedArrivalTime = new Date(departureTime);
+                estimatedArrivalTime.setHours(estimatedArrivalTime.getHours() + ride.categoryId.averageTime);
+                updates.estimatedArrivalTime = estimatedArrivalTime;
+            }
+        }
+
+        const updatedRide = await Ride.findByIdAndUpdate(
             id,
             { ...updates, updated_at: Date.now() },
-            { new: true, runValidators: true } // Return updated doc, validate inputs
-        );
+            { new: true, runValidators: true }
+        ).populate(['agencyId', 'categoryId']);
 
-        if (!ride) {
+        if (!updatedRide) {
             return res.status(404).json({ error: 'Ride not found' });
         }
 
-        await clearCache(); // Clear cache on update
-        res.status(200).json({ message: 'Ride updated successfully', ride });
+        await clearCache();
+        res.status(200).json({ message: 'Ride updated successfully', ride: updatedRide });
     } catch (error) {
         res.status(500).json({ error: 'Failed to update ride', details: error.message });
     }
@@ -152,8 +197,8 @@ const searchRides = async (req, res) => {
     try {
         const { from, to, exact_match } = req.query;
 
-        if (!from || !to ) {
-            return res.status(400).json({error: 'At least origin or destination is required'})
+        if (!from || !to) {
+            return res.status(400).json({ error: 'At least origin or destination is required' });
         }
 
         // Base query conditions
@@ -164,9 +209,6 @@ const searchRides = async (req, res) => {
         const exact = String(exact_match).toLowerCase() === 'true';
         query.from = exact ? from.trim() : new RegExp(from.trim(), 'i');
         query.to = exact ? to.trim() : new RegExp(to.trim(), 'i');
-
-        
-
 
         const rides = await Ride.aggregate([
             { $match: query },
@@ -179,10 +221,14 @@ const searchRides = async (req, res) => {
             { $sort: { departure_time: 1 } },
             { $limit: 50 }
         ]);
-        
+
+        // Populate necessary references
+        await Ride.populate(rides, [
+            { path: 'agencyId', select: 'name email' },
+            { path: 'categoryId', select: 'from to averageTime' }
+        ]);
 
         res.status(200).json(rides.length ? rides : []);
-
     } catch (error) {
         console.error('Search error:', error);
         res.status(500).json({
