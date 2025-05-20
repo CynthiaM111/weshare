@@ -3,13 +3,12 @@
 import axios from 'axios';
 
 export default function CreateRideForm({
-    editingRide,
-    setEditingRide,
-    fetchRides,
-    currentAgency,
+    category,
     formData,
     setFormData,
-    onSuccess
+    onSuccess,
+    editingRide,
+    onCancel
 }) {
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -21,64 +20,78 @@ export default function CreateRideForm({
             const token = localStorage.getItem('token');
             if (!token) return;
 
+            const rideData = {
+                categoryId: category._id,
+                departure_time: formData.departure_time,
+                seats: Number(formData.seats),
+                price: Number(formData.price) || 0,
+                licensePlate: formData.licensePlate,
+            };
+
             if (editingRide) {
-                await axios.put(`http://localhost:5002/api/rides/${editingRide._id}`, {
-                    ...formData,
-                    seats: Number(formData.seats),
-                    price: Number(formData.price) || 0,
-                    agencyId: currentAgency.id,
-                }, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                // Update existing ride
+                await axios.put(
+                    `http://localhost:5002/api/rides/${editingRide._id}`,
+                    rideData,
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
                     }
-                });
+                );
             } else {
-                await axios.post('http://localhost:5002/api/rides', {
-                    ...formData,
-                    seats: Number(formData.seats),
-                    price: Number(formData.price) || 0,
-                    agencyId: currentAgency.id,
-                }, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                // Create new ride
+                await axios.post(
+                    'http://localhost:5002/api/rides',
+                    rideData,
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
                     }
-                });
+                );
             }
-            fetchRides();
-            setFormData({ from: '', to: '', departure_time: '', seats: '', price: '' });
-            setEditingRide(null);
-            onSuccess();
+
+            setFormData({
+                departure_time: '',
+                seats: '',
+                price: '',
+                licensePlate: '',
+            });
+            
+            await onSuccess();
         } catch (error) {
-            console.error('Error creating/updating ride:', error);
+            console.error('Error saving ride:', error);
         }
     };
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-700 mb-4">
-                {editingRide ? 'Edit Ride' : 'Create New Ride'}
+                {editingRide ? 'Edit Ride' : 'Create New Ride'} for {category.from} → {category.to}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-gray-600 mb-1">From</label>
                     <input
                         type="text"
-                        name="from"
-                        value={formData.from}
-                        onChange={handleChange}
-                        className="w-full p-2 border rounded-md text-black"
-                        required
+                        value={category.from}
+                        className="w-full p-2 border rounded-md text-black bg-gray-100"
+                        readOnly
                     />
                 </div>
                 <div>
                     <label className="block text-gray-600 mb-1">To</label>
                     <input
                         type="text"
-                        name="to"
-                        value={formData.to}
-                        onChange={handleChange}
-                        className="w-full p-2 border rounded-md text-black"
-                        required
+                        value={category.to}
+                        className="w-full p-2 border rounded-md text-black bg-gray-100"
+                        readOnly
+                    />
+                </div>
+                <div>
+                    <label className="block text-gray-600 mb-1">Average Travel Time</label>
+                    <input
+                        type="text"
+                        value={`${category.averageTime} hours`}
+                        className="w-full p-2 border rounded-md text-black bg-gray-100"
+                        readOnly
                     />
                 </div>
                 <div>
@@ -116,6 +129,17 @@ export default function CreateRideForm({
                         required
                     />
                 </div>
+                <div>
+                    <label className="block text-gray-600 mb-1">License Plate</label>
+                    <input
+                        type="text"
+                        name="licensePlate"
+                        value={formData.licensePlate}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded-md text-black"
+                        required
+                    />
+                </div>
                 <div className="flex space-x-3">
                     <button
                         type="submit"
@@ -123,18 +147,13 @@ export default function CreateRideForm({
                     >
                         {editingRide ? 'Update Ride' : 'Create Ride'}
                     </button>
-                    {editingRide && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setEditingRide(null);
-                                setFormData({ from: '', to: '', departure_time: '', seats: '', price: '' });
-                            }}
-                            className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 flex-1"
-                        >
-                            Cancel
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 flex-1"
+                    >
+                        Cancel
+                    </button>
                 </div>
             </form>
         </div>

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import CreateRideForm from '@/components/ride/CreateRideForm';
+import CreateDestinationCategoryForm from '@/components/destination/CreateDestinationCategoryForm';
 import SearchRideForm from '@/components/ride/SearchRideForm';
 import RideList from '@/components/ride/RideList';
 
@@ -15,13 +16,24 @@ export default function Dashboard() {
     const [editingRide, setEditingRide] = useState(null);
     const [currentAgency, setCurrentAgency] = useState(null);
     const [showCreateRideForm, setShowCreateRideForm] = useState(false);
-    const [formData, setFormData] = useState({
+    const [showCreateCategoryForm, setShowCreateCategoryForm] = useState(false);
+    const [categoryFormData, setCategoryFormData] = useState({
         from: '',
         to: '',
+        averageTime: '', // in hours
+        description: '',
+    });
+    const [destinationCategories, setDestinationCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [formData, setFormData] = useState({
         departure_time: '',
         seats: '',
         agencyId: '',
         price: '',
+        licensePlate: '',
+        from: '', // Will be prefilled from category
+        to: '', // Will be prefilled from category
+        estimatedArrivalTime: '', // Will be calculated
     });
     const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState([]);
@@ -31,12 +43,28 @@ export default function Dashboard() {
         to: '',
         exact_match: false,
     });
+    const [categories, setCategories] = useState([]);
     const router = useRouter();
 
     // Check auth status and fetch rides on mount
     useEffect(() => {
         checkAuthStatus();
     }, []);
+
+    // Fetch destination categories on mount
+    useEffect(() => {
+        if (isLoggedIn) {
+            fetchDestinationCategories();
+        }
+    }, [isLoggedIn]);
+
+    // Fetch categories along with rides
+    useEffect(() => {
+        if (isLoggedIn) {
+            fetchCategories();
+            fetchRides();
+        }
+    }, [isLoggedIn]);
 
     const checkAuthStatus = async () => {
         try {
@@ -46,7 +74,7 @@ export default function Dashboard() {
                 setLoading(false);
                 return;
             }
-            const response = await axios.get('http://localhost:5002/api/auth/status', {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/auth/status`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -72,10 +100,38 @@ export default function Dashboard() {
 
     const fetchRides = async () => {
         try {
-            const response = await axios.get('http://localhost:5002/api/rides');
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/rides`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            console.log('Fetched rides:', response.data); // Debug log
             setRides(response.data);
         } catch (error) {
             console.error('Error fetching rides:', error);
+        }
+    };
+
+    const fetchDestinationCategories = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/destinations`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDestinationCategories(response.data);
+        } catch (error) {
+            console.error('Error fetching destination categories:', error);
+        }
+    };
+
+    const fetchCategories = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/destinations`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setCategories(response.data);
+        } catch (error) {
+            console.error('Error fetching categories:', error);
         }
     };
 
@@ -86,7 +142,7 @@ export default function Dashboard() {
         setIsSearching(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:5002/api/rides/search', {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/rides/search`, {
                 params: {
                     from: searchParams.from,
                     to: searchParams.to,
@@ -132,7 +188,7 @@ export default function Dashboard() {
                 setLoading(false);
                 return;
             }
-            await axios.delete(`http://localhost:5002/api/rides/${id}`, {
+            await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/rides/${id}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -153,6 +209,11 @@ export default function Dashboard() {
         } catch (error) {
             console.error('Error logging out:', error);
         }
+    };
+
+    // Refresh rides after creating a new one
+    const handleRideCreated = async () => {
+        await fetchRides();
     };
 
     if (loading) {
@@ -184,71 +245,48 @@ export default function Dashboard() {
                 </div>
             ) : (
                 <div className="min-h-screen bg-gray-100 p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h1 className="text-2xl font-bold text-gray-800">
-                                Ride Management Dashboard
-                            </h1>
-                            {/* {currentAgency && (
-                                <p className="text-gray-500 text-lg mr-auto ml-4">Welcome, {currentAgency.name}</p>
-                            )} */}
-                            <button
-                                onClick={handleLogout}
-                                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-                            >
-                                Logout
-                            </button>
-                        </div>
+                    <div className="flex justify-between items-center mb-6">
+                        <h1 className="text-2xl font-bold text-gray-800">
+                            Ride Management Dashboard
+                        </h1>
+                        <button
+                            onClick={handleLogout}
+                            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                        >
+                            Logout
+                        </button>
+                    </div>
 
-                    {/* Search Form */}
-                    <SearchRideForm
-                        searchParams={searchParams}
-                        setSearchParams={setSearchParams}
-                        handleSearch={handleSearch}
-                        clearSearch={clearSearch}
-                        isSearching={isSearching}
-                        hasSearched={hasSearched}
+                    {/* Create Category Button */}
+                    <div className="mb-6">
+                        <button
+                            onClick={() => setShowCreateCategoryForm(true)}
+                            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                        >
+                            + New Category
+                        </button>
+                    </div>
+
+                    {/* Create Category Form */}
+                    {showCreateCategoryForm && (
+                        <CreateDestinationCategoryForm
+                            formData={categoryFormData}
+                            setFormData={setCategoryFormData}
+                            onSuccess={() => {
+                                setShowCreateCategoryForm(false);
+                                fetchDestinationCategories();
+                            }}
+                        />
+                    )}
+
+                    {/* Categories with Rides */}
+                    <RideList
+                        rides={rides}
+                        categories={categories}
+                        handleEdit={handleEdit}
+                        handleDelete={handleDelete}
+                        onRideCreated={handleRideCreated}
                     />
-
-                        {/* Create Ride Button Top Right */}
-                        <div className="flex justify-end mb-4">
-                            {!showCreateRideForm && !editingRide ? (
-                                <button
-                                    onClick={() => setShowCreateRideForm(true)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                >
-                                    + Create New Ride
-                                </button>
-                            ) : null}
-                        </div>
-
-                        {/* Conditional Create Form */}
-                        {showCreateRideForm || editingRide ? (
-                            <div className="mb-6">
-                                <CreateRideForm
-                                    editingRide={editingRide}
-                                    setEditingRide={setEditingRide}
-                                    fetchRides={fetchRides}
-                                    currentAgency={currentAgency}
-                                    formData={formData}
-                                    setFormData={setFormData}
-                                    onSuccess={() => {
-                                        setShowCreateRideForm(false);
-                                        setEditingRide(null);
-                                    }}
-                                />
-                            </div>
-                        ) : null}
-
-                        {/* Ride List Section */}
-                        <RideList
-                            rides={rides}
-                            searchResults={searchResults}
-                            hasSearched={hasSearched}
-                            isSearching={isSearching}
-                            handleEdit={handleEdit}
-                            handleDelete={handleDelete}
-                        clearSearch={clearSearch}
-                    />  
                 </div>
             )}
         </>
