@@ -86,11 +86,12 @@ export default function CategoryCard({
                     {rides.map((ride) => (
                         <div 
                             key={ride._id} 
-                            className="bg-white p-4 rounded-lg shadow-sm border border-gray-200"
+                            className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex"
                         >
-                            <div className="flex justify-between items-center">
+                            <div className="w-1 bg-green-500 rounded-full mr-3 self-stretch" />
+                            <div className="flex-1 flex justify-between items-center">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">
+                                    <p className="text-sm font-medium text-black">
                                         {format(new Date(ride.departure_time), 'MMM dd, yyyy HH:mm')}
                                     </p>
                                     <p className="text-sm text-gray-600">
@@ -132,38 +133,52 @@ export default function CategoryCard({
 
     return (
         <div
-            className={`p-4 rounded-lg border ${
-                isExpanded ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-            }`}
+            className={`p-4 rounded-lg border transition-all duration-200 ${
+                isExpanded 
+                ? 'border-[#4169E1] bg-blue-50 shadow-md' 
+                : 'border-gray-400 hover:border-[#4169E1]/20 hover:bg-blue-50/20'
+            } relative`}
             onClick={() => !showCreateForm && setIsExpanded(!isExpanded)}
         >
+            <div className={`absolute left-0 top-0 h-full w-1 rounded-l-lg ${
+                isExpanded ? 'bg-[#4169E1]' : 'bg-gray-400'
+            }`} />
+            
             <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="font-semibold text-black">{category.from} → {category.to}</h3>
+                <div className="ml-2">
+                    <h3 className="font-semibold text-black text-lg">
+                        {category.from} → {category.to}
+                    </h3>
                     <p className="text-sm text-gray-600">
                         Average time: {category.averageTime} hours
                     </p>
                     <p className="text-sm text-gray-500">{category.description}</p>
                 </div>
-                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                <span className={`${
+                    isExpanded 
+                    ? 'bg-[#4169E1] text-white' 
+                    : 'bg-blue-100 text-[#4169E1]'
+                } text-xs font-medium px-2.5 py-0.5 rounded transition-colors duration-200`}>
                     {rides.length} rides
                 </span>
             </div>
 
             {isExpanded && (
                 <div className="mt-4 space-y-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
+                        <div className="self-end mb-2">
+                            {!showCreateForm && (
+                                <button
+                                    onClick={() => setShowCreateForm(true)}
+                                    className="bg-[#4169E1] text-white px-3 py-1.5 rounded-md hover:bg-[#1e3a8a] text-sm font-medium"
+                                >
+                                    + New Ride
+                                </button>
+                            )}
+                        </div>
                         <h4 className="text-lg font-semibold text-black">
                             {editingRide ? 'Edit Ride' : 'Available Rides'}
                         </h4>
-                        {!showCreateForm && (
-                            <button
-                                onClick={() => setShowCreateForm(true)}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                            >
-                                + New Ride
-                            </button>
-                        )}
                     </div>
 
                     {showCreateForm ? (

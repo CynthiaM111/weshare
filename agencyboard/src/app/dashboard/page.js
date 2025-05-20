@@ -246,25 +246,25 @@ export default function Dashboard() {
             ) : (
                 <div className="min-h-screen bg-gray-100 p-6">
                     <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">
-                            Ride Management Dashboard
-                        </h1>
-                        <button
-                            onClick={handleLogout}
-                            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-                        >
-                            Logout
-                        </button>
-                    </div>
-
-                    {/* Create Category Button */}
-                    <div className="mb-6">
-                        <button
-                            onClick={() => setShowCreateCategoryForm(true)}
-                            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-                        >
-                            + New Category
-                        </button>
+                        <div className="flex justify-between items-center w-full">
+                            <h1 className="text-2xl font-bold text-gray-800">
+                                Ride Management Dashboard for {currentAgency.name}
+                            </h1>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={() => setShowCreateCategoryForm(true)}
+                                    className="bg-[#4169E1] text-white px-3 py-1.5 rounded-md hover:bg-[#1e3a8a] text-sm font-medium"
+                                >
+                                    + New Category
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 text-sm font-medium"
+                                >
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Create Category Form */}
