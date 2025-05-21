@@ -55,7 +55,9 @@ export default function CreateRideForm({
                 licensePlate: '',
             });
             
-            await onSuccess();
+            if (onSuccess) {
+                onSuccess();
+            }
         } catch (error) {
             console.error('Error saving ride:', error);
         }

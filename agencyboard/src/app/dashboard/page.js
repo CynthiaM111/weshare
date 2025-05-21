@@ -54,17 +54,10 @@ export default function Dashboard() {
     // Fetch destination categories on mount
     useEffect(() => {
         if (isLoggedIn) {
-            fetchDestinationCategories();
+            fetchData();
         }
     }, [isLoggedIn]);
 
-    // Fetch categories along with rides
-    useEffect(() => {
-        if (isLoggedIn) {
-            fetchCategories();
-            fetchRides();
-        }
-    }, [isLoggedIn]);
 
     const checkAuthStatus = async () => {
         try {
@@ -86,7 +79,7 @@ export default function Dashboard() {
                     email: response.data.email,
                     name: response.data.name,
                 });
-                fetchRides();
+                fetchData();
             } else {
                 setIsLoggedIn(false);
             }
@@ -98,42 +91,38 @@ export default function Dashboard() {
         }
     };
 
-    const fetchRides = async () => {
+    const fetchData = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/rides`, {
+            if (!token) {
+                console.error('No token found');
+                return;
+            }
+
+            // Fetch rides
+            const ridesResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/rides`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            console.log('Fetched rides:', response.data); // Debug log
-            setRides(response.data);
+            setRides(ridesResponse.data);
+
+            // Fetch categories
+            const categoriesResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/destinations`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            // Filter out duplicates by _id
+            const uniqueCategories = Array.from(
+                new Map(categoriesResponse.data.map(cat => [cat._id, cat])).values()
+            );
+            console.log("Unique Categories:", uniqueCategories);
+            setCategories(uniqueCategories);
         } catch (error) {
-            console.error('Error fetching rides:', error);
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const fetchDestinationCategories = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/destinations`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setDestinationCategories(response.data);
-        } catch (error) {
-            console.error('Error fetching destination categories:', error);
-        }
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/destinations`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setCategories(response.data);
-        } catch (error) {
-            console.error('Error fetching categories:', error);
-        }
-    };
+    
 
     const handleSearch = async (e) => {
         e.preventDefault();
@@ -193,7 +182,7 @@ export default function Dashboard() {
                     Authorization: `Bearer ${token}`
                 }
             });
-            fetchRides(); // Refresh ride list
+            fetchData(); // Refresh ride list
         } catch (error) {
             console.error('Error deleting ride:', error);
         }
@@ -211,11 +200,7 @@ export default function Dashboard() {
         }
     };
 
-    // Refresh rides after creating a new one
-    const handleRideCreated = async () => {
-        await fetchRides();
-    };
-
+    
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
@@ -252,12 +237,6 @@ export default function Dashboard() {
                             </h1>
                             <div className="flex items-center space-x-4">
                                 <button
-                                    onClick={() => setShowCreateCategoryForm(true)}
-                                    className="bg-[#4169E1] text-white px-3 py-1.5 rounded-md hover:bg-[#1e3a8a] text-sm font-medium"
-                                >
-                                    + New Category
-                                </button>
-                                <button
                                     onClick={handleLogout}
                                     className="bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 text-sm font-medium"
                                 >
@@ -267,25 +246,12 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    {/* Create Category Form */}
-                    {showCreateCategoryForm && (
-                        <CreateDestinationCategoryForm
-                            formData={categoryFormData}
-                            setFormData={setCategoryFormData}
-                            onSuccess={() => {
-                                setShowCreateCategoryForm(false);
-                                fetchDestinationCategories();
-                            }}
-                        />
-                    )}
-
+                    
                     {/* Categories with Rides */}
                     <RideList
                         rides={rides}
                         categories={categories}
-                        handleEdit={handleEdit}
-                        handleDelete={handleDelete}
-                        onRideCreated={handleRideCreated}
+                        onRideCreated={fetchData}
                     />
                 </div>
             )}

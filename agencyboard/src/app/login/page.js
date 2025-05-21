@@ -16,7 +16,7 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5002/api/auth/login', formData);
+            const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, formData);
             if (res.status === 200) {
                 localStorage.setItem('token', res.data.token);
                 localStorage.setItem('role', res.data.role);

@@ -3,16 +3,79 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-export default function CreateDestinationCategoryForm({ formData, setFormData, onSuccess }) {
+export default function CreateDestinationCategoryForm({ formData, setFormData, onSuccess, isEditing, categoryId, onCancel }) {
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return; // Prevent multiple submissions
+        setIsSubmitting(true);
+        setError('');
+
         try {
             const token = localStorage.getItem('token');
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/destinations`,
-                formData,
+            if (!token) {
+                setError('Authentication token not found');
+                setIsSubmitting(false);
+                return;
+            }
+
+            if (isEditing) {
+                await axios.put(
+                    `${process.env.NEXT_PUBLIC_API_URL}/destinations/${categoryId}`,
+                    formData,
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                );
+            } else {
+                // Check if category already exists
+                const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/destinations`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const existingCategory = response.data.find(
+                    cat => cat.from.toLowerCase() === formData.from.toLowerCase() &&
+                        cat.to.toLowerCase() === formData.to.toLowerCase()
+                );
+                if (existingCategory) {
+                    setError('A category with this From and To already exists');
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                await axios.post(
+                    `${process.env.NEXT_PUBLIC_API_URL}/destinations`,
+                    formData,
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                );
+            }
+            setFormData({
+                from: '',
+                to: '',
+                averageTime: '',
+                description: '',
+            });
+            onSuccess();
+        } catch (error) {
+            setError(error.response?.data?.error || `Failed to ${isEditing ? 'update' : 'create'} destination category`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this category?')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(
+                `${process.env.NEXT_PUBLIC_API_URL}/destinations/${categoryId}`,
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
@@ -25,7 +88,7 @@ export default function CreateDestinationCategoryForm({ formData, setFormData, o
                 description: '',
             });
         } catch (error) {
-            setError(error.response?.data?.error || 'Failed to create destination category');
+            setError(error.response?.data?.error || 'Failed to delete destination category');
         }
     };
 
@@ -89,12 +152,31 @@ export default function CreateDestinationCategoryForm({ formData, setFormData, o
                 <div className="text-red-500 text-sm mt-2">{error}</div>
             )}
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-2">
+                <button
+                    type="button"
+                    onClick={() => {
+                        
+                        onCancel();
+                    }}
+                    className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                >
+                    Cancel
+                </button>
+                {isEditing && (
+                    <button
+                        type="button"
+                        onClick={handleDelete}
+                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                    >
+                        Delete Category
+                    </button>
+                )}
                 <button
                     type="submit"
                     className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                 >
-                    Create Category
+                    {isEditing ? 'Update Category' : 'Create Category'}
                 </button>
             </div>
         </form>
