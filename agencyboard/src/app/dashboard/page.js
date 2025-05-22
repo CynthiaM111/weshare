@@ -113,7 +113,6 @@ export default function Dashboard() {
             const uniqueCategories = Array.from(
                 new Map(categoriesResponse.data.map(cat => [cat._id, cat])).values()
             );
-            console.log("Unique Categories:", uniqueCategories);
             setCategories(uniqueCategories);
         } catch (error) {
             console.error('Error fetching data:', error);

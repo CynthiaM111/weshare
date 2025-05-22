@@ -84,6 +84,13 @@ export default function CategoryCard({ category, onEdit, onRideCreated }) {
                                     </p>
                                     <p className="text-sm text-gray-600">License: {ride.licensePlate}</p>
                                     <p className="text-sm text-gray-600">Price: {ride.price}</p>
+                                    <p className="text-sm font-semibold" style={{
+                                        color: ride.statusDisplay === 'Full' ? '#FF0000' :
+                                            ride.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000'
+                                    }}>
+                                        Status: {ride.statusDisplay}
+                                    </p>
+
                                 </div>
                                 <div className="flex space-x-2">
                                     <button
