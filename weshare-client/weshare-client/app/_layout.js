@@ -96,7 +96,7 @@ function RootLayoutNav() {
         {/* Hidden screens at the end */}
         <Tabs.Screen
           name="index"
-          options={{ href: null }}
+          options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
         />
         <Tabs.Screen
           name="(auth)/login"
@@ -104,6 +104,10 @@ function RootLayoutNav() {
         />
         <Tabs.Screen
           name="(auth)/signup"
+          options={{ tabBarButton: () => null, tabBarItemStyle: {display: 'none'} }}
+        />
+        <Tabs.Screen
+          name="(auth)/index"
           options={{ tabBarButton: () => null, tabBarItemStyle: {display: 'none'} }}
         />
       </Tabs>

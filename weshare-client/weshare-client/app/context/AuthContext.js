@@ -1,15 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { jwtDecode } from 'jwt-decode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { config } from '../../config';
+import { Alert } from 'react-native';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         checkAuth();
@@ -23,28 +24,39 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
 
-            const response = await axios.get(`${config.API_URL}/auth/status`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/status`, {
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             const data = response.data;
+                
 
             if (data.isAuthenticated) {
-                setUser({
+                const userData = {
                     id: data.userId,
                     email: data.email,
                     name: data.name,
                     role: data.role,
                     token,
-                });
+                    agencyId: data.agencyId,
+                    destinationCategoryId: data.destinationCategoryId,
+                };
+                setUser(userData);
+                    
+
+                const route = data.role === 'agency' ? '/(agency)' :
+                    data.role === 'agency_employee' ? '/(home)/employee' :
+                        '/(home)';
+                    
+                router.replace(route);
             } else {
                 await AsyncStorage.removeItem('token');
+                await AsyncStorage.removeItem('role');
             }
         } catch (error) {
-            console.error('Auth check failed:', error);
+            console.error('Auth check failed:', error.response?.data || error.message);
             await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('role');
         } finally {
             setLoading(false);
         }
@@ -52,41 +64,58 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await axios.post(`${config.API_URL}/auth/login`, {
+            const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/auth/login`, {
                 email,
                 password,
             });
 
             const data = response.data;
+            
 
+            if (response.status !== 200) {
+                throw new Error(data.error || 'Login failed');
+            }
 
             await AsyncStorage.setItem('token', data.token);
+            await AsyncStorage.setItem('role', data.role);
 
             const decoded = jwtDecode(data.token);
-            setUser({
+            const userData = {
                 id: decoded.id,
                 email,
-                name: '', // Will be updated in checkAuth
+                name: data.name || '',
                 role: data.role,
                 token: data.token,
-            });
+                agencyId: data.agencyId,
+                destinationCategoryId: data.destinationCategoryId,
+            };
+            setUser(userData);
+            
 
-            await checkAuth();
-
-            router.replace('/(home)');
+            const route = data.role === 'agency' ? '/(agency)' :
+                data.role === 'agency_employee' ? '/(home)/employee' :
+                    '/(home)';
+            
+            router.replace(route);
         } catch (error) {
-            console.error('Login error:', error);
-            throw error;
+            console.error('Login error:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.error || 'Login failed');
         }
     };
 
     const signup = async (userData, role) => {
         try {
-            const response = await axios.post(`${config.API_URL}/auth/signup`, {
+            console.log('Signup request:', { ...userData, role }); // Debug log
+            const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/auth/signup`, {
                 ...userData,
                 role,
             });
+            
+            if (response.status !== 201) {
+                throw new Error(response.data.error || 'Signup failed');
+            }
 
+            Alert.alert('Success', response.data.message);
             await login(userData.email, userData.password);
         } catch (error) {
             console.error('Signup error:', error.response?.data || error.message);
@@ -95,9 +124,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        await AsyncStorage.removeItem('token');
-        setUser(null);
-        router.replace('/(auth)/login');
+        try {
+            await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('role');
+            setUser(null);
+            router.replace('/(auth)/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
     };
 
     return (

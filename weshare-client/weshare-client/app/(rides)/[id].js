@@ -20,6 +20,7 @@ export default function RideDetails() {
     const fetchRideDetails = async () => {
         try {
             const response = await axios.get(`${config.API_URL}/rides/${id}`);
+            
             setRide(response.data);
         } catch (error) {
             console.error('Error fetching ride details in [id].js:', error);
@@ -31,7 +32,7 @@ export default function RideDetails() {
 
     const handleBookRide = async () => {
         try {
-            await axios.post(
+           const response = await axios.post(
                 `${config.API_URL}/rides/${id}/book`,
                 {},
                 {
@@ -40,8 +41,10 @@ export default function RideDetails() {
                     }
                 }
             );
+            
             Alert.alert('Success', 'Ride booked successfully!');
-            router.push('/(rides)/booked'); // Redirect to booked rides screen
+            fetchRideDetails();
+            router.replace('/(rides)/booked'); // Changed from push to replace
         } catch (error) {
             console.error('Booking error:', error);
             Alert.alert('Error', error.response?.data?.error || 'Failed to book ride');
@@ -56,6 +59,11 @@ export default function RideDetails() {
         );
     }
 
+    // Determine status color
+    const statusColor = ride.statusDisplay === 'Full' ? '#FF0000' :
+        ride.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
+
+
     return (
         <View style={styles.container}>
             <View style={styles.card}>
@@ -69,9 +77,16 @@ export default function RideDetails() {
                 </View>
 
                 <View style={styles.detailRow}>
+                    <Text style={styles.label}>Status:</Text>
+                    <Text style={[styles.value, { color: statusColor, fontWeight: 'bold' }]}>
+                        {ride.statusDisplay} ({ride.booked_seats}/{ride.seats} seats booked)
+                    </Text>
+                </View>
+
+                <View style={styles.detailRow}>
                     <Text style={styles.label}>Available Seats:</Text>
                     <Text style={styles.value}>
-                        {ride.seats - (ride.booked_seats || 0)} / {ride.seats}
+                        {ride.available_seats} / {ride.seats}
                     </Text>
                 </View>
 
@@ -89,8 +104,11 @@ export default function RideDetails() {
             <TouchableOpacity
                 style={styles.bookButton}
                 onPress={handleBookRide}
+                disabled={ride.statusDisplay === 'Full'} 
             >
-                <Text style={styles.bookButtonText}>Book This Ride</Text>
+                <Text style={styles.bookButtonText}>
+                    {ride.statusDisplay === 'Full' ? 'RideFull' : 'Book This Ride'}
+                </Text>
             </TouchableOpacity>
         </View>
     );
@@ -122,7 +140,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    label: {
+    label: { 
         fontSize: 16,
         color: '#666',
     },

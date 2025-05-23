@@ -35,6 +35,8 @@ export default function RidesLayout() {
                 name="booked"
                 options={{
                     title: 'Booked Rides',
+                    headerBackVisible: false,
+                    gestureEnabled: false,
                 }}
             />
         </Stack>

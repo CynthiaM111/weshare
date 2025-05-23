@@ -1,5 +1,4 @@
-// app/(rides)/index.js
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Button, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -22,8 +21,6 @@ export default function RidesScreen() {
         booked: true
     });
 
-
-    // Parse the rides from params on component mount
     useEffect(() => {
         if (params.rides) {
             const parsedRides = JSON.parse(params.rides);
@@ -31,7 +28,6 @@ export default function RidesScreen() {
         }
     }, [params.rides]);
 
-    // Fetch user's bookings when component mounts
     useEffect(() => {
         if (user) {
             fetchUserBookings();
@@ -52,7 +48,6 @@ export default function RidesScreen() {
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         try {
-            // Refresh user bookings
             await fetchUserBookings();
             if (params.rides) {
                 const parsedRides = JSON.parse(params.rides);
@@ -96,13 +91,13 @@ export default function RidesScreen() {
     // Separate available rides and booked rides
     const bookedRideIds = new Set(userBookings.map(ride => ride._id));
     const availableRides = searchResults.filter(ride =>
-        !bookedRideIds.has(ride._id) && (ride.seats - (ride.booked_seats || 0) > 0)
+        !bookedRideIds.has(ride._id) && ride.available_seats > 0
     );
     const bookedRidesFromSearch = searchResults.filter(ride =>
         bookedRideIds.has(ride._id)
     );
     const fullRides = searchResults.filter(ride =>
-        !bookedRideIds.has(ride._id) && (ride.seats - (ride.booked_seats || 0) <= 0)
+        !bookedRideIds.has(ride._id) && ride.available_seats <= 0
     );
 
     const groupedAvailableRides = groupRidesByDate(availableRides);
@@ -110,7 +105,6 @@ export default function RidesScreen() {
     const groupedFullRides = groupRidesByDate(fullRides);
     const allBookedRides = groupRidesByDate(userBookings);
 
-    // Check if we have any rides to show (from search or bookings)
     const hasSearchResults = searchResults.length > 0;
     const hasBookings = userBookings.length > 0;
 
@@ -119,13 +113,7 @@ export default function RidesScreen() {
             await axios.delete(`${config.API_URL}/rides/${rideId}/cancel`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
-            
-            // Remove the booking from userBookings
-            const newUserBookings = new Set(userBookings);
-            newUserBookings.delete(rideId);
-            setUserBookings(newUserBookings);
-            
-            // Refresh the rides data
+            await fetchUserBookings();
             onRefresh();
         } catch (error) {
             console.error('Error canceling booking:', error);
@@ -136,44 +124,46 @@ export default function RidesScreen() {
     return (
         <View style={{ flex: 1, padding: 16 }}>
             <FlatList
-                data={[]} // Empty data to use ListHeaderComponent and ListFooterComponent
+                data={[]}
                 renderItem={null}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        colors={["#4CAF50"]} // Android
-                        tintColor="#4CAF50" // iOS
+                        colors={["#4CAF50"]}
+                        tintColor="#4CAF50"
                     />
                 }
                 ListHeaderComponent={
                     <>
-                        {/* Show search button if no search results */}
                         {!hasSearchResults && (
                             <View style={styles.emptySearchContainer}>
                                 {hasBookings ? (
                                     <>
                                         <Text style={styles.emptySearchText}>You haven't searched for any rides yet</Text>
-                                        <Button
-                                            title="Search for Rides"
-                                            onPress={() => router.push('/')}
-                                            color="#4CAF50"
-                                        />
+                                        <TouchableOpacity
+                                            style={styles.searchButton}
+                                            onPress={() => router.push('/(home)')}
+                                        >
+                                            <FontAwesome5 name="search" size={16} color="black" style={styles.searchIcon} />
+                                            <Text style={styles.searchButtonText}>Search for Rides</Text>
+                                        </TouchableOpacity>
                                     </>
                                 ) : (
                                     <>
                                         <Text style={styles.emptySearchText}>No rides found. Start by searching for rides</Text>
-                                        <Button
-                                            title="Search for Rides"
+                                        <TouchableOpacity
+                                            style={styles.searchButton}
                                             onPress={() => router.push('/(home)')}
-                                            color="#4CAF50"
-                                        />
+                                        >
+                                            <FontAwesome5 name="search" size={16} color="black" style={styles.searchIcon} />
+                                            <Text style={styles.searchButtonText}>Search for Rides</Text>
+                                        </TouchableOpacity>
                                     </>
                                 )}
                             </View>
                         )}
 
-                        {/* Available Rides Section */}
                         {hasSearchResults && groupedAvailableRides.length > 0 && (
                             <View style={{ marginBottom: 24 }}>
                                 <TouchableOpacity onPress={() => toggleExpand('available')}>
@@ -202,7 +192,8 @@ export default function RidesScreen() {
                                                         ride={ride}
                                                         onPress={() => router.push(`/(rides)/${ride._id}`)}
                                                         isBooked={false}
-                                                        availableSeats={ride.seats - (ride.booked_seats || 0)}
+                                                        availableSeats={ride.available_seats}
+                                                        statusDisplay={ride.statusDisplay}
                                                     />
                                                 ))}
                                             </View>
@@ -212,7 +203,6 @@ export default function RidesScreen() {
                             </View>
                         )}
 
-                        {/* Full Rides Section */}
                         {hasSearchResults && groupedFullRides.length > 0 && (
                             <View style={{ marginBottom: 24 }}>
                                 <TouchableOpacity onPress={() => toggleExpand('full')}>
@@ -241,7 +231,8 @@ export default function RidesScreen() {
                                                         ride={ride}
                                                         onPress={() => router.push(`/(rides)/${ride._id}`)}
                                                         isBooked={false}
-                                                        availableSeats={0}
+                                                        availableSeats={ride.available_seats}
+                                                        statusDisplay={ride.statusDisplay}
                                                         isFull
                                                     />
                                                 ))}
@@ -255,7 +246,6 @@ export default function RidesScreen() {
                 }
                 ListFooterComponent={
                     <>
-                        {/* Booked Rides Section - Show always if user has bookings */}
                         {hasBookings && (
                             <View style={{ marginBottom: 24 }}>
                                 <TouchableOpacity onPress={() => toggleExpand('booked')}>
@@ -284,8 +274,10 @@ export default function RidesScreen() {
                                                         ride={ride}
                                                         onPress={() => router.push(`/(rides)/${ride._id}`)}
                                                         isBooked={true}
-                                                        availableSeats={ride.seats - (ride.booked_seats || 0)}
-                                                        showCancelButton={false}
+                                                        availableSeats={ride.available_seats}
+                                                        statusDisplay={ride.statusDisplay}
+                                                        showCancelButton={true}
+                                                        onCancelBooking={() => handleCancelBooking(ride._id)}
                                                     />
                                                 ))}
                                             </View>
@@ -350,5 +342,21 @@ const styles = StyleSheet.create({
     timeRangeText: {
         color: 'gray',
         fontSize: 14,
+    },
+    searchButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'black',
+        padding: 10,
+        borderRadius: 10,
+    },
+    searchIcon: {
+        marginRight: 8,
+    },
+    searchButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'black',
     },
 });
