@@ -107,7 +107,7 @@ const EmployeeHomeScreen = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Employee Check-In</Text>
+            <Text style={styles.title}> Ready to Check-In Rides:</Text>
             <FlatList
                 data={rides}
                 renderItem={renderRide}

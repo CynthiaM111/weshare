@@ -44,11 +44,15 @@ export const AuthProvider = ({ children }) => {
                 setUser(userData);
                     
 
-                const route = data.role === 'agency' ? '/(agency)' :
+                const targetRoute = data.role === 'agency' ? '/(agency)' :
                     data.role === 'agency_employee' ? '/(home)/employee' :
                         '/(home)';
                     
-                router.replace(route);
+                // Only navigate if not already on the target route
+                if (pathname !== targetRoute) {
+                    console.log('Navigating to:', targetRoute);
+                    router.replace(targetRoute);
+                }
             } else {
                 await AsyncStorage.removeItem('token');
                 await AsyncStorage.removeItem('role');
