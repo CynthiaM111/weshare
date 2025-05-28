@@ -3,11 +3,23 @@ const Agency = require('../models/agency');
 const redisClient = require('../Utilities/redisClient');
 const User = require('../models/user');
 const DestinationCategory = require('../models/destinationCategory');
-
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
 // Helper function to clear Redis cache
 const clearCache = async () => {
     await redisClient.del('available_rides');
+};
+// Helper function to compute ride status
+const getRideStatus = (ride) => {
+    const bookedRatio = ride.booked_seats / ride.seats;
+    if (ride.booked_seats >= ride.seats) {
+        return 'Full';
+    } else if (bookedRatio >= 0.75) {
+        return 'Nearly Full';
+    } else {
+        return 'Available';
+    }
 };
 
 // POST /rides - Create a new ride (Agency)
@@ -52,7 +64,11 @@ const createRide = async (req, res) => {
 
         await ride.save();
         await clearCache();
-        res.status(201).json({ message: 'Ride created successfully', ride });
+        const rideWithStatus = {
+            ...ride.toObject(),
+            statusDisplay: getRideStatus(ride)
+        };
+        res.status(201).json({ message: 'Ride created successfully', ride: rideWithStatus });
     } catch (error) {
         res.status(500).json({ error: 'Failed to create ride', details: error.message });
     }
@@ -75,7 +91,7 @@ const getRides = async (req, res) => {
                     departure_time: { $gte: new Date() },
                 },
             },
-            // Add a field for available seats
+            // Add a field for available seats and status
             {
                 $project: {
                     from: 1,
@@ -92,14 +108,27 @@ const getRides = async (req, res) => {
                     created_at: 1,
                     updated_at: 1,
                     available_seats: { $subtract: ['$seats', '$booked_seats'] },
+                    statusDisplay: {
+                        $cond: {
+                            if: { $gte: ['$booked_seats', '$seats'] },
+                            then: 'Full',
+                            else: {
+                                $cond: {
+                                    if: { $gte: [{ $divide: ['$booked_seats', '$seats'] }, 0.75] },
+                                    then: 'Nearly Full',
+                                    else: 'Available'
+                                }
+                            }
+                        }
+                    }
                 },
             },
-            // Filter for rides with available seats > 0
-            {
-                $match: {
-                    available_seats: { $gt: 0 },
-                },
-            },
+            // // Filter for rides with available seats > 0
+            // {
+            //     $match: {
+            //         available_seats: { $gt: 0 },
+            //     },
+            // },
             // Sort by departure time
             {
                 $sort: { departure_time: 1 },
@@ -116,7 +145,11 @@ const getRides = async (req, res) => {
         await redisClient.setEx('available_rides', 300, JSON.stringify(rides));
         res.status(200).json(rides);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch rides', details: error.message });
+        console.error('Error in getRides:', error);
+        res.status(500).json({
+            error: 'Failed to fetch rides',
+            details: error.message
+        });
     }
 };
 
@@ -130,7 +163,11 @@ const getRideById = async (req, res) => {
         if (!ride) {
             return res.status(404).json({ error: 'Ride not found' });
         }
-        res.status(200).json(ride);
+        const rideWithStatus = {
+            ...ride.toObject(),
+            statusDisplay: getRideStatus(ride)
+        };
+        res.status(200).json(rideWithStatus);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch ride', details: error.message });
     }
@@ -169,7 +206,11 @@ const updateRide = async (req, res) => {
         }
 
         await clearCache();
-        res.status(200).json({ message: 'Ride updated successfully', ride: updatedRide });
+        const rideWithStatus = {
+            ...updatedRide.toObject(),
+            statusDisplay: getRideStatus(updatedRide)
+        };
+        res.status(200).json({ message: 'Ride updated successfully', ride: rideWithStatus });
     } catch (error) {
         res.status(500).json({ error: 'Failed to update ride', details: error.message });
     }
@@ -214,14 +255,25 @@ const searchRides = async (req, res) => {
             { $match: query },
             {
                 $addFields: {
-                    available_seats: { $subtract: ["$seats", "$booked_seats"] }
+                    available_seats: { $subtract: ["$seats", "$booked_seats"] },
+                    statusDisplay: {
+                        $cond: {
+                            if: { $gte: ['$booked_seats', '$seats'] },
+                            then: 'Full',
+                            else: {
+                                $cond: {
+                                    if: { $gte: [{ $divide: ['$booked_seats', '$seats'] }, 0.75] },
+                                    then: 'Nearly Full',
+                                    else: 'Available'
+                                }
+                            }
+                        }
+                    }
                 }
             },
-            { $match: { available_seats: { $gt: 0 } } },
             { $sort: { departure_time: 1 } },
             { $limit: 50 }
         ]);
-
         // Populate necessary references
         await Ride.populate(rides, [
             { path: 'agencyId', select: 'name email' },
@@ -238,48 +290,64 @@ const searchRides = async (req, res) => {
     }
 };
 
-// POST /rides/:id/book - Book seats on a ride (Users)
 const bookRide = async (req, res) => {
     try {
         const { rideId } = req.params;
-        const userId = req.user.id; // From auth middleware
+        const userId = req.user.id;
+        console.log('bookRide called:', { rideId, userId });
 
-        // Find the ride
+        if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
+            console.error('Invalid rideId or userId:', { rideId, userId });
+            return res.status(400).json({ error: 'Invalid rideId or userId' });
+        }
+
         const ride = await Ride.findById(rideId);
         if (!ride) {
+            console.error('Ride not found:', rideId);
             return res.status(404).json({ error: 'Ride not found' });
         }
 
-        // Check if seats are available
-        if (ride.available_seats <= 0) {
+        if (ride.booked_seats >= ride.seats) {
+            console.error('No seats available:', rideId);
             return res.status(400).json({ error: 'No seats available' });
         }
 
-        // Check if user already booked this ride
-        if (ride.booked_users.includes(userId)) {
+        if (ride.bookedBy.some((b) => b.userId.toString() === userId)) {
+            console.error('User already booked:', { userId, rideId });
             return res.status(400).json({ error: 'You have already booked this ride' });
         }
 
-        // Update the ride
-        ride.booked_users.push(userId);
-        ride.available_seats -= 1;
+        const bookingId = uuidv4();
+        ride.bookedBy.push({
+            userId,
+            checkInStatus: 'pending',
+            bookingId,
+        });
+        ride.booked_seats = ride.bookedBy.length;
         await ride.save();
 
-        // Add to user's booked rides
         const user = await User.findById(userId);
         user.booked_rides.push(rideId);
         await user.save();
 
-        res.status(200).json({ message: 'Ride booked successfully', ride });
+        console.log('Ride booked:', { rideId, userId, bookingId });
+        res.status(200).json({
+            message: 'Ride booked successfully',
+            ride: {
+                ...ride.toObject(),
+                statusDisplay: getRideStatus(ride),
+                bookingId,
+            },
+        });
     } catch (error) {
+        console.error('Booking error:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to book ride', details: error.message });
     }
 };
-
 const getUserRides = async (req, res) => {
     try {
         const userId = req.user.id;
-        
+
         // Find user and populate booked rides with agency details
         const user = await User.findById(userId).populate({
             path: 'booked_rides',
@@ -292,15 +360,20 @@ const getUserRides = async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
+        // Add statusDisplay to each ride
+        const ridesWithStatus = user.booked_rides.map(ride => ({
+            ...ride.toObject(),
+            statusDisplay: getRideStatus(ride)
+        }));
 
-        
 
-        res.status(200).json(user.booked_rides);
+
+        res.status(200).json(ridesWithStatus);
     } catch (error) {
         console.error('Error in getUserRides:', error);
-        res.status(500).json({ 
-            error: 'Failed to fetch user rides', 
-            details: error.message 
+        res.status(500).json({
+            error: 'Failed to fetch user rides',
+            details: error.message
         });
     }
 };
@@ -317,13 +390,14 @@ const cancelRideBooking = async (req, res) => {
         }
 
         // Check if user has booked this ride
-        if (!ride.booked_users.includes(userId)) {
+        const bookingIndex = ride.bookedBy.findIndex(b => b.userId.toString() === userId);
+        if (bookingIndex === -1) {
             return res.status(400).json({ error: 'You have not booked this ride' });
         }
 
-        // Remove user from booked_users and increase available seats
-        ride.booked_users = ride.booked_users.filter(id => id.toString() !== userId);
-        ride.available_seats += 1;
+        // Remove user from bookedBy array
+        ride.bookedBy.splice(bookingIndex, 1);
+        ride.booked_seats = ride.bookedBy.length;
         await ride.save();
 
         // Remove ride from user's booked_rides
@@ -331,9 +405,95 @@ const cancelRideBooking = async (req, res) => {
         user.booked_rides = user.booked_rides.filter(id => id.toString() !== rideId);
         await user.save();
 
+        await clearCache();
         res.status(200).json({ message: 'Booking cancelled successfully' });
     } catch (error) {
+        console.error('Error in cancelRideBooking:', error);
         res.status(500).json({ error: 'Failed to cancel booking', details: error.message });
+    }
+};
+
+// Updated: Fetch rides for an employee's destination category
+const getEmployeeRides = async (req, res) => {
+    try {
+        if (!req.user) {
+            console.error('No user in request');
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+        const { destinationCategoryId } = req.user;
+
+        // Validate destinationCategoryId
+        if (!destinationCategoryId) {
+            return res.status(400).json({ error: 'Invalid or missing destination category ID' });
+        }
+
+        const rides = await Ride.find({
+            categoryId: destinationCategoryId,
+            status: 'active',
+            departure_time: { $gte: new Date() }
+        })
+            .populate('agencyId', 'name email')
+            .populate('categoryId', 'from to averageTime')
+
+
+
+        const ridesWithStatus = rides.map(ride => ({
+            ...ride.toObject(),
+            statusDisplay: getRideStatus(ride)
+        }));
+
+        res.status(200).json(ridesWithStatus);
+    } catch (error) {
+        console.error('Error in getEmployeeRides:', error);
+        res.status(500).json({ error: 'Failed to fetch rides in getEmployeeRides', details: error.message });
+    }
+};
+
+
+const checkInPassenger = async (req, res) => {
+    try {
+        const { rideId, userId, bookingId } = req.body;
+        console.log('checkInPassenger called:', { rideId, userId, bookingId });
+
+        if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
+            console.error('Invalid rideId or userId:', { rideId, userId });
+            return res.status(400).json({ error: 'Invalid rideId or userId' });
+        }
+
+        const ride = await Ride.findById(rideId).populate('bookedBy.userId', 'name email');
+        if (!ride) {
+            console.error('Ride not found:', rideId);
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        const booking = ride.bookedBy.find(
+            (b) => b.userId?._id?.toString() === userId && b.bookingId === bookingId
+        );
+
+        if (!booking) {
+            console.error('Booking not found:', { userId, bookingId, rideId });
+            return res.status(400).json({ error: 'User not booked on this ride or invalid booking ID' });
+        }
+
+        if (booking.checkInStatus === 'checked-in') {
+            console.error('User already checked in:', { userId, rideId });
+            return res.status(400).json({ error: 'User already checked in' });
+        }
+
+        booking.checkInStatus = 'checked-in';
+        await ride.save();
+
+        console.log('Passenger checked in:', { rideId, userId, bookingId });
+        res.status(200).json({
+            message: 'Passenger checked in',
+            passenger: {
+                name: booking.userId.name,
+                email: booking.userId.email,
+            },
+        });
+    } catch (error) {
+        console.error('Error in checkInPassenger:', error.message, error.stack);
+        res.status(500).json({ error: 'Failed to check in', details: error.message });
     }
 };
 
@@ -346,6 +506,7 @@ module.exports = {
     searchRides,
     bookRide,
     getUserRides,
-    cancelRideBooking
-    
+    cancelRideBooking,
+    getEmployeeRides,
+    checkInPassenger
 };

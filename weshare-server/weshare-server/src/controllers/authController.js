@@ -2,13 +2,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const Agency = require('../models/agency');
+const DestinationCategory = require('../models/destinationCategory');
 require('dotenv').config();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Signup
 const signup = async (req, res) => {
     try {
-        const { email, password, role, name, contact_number, address } = req.body;
+        const { email, password, role, name, contact_number, agencyId, destinationCategoryId } = req.body;
 
         // Validate required fields
         if (!email || !password || !name) {
@@ -28,6 +29,29 @@ const signup = async (req, res) => {
             });
             await agency.save();
             return res.status(201).json({ message: 'Agency created successfully' });
+        } else if (role === 'agency_employee') {
+            if (!agencyId || !destinationCategoryId || !contact_number) {
+                return res.status(400).json({ error: 'Agency, destination category, and contact number are required for employees' });
+            }
+            const agency = await Agency.findById(agencyId);
+            if (!agency) {
+                return res.status(400).json({ error: 'Invalid agency' });
+            }
+            const category = await DestinationCategory.findOne({ _id: destinationCategoryId, agencyId });
+            if (!category) {
+                return res.status(400).json({ error: 'Invalid destination category' });
+            }
+            const user = new User({
+                name,
+                email,
+                password: hashedPassword,
+                role: 'agency_employee',
+                contact_number,
+                agencyId,
+                destinationCategoryId
+            });
+            await user.save();
+            return res.status(201).json({ message: 'Agency employee created successfully. Please use the mobile app to log in.' });
         } else {
             // Default to normal user
             const user = new User({ name, email, password: hashedPassword, role: 'user', contact_number });
@@ -57,7 +81,7 @@ const login = async (req, res) => {
         if (!user) {
             // If not agency, check User
             user = await User.findOne({ email });
-            role = 'user';
+            role = user ? user.role : null;
         }
 
         if (!user) {
@@ -69,8 +93,26 @@ const login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const token = jwt.sign({ id: user._id, role }, JWT_SECRET, { expiresIn: '1h' });
-        res.status(200).json({ message: 'Login successful', token, role });
+        const tokenPayload = {
+            id: user._id,
+            role,
+        };
+
+        if (role === 'agency_employee') {
+            tokenPayload.destinationCategoryId = user.destinationCategoryId;
+            tokenPayload.agencyId = user.agencyId;
+        }
+
+        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1h' });
+        res.status(200).json({
+            message: 'Login successful', 
+            token, 
+            role, 
+            userId: user._id, 
+            email: user.email, 
+            name: user.name,
+            agencyId: role === 'agency_employee' ? user.agencyId : null,
+            destinationCategoryId: role === 'agency_employee' ? user.destinationCategoryId : null });
     } catch (error) {
         res.status(500).json({ error: 'Login failed', details: error.message });
     }
@@ -108,7 +150,8 @@ const status = async (req, res) => {
             userId: user._id,
             email: user.email,
             name: user.name,
-            // Add any other relevant user info you need on the frontend
+            agencyId: decoded.role === 'agency_employee' ? user.agencyId : null,
+            destinationCategoryId: decoded.role === 'agency_employee' ? user.destinationCategoryId : null
         });
     } catch (error) {
         // Token is invalid or expired
@@ -139,4 +182,55 @@ const agencyOnly = (req, res, next) => {
     next();
 };
 
-module.exports = { signup, login, protect, agencyOnly, status };
+// Updated: Restrict to agency employee only
+const employeeOnly = (req, res, next) => {
+    if (req.user.role !== 'agency_employee') {
+        return res.status(403).json({ error: 'Access denied. Agency employee only.' });
+    }
+    next();
+};
+
+// Updated: Fetch agencies for signup
+const getAgencies = async (req, res) => {
+    try {
+        const agencies = await Agency.find({}, 'name _id');
+        res.status(200).json(agencies);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch agencies', details: error.message });
+    }
+};
+
+// Updated: Fetch destination categories for an agency
+const getAgencyCategories = async (req, res) => {
+    try {
+        const { agencyId } = req.params;
+        const categories = await DestinationCategory.find({ agencyId }, 'from to _id');
+        res.status(200).json(categories);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch categories', details: error.message });
+    }
+};
+
+const getAgencyById = async (req, res) => {
+    try {
+        const agency = await Agency.findById(req.params.agencyId, 'name');
+        if (!agency) return res.status(404).json({ error: 'Agency not found' });
+        res.status(200).json(agency);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch agency' });
+    }
+};
+
+const getDestinationCategoryById = async (req, res) => {
+    try {
+        const category = await DestinationCategory.findOne({
+            _id: req.params.categoryId,
+            agencyId: req.params.agencyId
+        }, 'from to');
+        if (!category) return res.status(404).json({ error: 'Category not found' });
+        res.status(200).json(category);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch category' });
+    }
+};
+module.exports = { signup, login, protect, agencyOnly, status, employeeOnly, getAgencies, getAgencyCategories, getAgencyById, getDestinationCategoryById };
