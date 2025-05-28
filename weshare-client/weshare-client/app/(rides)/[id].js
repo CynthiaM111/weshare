@@ -12,19 +12,35 @@ export default function RideDetails() {
     const { user } = useAuth();
     const [ride, setRide] = useState(null);
     const [loading, setLoading] = useState(true);
-   
+
     useEffect(() => {
+        
+
+        if (id === 'employee') {
+            console.log('Employee route accessed via [id].js - redirecting properly');
+            router.replace('/(rides)/employee');
+            return;
+        }
+        // Rest of your existing ID validation...
+        const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
+        if (!id || !isValidObjectId(id)) {
+            router.replace('/(rides)');
+            return;
+        }
+
+
         fetchRideDetails();
-    }, []);
+    }, [id, router]);
 
     const fetchRideDetails = async () => {
         try {
-            const response = await axios.get(`${config.API_URL}/rides/${id}`);
-            
+            console.log('Fetching ride details from:', `${process.env.EXPO_PUBLIC_API_URL}/rides/${id}`);
+            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/${id}`);
+
             setRide(response.data);
         } catch (error) {
             console.error('Error fetching ride details in [id].js:', error);
-            router.back();
+
         } finally {
             setLoading(false);
         }
@@ -32,8 +48,8 @@ export default function RideDetails() {
 
     const handleBookRide = async () => {
         try {
-           const response = await axios.post(
-                `${config.API_URL}/rides/${id}/book`,
+            const response = await axios.post(
+                `${process.env.EXPO_PUBLIC_API_URL}/rides/${id}/book`,
                 {},
                 {
                     headers: {
@@ -41,7 +57,7 @@ export default function RideDetails() {
                     }
                 }
             );
-            
+
             Alert.alert('Success', 'Ride booked successfully!');
             fetchRideDetails();
             router.replace('/(rides)/booked'); // Changed from push to replace
@@ -104,7 +120,7 @@ export default function RideDetails() {
             <TouchableOpacity
                 style={styles.bookButton}
                 onPress={handleBookRide}
-                disabled={ride.statusDisplay === 'Full'} 
+                disabled={ride.statusDisplay === 'Full'}
             >
                 <Text style={styles.bookButtonText}>
                     {ride.statusDisplay === 'Full' ? 'RideFull' : 'Book This Ride'}
@@ -140,7 +156,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    label: { 
+    label: {
         fontSize: 16,
         color: '#666',
     },

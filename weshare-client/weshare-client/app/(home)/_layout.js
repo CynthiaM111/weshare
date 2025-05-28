@@ -13,20 +13,8 @@ export default function HomeLayout() {
                     headerShown: false
                 }}
             />
-            <Stack.Screen
-                name="employee/index"
-                options={{
-                    title: 'Ride Check-in',
-                    headerStyle: {
-                        backgroundColor: 'royalblue',
-                    },
-                    headerTintColor: '#fff',
-                    headerTitleStyle: {
-                        fontWeight: 'bold',
-                    },
-                    headerBackVisible: false
-                }}
-            />
+           
+            
         </Stack>
     );
 }

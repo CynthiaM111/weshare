@@ -1,4 +1,4 @@
-import { View, FlatList, Alert, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, FlatList, Alert, RefreshControl, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Text } from '@ui-kitten/components';
@@ -7,18 +7,22 @@ import axios from 'axios';
 import RideCard from '../../components/RideCard';
 import { config } from '../../config';
 import { useRouter } from 'expo-router';
+import QRCode from 'react-native-qrcode-svg';
 
 export default function BookedRidesScreen() {
+    
     const [bookedRides, setBookedRides] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
     const [expandedSections, setExpandedSections] = useState({ booked: true });
+    const [qrModalVisible, setQrModalVisible] = useState(false);
+    const [selectedRideId, setSelectedRideId] = useState(null);
     const { user } = useAuth();
     const router = useRouter();
 
     const fetchBookedRides = async () => {
         try {
             const response = await axios.get(
-                `${config.API_URL}/rides/booked`,
+                `${process.env.EXPO_PUBLIC_API_URL}/rides/booked`,
                 {
                     headers: {
                         Authorization: `Bearer ${user.token}`
@@ -77,12 +81,12 @@ export default function BookedRidesScreen() {
         }));
     };
 
-    const groupedBookedRides = groupRidesByDate(bookedRides);
+
 
     const handleCancelBooking = async (rideId) => {
         try {
             await axios.delete(
-                `${config.API_URL}/rides/${rideId}/cancel`,
+                `${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`,
                 {
                     headers: {
                         Authorization: `Bearer ${user.token}`
@@ -95,6 +99,24 @@ export default function BookedRidesScreen() {
             Alert.alert('Error', error.response?.data?.error || 'Failed to cancel booking');
         }
     };
+    const handleShowQRCode = (rideId) => {
+        console.log("show qr code for ride", rideId)
+        setSelectedRideId(rideId);
+        setQrModalVisible(true);
+        console.log("qr modal should be visible", qrModalVisible)
+    };
+
+    const generateQRCodeData = (rideId) => {
+        return JSON.stringify({
+            rideId,
+            userId: user.id,
+            bookingId: bookedRides.find(ride => ride._id === rideId)?.bookingId
+        });
+    };
+
+    const groupedBookedRides = groupRidesByDate(bookedRides);
+    console.log(qrModalVisible)
+
 
     return (
         <View style={styles.container}>
@@ -148,6 +170,8 @@ export default function BookedRidesScreen() {
                                                 statusDisplay={ride.statusDisplay}
                                                 showCancelButton={true}
                                                 onCancelBooking={() => handleCancelBooking(ride._id)}
+                                                onShowQRCode={() => handleShowQRCode(ride._id)}
+                                                isCheckedIn={ride.isCheckedIn}
                                             />
                                         ))}
                                     </View>
@@ -166,6 +190,35 @@ export default function BookedRidesScreen() {
                     )
                 }
             />
+            <Modal
+                visible={qrModalVisible}
+                onRequestClose={() => setQrModalVisible(false)}
+                // transparent={true}
+                animationType="slide"
+            >
+                <View style={styles.qrModalContainer}>
+                    <View style={styles.qrModalContent}>
+                        <Text style={styles.qrModalTitle}>Your Check-In QR Code</Text>
+                        {selectedRideId && (
+                            <QRCode
+                                value={generateQRCodeData(selectedRideId)}
+                                size={200}
+                                backgroundColor="white"
+                                color="black"
+                            />
+                        )}
+                        <Text style={styles.qrModalInstruction}>
+                            Show this QR code to the employee for check-in
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.qrModalCloseButton}
+                            onPress={() => setQrModalVisible(false)}
+                        >
+                            <Text style={styles.qrModalCloseButtonText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -230,6 +283,8 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 10,
         marginBottom: 16,
+        backgroundColor: 'royalblue',
+        color: 'white',
     },
     searchIcon: {
         marginRight: 8,
@@ -237,6 +292,40 @@ const styles = StyleSheet.create({
     searchButtonText: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: 'black',
+        color: 'white',
+    },
+    qrModalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    qrModalContent: {
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        width: '80%',
+    },
+    qrModalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 20,
+    },
+    qrModalInstruction: {
+        fontSize: 16,
+        color: '#666',
+        marginVertical: 20,
+        textAlign: 'center',
+    },
+    qrModalCloseButton: {
+        backgroundColor: '#FF0000',
+        padding: 10,
+        borderRadius: 6,
+    },
+    qrModalCloseButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });

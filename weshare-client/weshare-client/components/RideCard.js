@@ -9,7 +9,9 @@ export default function RideCard({
     statusDisplay,
     isFull,
     showCancelButton,
-    onCancelBooking
+    onCancelBooking,
+    onShowQRCode,
+    isCheckedIn
 }) {
     // Determine status color
     const statusColor = statusDisplay === 'Full' ? '#FF0000' :
@@ -23,9 +25,14 @@ export default function RideCard({
         >
             <View style={styles.header}>
                 <Text style={styles.title}>{ride.from} → {ride.to}</Text>
-                {isBooked && (
-                    <Text style={styles.bookedTag}>Booked</Text>
-                )}
+                <View style={styles.badgeContainer}>
+                    {isBooked && (
+                        <Text style={styles.bookedTag}>Booked</Text>
+                    )}
+                    {isCheckedIn && (
+                        <Text style={styles.checkedInTag}>Checked In</Text>
+                    )}
+                </View>
             </View>
 
             <View style={styles.detailRow}>
@@ -52,15 +59,26 @@ export default function RideCard({
                 <Text style={[styles.value, styles.price]}>${ride.price}</Text>
             </View>
 
-            {showCancelButton && isBooked && (
-                <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={onCancelBooking}
-                >
-                    <FontAwesome5 name="times" size={16} color="white" />
-                    <Text style={styles.cancelButtonText}>Cancel Booking</Text>
-                </TouchableOpacity>
-            )}
+            <View style={styles.buttonContainer}>
+                {isBooked && !isCheckedIn && (
+                    <TouchableOpacity
+                        style={styles.qrButton}
+                        onPress={onShowQRCode}
+                    >
+                        <FontAwesome5 name="qrcode" size={16} color="white" />
+                        <Text style={styles.qrButtonText}>Show QR Code</Text>
+                    </TouchableOpacity>
+                )}
+                {showCancelButton && isBooked && !isCheckedIn && (
+                    <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={onCancelBooking}
+                    >
+                        <FontAwesome5 name="times" size={16} color="white" />
+                        <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
         </TouchableOpacity>
     );
 }
@@ -87,12 +105,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
+    badgeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     title: {
         fontSize: 18,
         fontWeight: 'bold',
     },
     bookedTag: {
         backgroundColor: '#4CAF50',
+        color: 'white',
+        padding: 4,
+        borderRadius: 4,
+        fontSize: 12,
+    },
+    checkedInTag: {
+        backgroundColor: '#1E90FF',
         color: 'white',
         padding: 4,
         borderRadius: 4,
@@ -114,15 +144,33 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: 'royalblue',
     },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 8,
+        marginTop: 12,
+    },
     cancelButton: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FF0000',
         padding: 10,
         borderRadius: 6,
-        marginTop: 12,
+       
     },
     cancelButtonText: {
+        color: 'white',
+        fontSize: 14,
+        marginLeft: 8,
+    },
+    qrButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4CAF50',
+        padding: 10,
+        borderRadius: 6,
+    },
+    qrButtonText: {
         color: 'white',
         fontSize: 14,
         marginLeft: 8,

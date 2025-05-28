@@ -45,7 +45,7 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading || !isNavigationReady || !user) return;
 
-    const homeRoute = user.role === 'agency_employee' ? '/(home)/employee' : '/(home)';
+    const homeRoute = user.role === 'agency_employee' ? '/(employee)' : '/(home)';
     // Only navigate if not already on the correct route
     if (router.pathname !== homeRoute) {
       console.log('Navigating to:', homeRoute);
@@ -81,7 +81,7 @@ function RootLayoutNav() {
               <TouchableOpacity
                 {...props}
                 onPress={() => {
-                  const route = user?.role === 'agency_employee' ? '/(home)/employee' : '/(home)';
+                  const route = user?.role === 'agency_employee' ? '/(employee)' : '/(home)';
                   console.log('Home tab pressed, navigating to:', route);
                   router.push(route);
                 }}
@@ -132,6 +132,20 @@ function RootLayoutNav() {
           name="(auth)/index"
           options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
         />
+        {user?.role === 'agency_employee' && (
+        <Tabs.Screen
+          name="(employee)"
+          options={{ tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ), tabBarLabel: 'Employee' }}
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              router.push('/(employee)');
+            }
+          }}
+        />
+        )}
       </Tabs>
 
       {/* Overlay for loading or splash screen */}

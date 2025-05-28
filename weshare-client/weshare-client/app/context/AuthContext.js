@@ -45,11 +45,11 @@ export const AuthProvider = ({ children }) => {
                     
 
                 const targetRoute = data.role === 'agency' ? '/(agency)' :
-                    data.role === 'agency_employee' ? '/(home)/employee' :
+                    data.role === 'agency_employee' ? '/(employee)' :
                         '/(home)';
                     
                 // Only navigate if not already on the target route
-                if (pathname !== targetRoute) {
+                if (router.pathname !== targetRoute) {
                     console.log('Navigating to:', targetRoute);
                     router.replace(targetRoute);
                 }
@@ -97,9 +97,9 @@ export const AuthProvider = ({ children }) => {
             
 
             const route = data.role === 'agency' ? '/(agency)' :
-                data.role === 'agency_employee' ? '/(home)/employee' :
+                data.role === 'agency_employee' ? '/(employee)' :
                     '/(home)';
-            
+            console.log('User role:', data.role, '[AuthContext] Navigating to:', route); // Debug log
             router.replace(route);
         } catch (error) {
             console.error('Login error:', error.response?.data || error.message);
