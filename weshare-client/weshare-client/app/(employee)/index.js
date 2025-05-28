@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet, Modal, Button } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet, Modal, Button, Animated } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,6 +104,9 @@ export default function EmployeeHomeScreen() {
 
     const handleBarCodeScanned = useCallback(({ type, data }) => {
         console.log("Barcodescanned triggered", {type, data, cameraReady, scannerVisible, isCheckingIn})
+        console.log("cameraReady", cameraReady)
+        console.log("scannerVisible", scannerVisible)
+        console.log("isCheckingIn", isCheckingIn)
         if (!cameraReady || !scannerVisible || isCheckingIn){
             console.log("Barcode scan not allowed")
             return;
@@ -236,12 +239,17 @@ export default function EmployeeHomeScreen() {
                             <CameraView
                                 style={StyleSheet.absoluteFillObject}
                                 facing={facing}
-                                onBarCodeScanned={scannerVisible ? handleBarCodeScanned : undefined}
-                                onCameraReady={() => setCameraReady(true)}
-                                barCodeScannerSettings={{
-                                    barCodeTypes: ['qr'],
+                                onBarcodeScanned={scannerVisible ? handleBarCodeScanned : undefined}
+                                onCameraReady={() => {
+                                    console.log("Camera is ready")
+                                    setCameraReady(true)
+                                }}
+                                barcodeScannerSettings={{
+                                    barcodeTypes: ['qr'],
                                 }}
                                 autoFocus="on"
+                                focusDepth={0}
+                                enableTorch={false}
                             />
                             <View style={styles.scannerOverlay}>
                                 <Text style={styles.scannerText}>Scan Passenger QR Code</Text>

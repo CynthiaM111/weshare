@@ -107,11 +107,19 @@ export default function BookedRidesScreen() {
     };
 
     const generateQRCodeData = (rideId) => {
-        return JSON.stringify({
-            rideId,
-            userId: user.id,
-            bookingId: bookedRides.find(ride => ride._id === rideId)?.bookingId
-        });
+        const ride = bookedRides.find(ride => ride._id === rideId);
+        if (!ride) {
+            console.warn(`Ride not found for rideId: ${rideId}`);
+            return JSON.stringify({ rideId, userId: user.id, bookingId: null });
+        }
+        const booking = ride.bookedBy?.find(b => b.userId === user.id);
+        const bookingId = booking?.bookingId;
+        if (!bookingId) {
+            console.warn(`No bookingId found for rideId: ${rideId}, userId: ${user.id}`);
+        }
+        const data = { rideId, userId: user.id, bookingId };
+        console.log('Generated QR code data:', data);
+        return JSON.stringify(data);
     };
 
     const groupedBookedRides = groupRidesByDate(bookedRides);
