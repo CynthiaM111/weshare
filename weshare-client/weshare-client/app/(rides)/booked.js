@@ -1,110 +1,47 @@
-import { View, FlatList, Alert, RefreshControl, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Text } from '@ui-kitten/components';
-import { FontAwesome5 } from '@expo/vector-icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, RefreshControl } from 'react-native';
 import axios from 'axios';
-import RideCard from '../../components/RideCard';
-import { config } from '../../config';
-import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'expo-router';
 
 export default function BookedRidesScreen() {
-    
     const [bookedRides, setBookedRides] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
-    const [expandedSections, setExpandedSections] = useState({ booked: true });
-    const [qrModalVisible, setQrModalVisible] = useState(false);
+    const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
     const [selectedRideId, setSelectedRideId] = useState(null);
+    
     const { user } = useAuth();
     const router = useRouter();
 
-    const fetchBookedRides = async () => {
+    const fetchUserBookings = async () => {
         try {
-            const response = await axios.get(
-                `${process.env.EXPO_PUBLIC_API_URL}/rides/booked`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${user.token}`
-                    }
-                }
-            );
+            if (!user?.id || !user?.token) {
+                console.error('User ID or token missing');
+                return;
+            }
+            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
+                headers: { Authorization: `Bearer ${user.token}` },
+            });
+            
             setBookedRides(response.data);
         } catch (error) {
-            console.error('Error fetching booked rides:', error.response || error);
-            Alert.alert('Error', 'Failed to fetch booked rides');
-        }
-    };
-
-    const onRefresh = useCallback(async () => {
-        setRefreshing(true);
-        try {
-            await fetchBookedRides();
+            console.error('Error fetching user bookings:', error.response?.data || error.message);
+            Alert.alert('Error', 'Failed to fetch user bookings. Please try again.');
         } finally {
             setRefreshing(false);
         }
-    }, []);
+    };
 
     useEffect(() => {
-        if (user) {
-            fetchBookedRides();
-        }
-    }, [user]);
+        fetchUserBookings();
+    }, []);
 
-    const groupRidesByDate = (rides) => {
-        const grouped = rides.reduce((acc, ride) => {
-            const date = new Date(ride.departure_time).toLocaleDateString();
-            if (!acc[date]) {
-                acc[date] = {
-                    date,
-                    rides: [],
-                    timeRange: ''
-                };
-            }
-            acc[date].rides.push(ride);
-            return acc;
-        }, {});
-
-        Object.values(grouped).forEach(group => {
-            group.rides.sort((a, b) => new Date(a.departure_time) - new Date(b.departure_time));
-            const times = group.rides.map(r => new Date(r.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-            group.timeRange = `${times[0]} - ${times[times.length - 1]}`;
-        });
-
-        return Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date));
-    };
-
-    const toggleExpand = (section) => {
-        setExpandedSections(prev => ({
-            ...prev,
-            [section]: !prev[section]
-        }));
-    };
-
-
-
-    const handleCancelBooking = async (rideId) => {
-        try {
-            await axios.delete(
-                `${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${user.token}`
-                    }
-                }
-            );
-            Alert.alert('Success', 'Booking cancelled successfully');
-            await fetchBookedRides();
-        } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to cancel booking');
-        }
-    };
-    const handleShowQRCode = (rideId) => {
-        console.log("show qr code for ride", rideId)
-        setSelectedRideId(rideId);
-        setQrModalVisible(true);
-        console.log("qr modal should be visible", qrModalVisible)
-    };
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchUserBookings();
+    }, []);
 
     const generateQRCodeData = (rideId) => {
         const ride = bookedRides.find(ride => ride._id === rideId);
@@ -122,107 +59,124 @@ export default function BookedRidesScreen() {
         return JSON.stringify(data);
     };
 
-    const groupedBookedRides = groupRidesByDate(bookedRides);
-    console.log(qrModalVisible)
+    const handleOpenQRCode = (rideId) => {
+        setSelectedRideId(rideId);
+        setQRCodeModalVisible(true);
+    };
 
+    const handleCancelBooking = async (rideId) => {
+        try {
+            const response = await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/bookings/${rideId}`, {
+                headers: { Authorization: `Bearer ${user.token}` },
+            });
+            Alert.alert('Success', 'Booking cancelled successfully');
+            fetchUserBookings(); // Refresh the list
+        } catch (error) {
+            console.error('Error cancelling booking:', error.response?.data || error.message);
+            Alert.alert('Error', error.response?.data?.error || 'Failed to cancel booking');
+        }
+    };
+
+    const renderRide = ({ item }) => {
+        const userBooking = item.bookedBy?.find(b => b.userId === user.id);
+        const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
+
+        return (
+            <View style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
+                {isCheckedIn && (
+                    <View style={styles.checkedInBadge}>
+                        <Text style={styles.checkedInText}>Checked In</Text>
+                    </View>
+                )}
+                <View style={styles.routeContainer}>
+                    <Ionicons name="location-outline" size={20} color="#2C7A7B" style={styles.icon} />
+                    <Text style={styles.routeText}>
+                        {item.from || item.categoryId?.from || 'Unknown'} → {item.to || item.categoryId?.to || 'Unknown'}
+                    </Text>
+                </View>
+                <View style={styles.timeContainer}>
+                    <Ionicons name="calendar-outline" size={18} color="#F56565" style={styles.icon} />
+                    <Text style={styles.timeText}>
+                        {new Date(item.departure_time).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                        })}
+                    </Text>
+                    <Ionicons name="time-outline" size={18} color="#F56565" style={styles.icon} />
+                    <Text style={styles.timeText}>
+                        {new Date(item.departure_time).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                        })}
+                    </Text>
+                </View>
+                <Text style={styles.detailText}>
+                    Seats: {item.seats - item.booked_seats}/{item.seats}
+                </Text>
+                <Text style={styles.detailText}>Status: {item.statusDisplay}</Text>
+                {!isCheckedIn && (
+                    <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                            style={styles.qrButton}
+                            onPress={() => handleOpenQRCode(item._id)}
+                        >
+                            <Text style={styles.buttonText}>Show QR Code</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={() => handleCancelBooking(item._id)}
+                        >
+                            <Text style={styles.buttonText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+        );
+    };
+
+    const sortedRides = [...bookedRides].sort((a, b) => {
+        const aCheckedIn = a.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
+        const bCheckedIn = b.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
+        return aCheckedIn === bCheckedIn ? 0 : aCheckedIn ? -1 : 1;
+    });
 
     return (
         <View style={styles.container}>
-            <TouchableOpacity
-                style={styles.searchButton}
-                onPress={() => router.push('/(home)')}
-            >
-                <FontAwesome5 name="search" size={16} color="black" style={styles.searchIcon} />
-                <Text style={styles.searchButtonText}>Back to Search</Text>
-            </TouchableOpacity>
-
+            <Text style={styles.title}>My Booked Rides</Text>
             <FlatList
-                data={[]}
-                renderItem={null}
+                data={sortedRides}
+                renderItem={renderRide}
+                keyExtractor={(item) => item._id}
                 refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        colors={["#4CAF50"]}
-                        tintColor="#4CAF50"
-                    />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }
-                ListHeaderComponent={
-                    <View style={{ marginBottom: 24 }}>
-                        <TouchableOpacity onPress={() => toggleExpand('booked')}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>Your Booked Rides</Text>
-                                <FontAwesome5
-                                    name={expandedSections.booked ? "chevron-up" : "chevron-down"}
-                                    size={16}
-                                    color="black"
-                                />
-                            </View>
-                        </TouchableOpacity>
-
-                        {expandedSections.booked && (
-                            <View style={styles.sectionContent}>
-                                {groupedBookedRides.map(group => (
-                                    <View key={`booked-${group.date}`} style={styles.dateGroup}>
-                                        <View style={styles.dateHeader}>
-                                            <FontAwesome5 name="calendar-alt" size={16} color="black" style={{ marginRight: 8 }} />
-                                            <Text style={styles.dateText}>{group.date}</Text>
-                                            <Text style={styles.timeRangeText}>{group.timeRange}</Text>
-                                        </View>
-                                        {group.rides.map(ride => (
-                                            <RideCard
-                                                key={ride._id}
-                                                ride={ride}
-                                                isBooked={true}
-                                                availableSeats={ride.available_seats}
-                                                statusDisplay={ride.statusDisplay}
-                                                showCancelButton={true}
-                                                onCancelBooking={() => handleCancelBooking(ride._id)}
-                                                onShowQRCode={() => handleShowQRCode(ride._id)}
-                                                isCheckedIn={ride.isCheckedIn}
-                                            />
-                                        ))}
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-                    </View>
-                }
-                ListEmptyComponent={
-                    !bookedRides.length && (
-                        <View style={styles.emptyContainer}>
-                            <Text category='s1' style={styles.emptyText}>
-                                No booked rides
-                            </Text>
-                        </View>
-                    )
-                }
+                ListEmptyComponent={<Text style={styles.emptyText}>No booked rides found</Text>}
             />
             <Modal
-                visible={qrModalVisible}
-                onRequestClose={() => setQrModalVisible(false)}
-                // transparent={true}
+                visible={qrCodeModalVisible}
                 animationType="slide"
+                transparent={true}
+                onRequestClose={() => setQRCodeModalVisible(false)}
             >
-                <View style={styles.qrModalContainer}>
-                    <View style={styles.qrModalContent}>
-                        <Text style={styles.qrModalTitle}>Your Check-In QR Code</Text>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Ride QR Code</Text>
                         {selectedRideId && (
                             <QRCode
                                 value={generateQRCodeData(selectedRideId)}
                                 size={200}
-                                backgroundColor="white"
-                                color="black"
+                                color="#000000"
+                                backgroundColor="#FFFFFF"
                             />
                         )}
-                        <Text style={styles.qrModalInstruction}>
-                            Show this QR code to the employee for check-in
-                        </Text>
                         <TouchableOpacity
-                            style={styles.qrModalCloseButton}
-                            onPress={() => setQrModalVisible(false)}
+                            style={styles.closeButton}
+                            onPress={() => setQRCodeModalVisible(false)}
                         >
-                            <Text style={styles.qrModalCloseButtonText}>Close</Text>
+                            <Text style={styles.closeButtonText}>Close</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -234,106 +188,145 @@ export default function BookedRidesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
-        backgroundColor: '#f5f5f5',
+        padding: 20,
+        backgroundColor: '#F7FAFC',
     },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 50,
-    },
-    emptyText: {
+    title: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#2D3748',
+        marginBottom: 20,
         textAlign: 'center',
-        color: '#8F9BB3',
     },
-    sectionHeader: {
+    rideCard: {
+        backgroundColor: '#FFFFFF',
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 15,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        borderLeftWidth: 4,
+        borderLeftColor: '#319795',
+        position: 'relative',
+    },
+    checkedInCard: {
+        borderLeftColor: '#4CAF50',
+    },
+    checkedInBadge: {
+        position: 'absolute',
+        top: -10,
+        left: 20,
+        backgroundColor: '#4CAF50',
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 12,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+    },
+    checkedInText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    routeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        marginTop: 10,
+    },
+    routeText: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#2C7A7B',
+    },
+    timeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        flexWrap: 'wrap',
+    },
+    timeText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#F56565',
+        marginRight: 15,
+    },
+    detailText: {
+        fontSize: 14,
+        color: '#4A5568',
+        marginBottom: 5,
+    },
+    buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        backgroundColor: '#e9e9e9',
+        marginTop: 10,
+    },
+    qrButton: {
+        backgroundColor: '#319795',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
         borderRadius: 8,
-        marginBottom: 8,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    sectionContent: {
-        paddingHorizontal: 8,
-    },
-    dateGroup: {
-        marginBottom: 16,
-        backgroundColor: '#f2f2f2',
-        padding: 16,
-        borderRadius: 12,
-    },
-    dateHeader: {
-        flexDirection: 'row',
+        flex: 1,
+        marginRight: 10,
         alignItems: 'center',
-        marginBottom: 12,
     },
-    dateText: {
-        fontWeight: 'bold',
-        marginRight: 12,
-    },
-    timeRangeText: {
-        color: 'gray',
-        fontSize: 14,
-    },
-    searchButton: {
-        flexDirection: 'row',
+    cancelButton: {
+        backgroundColor: '#F56565',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        flex: 1,
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'black',
-        padding: 10,
-        borderRadius: 10,
-        marginBottom: 16,
-        backgroundColor: 'royalblue',
-        color: 'white',
     },
-    searchIcon: {
+    buttonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    icon: {
         marginRight: 8,
     },
-    searchButtonText: {
+    emptyText: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: 'white',
+        color: '#4A5568',
+        textAlign: 'center',
+        marginTop: 20,
     },
-    qrModalContainer: {
+    modalContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'rgba(0,0,0,0.5)',
     },
-    qrModalContent: {
-        backgroundColor: 'white',
+    modalContent: {
+        backgroundColor: '#FFFFFF',
         padding: 20,
-        borderRadius: 10,
+        borderRadius: 12,
         alignItems: 'center',
         width: '80%',
     },
-    qrModalTitle: {
+    modalTitle: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontWeight: '700',
+        color: '#2D3748',
         marginBottom: 20,
     },
-    qrModalInstruction: {
-        fontSize: 16,
-        color: '#666',
-        marginVertical: 20,
-        textAlign: 'center',
+    closeButton: {
+        backgroundColor: '#319795',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        marginTop: 20,
     },
-    qrModalCloseButton: {
-        backgroundColor: '#FF0000',
-        padding: 10,
-        borderRadius: 6,
-    },
-    qrModalCloseButtonText: {
-        color: 'white',
+    closeButtonText: {
+        color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '600',
     },
 });
