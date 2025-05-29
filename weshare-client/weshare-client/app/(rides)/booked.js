@@ -11,7 +11,7 @@ export default function BookedRidesScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
     const [selectedRideId, setSelectedRideId] = useState(null);
-    
+
     const { user } = useAuth();
     const router = useRouter();
 
@@ -24,7 +24,7 @@ export default function BookedRidesScreen() {
             const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
                 headers: { Authorization: `Bearer ${user.token}` },
             });
-            
+
             setBookedRides(response.data);
         } catch (error) {
             console.error('Error fetching user bookings:', error.response?.data || error.message);
@@ -55,7 +55,7 @@ export default function BookedRidesScreen() {
             console.warn(`No bookingId found for rideId: ${rideId}, userId: ${user.id}`);
         }
         const data = { rideId, userId: user.id, bookingId };
-        console.log('Generated QR code data:', data);
+
         return JSON.stringify(data);
     };
 
@@ -80,6 +80,10 @@ export default function BookedRidesScreen() {
     const renderRide = ({ item }) => {
         const userBooking = item.bookedBy?.find(b => b.userId === user.id);
         const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
+
+        // Determine status color
+        const statusColor = item.statusDisplay === 'Full' ? '#FF0000' :
+            item.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
 
         return (
             <View style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
@@ -116,7 +120,9 @@ export default function BookedRidesScreen() {
                 <Text style={styles.detailText}>
                     Seats: {item.seats - item.booked_seats}/{item.seats}
                 </Text>
-                <Text style={styles.detailText}>Status: {item.statusDisplay}</Text>
+                <Text style={[styles.detailText, { color: statusColor, fontWeight: 'bold' }]}>
+                    Status: {item.statusDisplay}
+                </Text>
                 {!isCheckedIn && (
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity
@@ -189,6 +195,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
+
         backgroundColor: '#F7FAFC',
     },
     title: {
@@ -211,6 +218,7 @@ const styles = StyleSheet.create({
         borderLeftWidth: 4,
         borderLeftColor: '#319795',
         position: 'relative',
+        marginTop: 10,
     },
     checkedInCard: {
         borderLeftColor: '#4CAF50',
@@ -218,7 +226,7 @@ const styles = StyleSheet.create({
     checkedInBadge: {
         position: 'absolute',
         top: -10,
-        left: 20,
+        right: 20,
         backgroundColor: '#4CAF50',
         paddingVertical: 5,
         paddingHorizontal: 10,
@@ -228,10 +236,11 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.2,
         shadowRadius: 2,
+        zIndex: 1,
     },
     checkedInText: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
     },
     routeContainer: {

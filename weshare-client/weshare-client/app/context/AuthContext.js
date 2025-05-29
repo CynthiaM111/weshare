@@ -18,13 +18,13 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
         try {
-            console.log('[Auth] Checking token...');
+          
             const token = await AsyncStorage.getItem('token');
             if (!token) {
                 setLoading(false);
                 return;
             }
-            console.log('[Auth] Token found:', token);
+            
 
             const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/status`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
                 };
                 setUser(userData);
 
-                console.log('[Auth] Authenticated user:', userData);
+               
                     
 
                 const targetRoute = data.role === 'agency' ? '/(agency)' :
@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('role');
         } finally {
-            console.log("[Auth] Auth check complete. Loading set to false");
+            
             setLoading(false);
         }
     };

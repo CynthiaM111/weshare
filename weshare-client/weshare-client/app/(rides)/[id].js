@@ -17,7 +17,7 @@ export default function RideDetails() {
         
 
         if (id === 'employee') {
-            console.log('Employee route accessed via [id].js - redirecting properly');
+            
             router.replace('/(rides)/employee');
             return;
         }
@@ -34,7 +34,7 @@ export default function RideDetails() {
 
     const fetchRideDetails = async () => {
         try {
-            console.log('Fetching ride details from:', `${process.env.EXPO_PUBLIC_API_URL}/rides/${id}`);
+           
             const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/${id}`);
 
             setRide(response.data);

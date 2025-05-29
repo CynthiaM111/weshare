@@ -48,14 +48,14 @@ function RootLayoutNav() {
     const homeRoute = user.role === 'agency_employee' ? '/(employee)' : '/(home)';
     // Only navigate if not already on the correct route
     if (router.pathname !== homeRoute) {
-      console.log('Navigating to:', homeRoute);
+      
       router.replace(homeRoute);
     }
   }, [user, loading, isNavigationReady, router]);
 
   return (
     <View style={{ flex: 1 }}>
-      <Tabs key={user?.role}
+      <Tabs
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: '#cf1259',
@@ -70,7 +70,6 @@ function RootLayoutNav() {
           },
         }}
       >
-        
         <Tabs.Screen
           name="(home)"
           options={{
@@ -79,20 +78,8 @@ function RootLayoutNav() {
             ),
             tabBarLabel: 'Home',
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
-            tabBarButton: (props) => (
-              <TouchableOpacity
-                {...props}
-                onPress={() => {
-                  const route = user?.role === 'agency_employee' ? '/(employee)' : '/(home)';
-                  console.log('Home tab pressed, navigating to:', route);
-                  router.push(route);
-                }}
-              />
-            ),
           }}
         />
-        
-        
         <Tabs.Screen
           name="(rides)"
           options={{
@@ -103,25 +90,6 @@ function RootLayoutNav() {
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
           }}
         />
-        
-        
-          <Tabs.Screen
-            name="(employee)"
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="person-outline" size={size} color={color} />
-              ),
-              tabBarLabel: 'Employee',
-              tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'flex' } : { display: 'none' },
-            }}
-            listeners={{
-              tabPress: (e) => {
-                e.preventDefault();
-                router.push('/(employee)');
-              },
-            }}
-          />
-        
         <Tabs.Screen
           name="(inbox)"
           options={{
@@ -141,6 +109,18 @@ function RootLayoutNav() {
           }}
         />
         <Tabs.Screen
+          name="(employee)"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person-outline" size={size} color={color} />
+            ),
+            tabBarLabel: 'Employee',
+            tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'flex' } : { display: 'none' },
+          }}
+        />
+
+        {/* Hidden screens for navigation but not shown in tab bar */}
+        <Tabs.Screen
           name="index"
           options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
         />
@@ -156,29 +136,6 @@ function RootLayoutNav() {
           name="(auth)/index"
           options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
         />
-
-        {/* <Tabs.Screen
-          name="(employee)"
-          options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" size={size} color={color} />
-            ),
-            tabBarLabel: 'Employee',
-            ...(user?.role !== 'agency_employee' && {
-              tabBarItemStyle: { display: 'none' }
-            }),
-            tabBarButton: () => null,
-          }}
-          listeners={{
-            tabPress: (e) => {
-              e.preventDefault();
-              router.push('/(employee)');
-            }
-          }}
-        /> */}
-        
-        
-        
       </Tabs>
 
       {/* Overlay for loading or splash screen */}
