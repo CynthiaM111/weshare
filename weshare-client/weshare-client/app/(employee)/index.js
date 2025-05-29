@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 
 export default function EmployeeHomeScreen() {
-    console.log("EmployeeHomeScreen rendered")
+   
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [scannerVisible, setScannerVisible] = useState(false);
@@ -21,7 +21,7 @@ export default function EmployeeHomeScreen() {
 
     // Debug permission status
     useEffect(() => {
-        console.log('Camera permission status:', permission);
+        
     }, [permission]);
 
     // Animate scanning line
@@ -103,17 +103,15 @@ export default function EmployeeHomeScreen() {
     };
 
     const handleBarCodeScanned = useCallback(({ type, data }) => {
-        console.log("Barcodescanned triggered", {type, data, cameraReady, scannerVisible, isCheckingIn})
-        console.log("cameraReady", cameraReady)
-        console.log("scannerVisible", scannerVisible)
-        console.log("isCheckingIn", isCheckingIn)
+        
+        
         if (!cameraReady || !scannerVisible || isCheckingIn){
-            console.log("Barcode scan not allowed")
+           
             return;
         }
 
         try {
-            console.log("Attempting to parse data")
+           
             const parsedData = JSON.parse(data);
             const { rideId, userId, bookingId } = parsedData;
 

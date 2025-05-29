@@ -18,6 +18,7 @@ export default function EmployeeLayout() {
                 name="index"
                 options={{
                     title: 'Employee Check-In',
+                    // tabBarItemStyle: { display: 'none' },
                 }}
             />
         </Stack>
