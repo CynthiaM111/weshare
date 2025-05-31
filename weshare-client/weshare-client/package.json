@@ -18,7 +18,7 @@
   "dependencies": {
     "@eva-design/eva": "^2.2.0",
     "@expo/vector-icons": "^14.0.2",
-    "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-native-community/checkbox": "^0.5.17",
     "@react-native-community/datetimepicker": "8.3.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -29,6 +29,7 @@
     "expo": "^53.0.0",
     "expo-barcode-scanner": "^13.0.1",
     "expo-blur": "~14.1.4",
+    "expo-camera": "~16.1.6",
     "expo-checkbox": "~4.1.4",
     "expo-constants": "~17.1.6",
     "expo-dev-client": "~5.1.8",
@@ -54,12 +55,10 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.10.0",
     "react-native-web": "^0.20.0",
-    "react-native-webview": "13.13.5",
-    "expo-camera": "~16.1.6"
+    "react-native-webview": "13.13.5"
   },
   "overrides": {
     "react": "19.0.0"
-    
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -73,5 +72,4 @@
     "typescript": "^5.3.3"
   },
   "private": true
-  
 }

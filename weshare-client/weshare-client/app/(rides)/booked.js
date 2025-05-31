@@ -66,7 +66,7 @@ export default function BookedRidesScreen() {
 
     const handleCancelBooking = async (rideId) => {
         try {
-            const response = await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/bookings/${rideId}`, {
+            const response = await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`, {
                 headers: { Authorization: `Bearer ${user.token}` },
             });
             Alert.alert('Success', 'Booking cancelled successfully');

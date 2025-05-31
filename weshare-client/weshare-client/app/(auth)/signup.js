@@ -17,17 +17,18 @@ export default function Signup() {
     const [categories, setCategories] = useState([]);
     const { signup } = useAuth();
 
-    // Fetch agencies
+    const fetchAgencies = async () => {
+        try {
+            const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies`);
+            setAgencies(res.data);
+        } catch (error) {
+            console.error('Error fetching agencies:', error);
+            Alert.alert('Error', 'Failed to load agencies');
+        }
+    };
+
+    // Fetch agencies on mount
     useEffect(() => {
-        const fetchAgencies = async () => {
-            try {
-                const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies`);
-                setAgencies(res.data);
-            } catch (error) {
-                console.error('Error fetching agencies:', error);
-                Alert.alert('Error', 'Failed to load agencies');
-            }
-        };
         fetchAgencies();
     }, []);
 

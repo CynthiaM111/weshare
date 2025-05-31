@@ -46,11 +46,11 @@ export default function RidesScreen() {
                 console.error('User ID or token missing');
                 return;
             }
-            console.log('Fetching user bookings from:', `${process.env.EXPO_PUBLIC_API_URL}/rides/booked`);
+            
             const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
                 headers: { Authorization: `Bearer ${user.token}` },
             });
-            console.log('User bookings response:', response.data.length);
+            
             setUserBookings(response.data);
         } catch (error) {
             console.error('Error fetching user bookings:', error.response?.data || error.message);
@@ -127,20 +127,20 @@ export default function RidesScreen() {
     const hasSearchResults = searchResults.length > 0;
     const hasBookings = userBookings.length > 0;
 
-    const handleCancelBooking = async (rideId) => {
-        try {
-            console.log('Canceling booking:', rideId);
-            await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`, {
-                headers: { Authorization: `Bearer ${user.token}` },
-            });
-            await fetchUserBookings();
-            onRefresh();
-            Alert.alert('Success', 'Booking canceled');
-        } catch (error) {
-            console.error('Error canceling booking:', error.response?.data || error.message);
-            Alert.alert('Error', 'Failed to cancel booking. Please try again.');
-        }
-    };
+    // const handleCancelBooking = async (rideId) => {
+    //     try {
+    //         console.log('Canceling booking:', rideId);
+    //         await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`, {
+    //             headers: { Authorization: `Bearer ${user.token}` },
+    //         });
+    //         await fetchUserBookings();
+    //         onRefresh();
+    //         Alert.alert('Success', 'Booking canceled');
+    //     } catch (error) {
+    //         console.error('Error canceling booking:', error.response?.data || error.message);
+    //         Alert.alert('Error', 'Failed to cancel booking. Please try again.');
+    //     }
+    // };
 
     return (
         <View style={{ flex: 1, padding: 16 }}>
@@ -273,6 +273,7 @@ export default function RidesScreen() {
                                                         availableSeats={ride.available_seats}
                                                         statusDisplay={ride.statusDisplay}
                                                         isFull
+                                                        // onCancelBooking={() => handleCancelBooking(ride._id)}
                                                     />
                                                 ))}
                                             </View>
