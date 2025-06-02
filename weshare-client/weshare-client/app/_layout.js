@@ -91,12 +91,12 @@ function RootLayoutNav() {
           }}
         />
         <Tabs.Screen
-          name="(inbox)"
+          name="(history)"
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="chatbox-outline" size={size} color={color} />
+              <Ionicons name="square-outline" size={size} color={color} />
             ),
-            tabBarLabel: 'Inbox',
+            tabBarLabel: 'Activity',
           }}
         />
         <Tabs.Screen
