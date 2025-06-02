@@ -330,7 +330,7 @@ const bookRide = async (req, res) => {
         user.booked_rides.push(rideId);
         await user.save();
 
-        console.log('Ride booked:', { rideId, userId, bookingId });
+        await redisClient.del(`bookedRides:${userId}`);
         res.status(200).json({
             message: 'Ride booked successfully',
             ride: {
@@ -347,36 +347,61 @@ const bookRide = async (req, res) => {
 const getUserRides = async (req, res) => {
     try {
         const userId = req.user.id;
+        const currentDate = new Date();
 
-        // Find user and populate booked rides with agency details
-        const user = await User.findById(userId).populate({
-            path: 'booked_rides',
-            populate: {
-                path: 'agencyId',
-                select: 'name email'  // Only select necessary fields
-            }
+        // Check Redis cache first
+        const cacheKey = `bookedRides:${userId}`;
+        const cachedRides = await redisClient.get(cacheKey);
+        if (cachedRides) {
+            return res.status(200).json(JSON.parse(cachedRides));
+        }
+
+        // Find rides where user is in bookedBy and departure_time is in the future
+        const rides = await Ride.find({
+            'bookedBy.userId': userId,
+            departure_time: { $gte: currentDate },
+            // status: { $in: ['active', 'pending', 'delayed'] }, // Exclude canceled/completed rides
+        })
+            .populate('agencyId', 'name email')
+            .populate('categoryId', 'from to averageTime')
+            .sort({ departure_time: 1 }); // Sort by departure time ascending
+
+        if (!rides || rides.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        // Format rides with statusDisplay and necessary fields
+        const ridesWithStatus = rides.map((ride) => {
+            const booking = ride.bookedBy.find((b) => b.userId.toString() === userId);
+            return {
+                _id: ride._id,
+                from: ride.from,
+                to: ride.to,
+                departure_time: ride.departure_time,
+                price: ride.price,
+                seats: ride.seats,
+                booked_seats: ride.booked_seats,
+                bookedBy: ride.bookedBy,
+                agencyId: ride.agencyId,
+                categoryId: ride.categoryId,
+                statusDisplay: getRideStatus(ride),
+                checkInStatus: booking ? booking.checkInStatus : 'unknown',
+            };
         });
 
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        // Add statusDisplay to each ride
-        const ridesWithStatus = user.booked_rides.map(ride => ({
-            ...ride.toObject(),
-            statusDisplay: getRideStatus(ride)
-        }));
-
-
+        // Cache the result for 5 minutes
+        await redisClient.setEx(cacheKey, 300, JSON.stringify(ridesWithStatus));
 
         res.status(200).json(ridesWithStatus);
     } catch (error) {
         console.error('Error in getUserRides:', error);
         res.status(500).json({
             error: 'Failed to fetch user rides',
-            details: error.message
+            details: error.message,
         });
     }
 };
+
 
 const cancelRideBooking = async (req, res) => {
     try {
@@ -405,6 +430,7 @@ const cancelRideBooking = async (req, res) => {
         user.booked_rides = user.booked_rides.filter(id => id.toString() !== rideId);
         await user.save();
 
+        await redisClient.del(`bookedRides:${userId}`);
         await clearCache();
         res.status(200).json({ message: 'Booking cancelled successfully' });
     } catch (error) {
@@ -483,7 +509,7 @@ const checkInPassenger = async (req, res) => {
         booking.checkInStatus = 'checked-in';
         await ride.save();
 
-        console.log('Passenger checked in:', { rideId, userId, bookingId });
+        await redisClient.del(`bookedRides:${userId}`);
         res.status(200).json({
             message: 'Passenger checked in',
             passenger: {
@@ -494,6 +520,63 @@ const checkInPassenger = async (req, res) => {
     } catch (error) {
         console.error('Error in checkInPassenger:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to check in', details: error.message });
+    }
+};
+
+// GET /rides/history - Get user's ride history
+const getRideHistory = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Get current date for comparison
+        const currentDate = new Date();
+
+        // Find past rides for the user
+        const rides = await Ride.find({
+            'bookedBy.userId': req.user.id,
+            departure_time: { $lt: currentDate }
+        })
+            .select('from to departure_time price bookedBy status')
+            .sort({ departure_time: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        // Transform the data to include only necessary information
+        const history = rides.map(ride => {
+            const booking = ride.bookedBy.find(b => b.userId.toString() === req.user.id.toString());
+            return {
+                from: ride.from,
+                to: ride.to,
+                departure_time: ride.departure_time,
+                price: ride.price,  // Always use the ride's price
+                status: booking ? booking.checkInStatus : 'unknown',
+
+            };
+        });
+
+        // Get total count for pagination
+        const total = await Ride.countDocuments({
+            'bookedBy.userId': req.user.id,
+            departure_time: { $lt: currentDate }
+        });
+
+        res.status(200).json({
+            history,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(total / limit),
+                totalItems: total,
+                itemsPerPage: limit
+            }
+        });
+    } catch (error) {
+        console.error('Error in getRideHistory:', error);
+        res.status(500).json({
+            error: 'Failed to fetch ride history',
+            details: error.message
+        });
     }
 };
 
@@ -508,5 +591,6 @@ module.exports = {
     getUserRides,
     cancelRideBooking,
     getEmployeeRides,
-    checkInPassenger
+    checkInPassenger,
+    getRideHistory
 };
