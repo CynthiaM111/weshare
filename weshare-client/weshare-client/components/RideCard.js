@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { format } from 'date-fns';
 
 export default function RideCard({
     ride,
@@ -36,10 +37,14 @@ export default function RideCard({
             </View>
 
             <View style={styles.detailRow}>
-                <Text style={styles.label}>Departure:</Text>
-                <Text style={styles.value}>
-                    {new Date(ride.departure_time).toLocaleString()}
-                </Text>
+                <View style={styles.detailRow}>
+                    <Text style={styles.label}>Departure:</Text>
+                    <Text style={styles.value}>{format(new Date(ride.departure_time), 'PPP p')}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                    <Text style={styles.label}>Est. Arrival:</Text>
+                    <Text style={styles.value}>{format(new Date(ride.estimatedArrivalTime), 'PPP p')}</Text>
+                </View>
             </View>
 
             <View style={styles.detailRow}>
@@ -129,7 +134,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     detailRow: {
-        flexDirection: 'row',
+        flexDirection: 'column',
         justifyContent: 'space-between',
         marginBottom: 8,
     },

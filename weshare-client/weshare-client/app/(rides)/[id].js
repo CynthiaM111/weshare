@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { config } from '../../config';
+import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 
 export default function RideDetails() {
@@ -88,7 +88,13 @@ export default function RideDetails() {
                 <View style={styles.detailRow}>
                     <Text style={styles.label}>Departure:</Text>
                     <Text style={styles.value}>
-                        {new Date(ride.departure_time).toLocaleString()}
+                        {format(new Date(ride.departure_time), 'PPP p')}
+                    </Text>
+                </View>
+                <View style={styles.detailRow}>
+                    <Text style={styles.label}>Est. Arrival:</Text>
+                    <Text style={styles.value}>
+                        {format(new Date(ride.estimatedArrivalTime), 'PPP p')}
                     </Text>
                 </View>
 

@@ -5,7 +5,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
-
+import { format } from 'date-fns';
 export default function BookedRidesScreen() {
     const [bookedRides, setBookedRides] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
@@ -101,21 +101,13 @@ export default function BookedRidesScreen() {
                 <View style={styles.timeContainer}>
                     <Ionicons name="calendar-outline" size={18} color="#F56565" style={styles.icon} />
                     <Text style={styles.timeText}>
-                        {new Date(item.departure_time).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                        })}
+                        {format(new Date(item.departure_time), 'PPP')}
                     </Text>
-                    <Ionicons name="time-outline" size={18} color="#F56565" style={styles.icon} />
-                    <Text style={styles.timeText}>
-                        {new Date(item.departure_time).toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true,
-                        })}
-                    </Text>
+                    <View style={styles.timeDetails}>
+                        <Text style={styles.timeText}>
+                            {format(new Date(item.departure_time), 'p')} - {format(new Date(item.estimatedArrivalTime), 'p')}
+                        </Text>
+                    </View>
                 </View>
                 <Text style={styles.detailText}>
                     Seats: {item.seats - item.booked_seats}/{item.seats}
