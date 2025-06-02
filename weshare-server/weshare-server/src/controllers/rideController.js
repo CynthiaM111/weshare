@@ -33,6 +33,13 @@ const createRide = async (req, res) => {
             licensePlate
         } = req.body;
 
+        // Validate departure_time is not in the past
+        const departureTime = new Date(departure_time);
+        const currentTime = new Date();
+        if (departureTime < currentTime) {
+            return res.status(400).json({ error: 'Cannot create a ride with a past departure time' });
+        }
+
         // Verify category exists and belongs to agency
         const category = await DestinationCategory.findOne({
             _id: categoryId,
@@ -45,7 +52,7 @@ const createRide = async (req, res) => {
         }
 
         // Calculate estimated arrival time
-        const departureTime = new Date(departure_time);
+       
         const estimatedArrivalTime = new Date(departureTime);
         estimatedArrivalTime.setHours(estimatedArrivalTime.getHours() + category.averageTime);
 
@@ -294,7 +301,7 @@ const bookRide = async (req, res) => {
     try {
         const { rideId } = req.params;
         const userId = req.user.id;
-        console.log('bookRide called:', { rideId, userId });
+       
 
         if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
             console.error('Invalid rideId or userId:', { rideId, userId });
@@ -378,6 +385,7 @@ const getUserRides = async (req, res) => {
                 from: ride.from,
                 to: ride.to,
                 departure_time: ride.departure_time,
+                estimatedArrivalTime: ride.estimatedArrivalTime,
                 price: ride.price,
                 seats: ride.seats,
                 booked_seats: ride.booked_seats,
