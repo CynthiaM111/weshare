@@ -1,28 +1,49 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet, Modal, Button, Animated } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { useApi } from '../../hooks/useApi';
+import ErrorDisplay from '../../components/ErrorDisplay';
 
 export default function EmployeeHomeScreen() {
-   
-    const [rides, setRides] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [scannerVisible, setScannerVisible] = useState(false);
     const [currentRideId, setCurrentRideId] = useState(null);
     const [scannedPassenger, setScannedPassenger] = useState(null);
     const [cameraReady, setCameraReady] = useState(false);
-    const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [facing, setFacing] = useState('back');
     const [permission, requestPermission] = useCameraPermissions();
-    const [scanLinePosition] = useState(new Animated.Value(0)); 
+    const [scanLinePosition] = useState(new Animated.Value(0));
+    const [scanError, setScanError] = useState(null);
+    const {
+        data: rides,
+        error: ridesError,
+        isLoading: isLoadingRides,
+        execute: fetchRides,
+        retry: retryFetchRides
+    } = useApi(async () => {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/employee`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return response.data;
+    });
 
-    // Debug permission status
-    useEffect(() => {
-        
-    }, [permission]);
+    const {
+        error: checkInError,
+        isLoading: isCheckingIn,
+        execute: checkInPassenger,
+        retry: retryCheckIn
+    } = useApi(async ({ rideId, userId, bookingId }) => {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.post(
+            `${process.env.EXPO_PUBLIC_API_URL}/rides/check-in`,
+            { rideId, userId, bookingId },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return response.data;
+    });
 
     // Animate scanning line
     useEffect(() => {
@@ -30,7 +51,7 @@ export default function EmployeeHomeScreen() {
             Animated.loop(
                 Animated.sequence([
                     Animated.timing(scanLinePosition, {
-                        toValue: 230, // Move down within QR frame (250px - 20px padding)
+                        toValue: 230,
                         duration: 2000,
                         useNativeDriver: true,
                     }),
@@ -46,72 +67,31 @@ export default function EmployeeHomeScreen() {
 
     // Fetch rides effect
     useEffect(() => {
-        let isMounted = true;
-
-        const fetchRides = async () => {
-            try {
-                setLoading(true);
-                const token = await AsyncStorage.getItem('token');
-                const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/employee`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                if (isMounted) {
-                    setRides(res.data);
-                }
-            } catch (error) {
-                console.error('Error fetching rides:', error);
-                if (isMounted) {
-                    Alert.alert('Error', 'Failed to load rides');
-                }
-            } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
-            }
-        };
-
         fetchRides();
-        return () => {
-            isMounted = false;
-        };
     }, []);
 
     const handleCheckIn = async (rideId, userId, bookingId) => {
-        setIsCheckingIn(true);
         try {
-            const token = await AsyncStorage.getItem('token');
-            const res = await axios.post(
-                `${process.env.EXPO_PUBLIC_API_URL}/rides/check-in`,
-                { rideId, userId, bookingId },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
+            const result = await checkInPassenger({ rideId, userId, bookingId });
             setScannedPassenger({
-                name: res.data.passenger.name,
-                email: res.data.passenger.email,
+                name: result.passenger.name,
+                email: result.passenger.email,
             });
-            Alert.alert('Success', 'Passenger checked in');
-          
+            setScanError(null);
         } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Check-in failed');
+            // Error is already handled by useApi
+            console.error('Check-in error:', error);
             setScannedPassenger(null);
             setScannerVisible(false);
-        } finally {
-            setIsCheckingIn(false);
         }
     };
 
     const handleBarCodeScanned = useCallback(({ type, data }) => {
-        
-        
-        if (!cameraReady || !scannerVisible || isCheckingIn){
-           
+        if (!cameraReady || !scannerVisible || isCheckingIn) {
             return;
         }
 
         try {
-           
             const parsedData = JSON.parse(data);
             const { rideId, userId, bookingId } = parsedData;
 
@@ -131,9 +111,9 @@ export default function EmployeeHomeScreen() {
             handleCheckIn(rideId, userId, bookingId);
         } catch (error) {
             console.error('QR scan error:', error.message);
-            Alert.alert('Error', 'Invalid QR code: ' + error.message);
             setScannedPassenger(null);
             setScannerVisible(false);
+            setScanError(error.message);
         }
     }, [cameraReady, scannerVisible, currentRideId, isCheckingIn]);
 
@@ -147,6 +127,66 @@ export default function EmployeeHomeScreen() {
     const toggleCameraFacing = () => {
         setFacing(current => (current === 'back' ? 'front' : 'back'));
     };
+
+    // Error handling for scanError
+    if (scanError) {
+        return (
+            <View style={styles.errorContainer}>
+                <ErrorDisplay
+                    error={scanError}
+                    onRetry={() => startCheckIn(currentRideId)} // Retry scanning for the same ride
+                    onDismiss={() => setScanError(null)} // Clear error and return to ride list
+                    title="QR Scan Error"
+                    message="There was an issue scanning the QR code."
+                />
+            </View>
+        );
+    }
+
+    if (ridesError) {
+        return (
+            <View style={styles.errorContainer}>
+                <ErrorDisplay
+                    error={ridesError}
+                    onRetry={retryFetchRides}
+                    title="Error Loading Rides"
+                    message="We couldn't load the rides at this time."
+                />
+            </View>
+        );
+    }
+
+    if (checkInError) {
+        return (
+            <View style={styles.errorContainer}>
+                <ErrorDisplay
+                    error={checkInError}
+                    onRetry={retryCheckIn}
+                    title="Error During Check-in"
+                    message="We couldn't process the check-in at this time."
+                />
+            </View>
+        );
+    }
+
+    // Early return for permission loading
+    if (!permission) {
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.loadingText}>Checking camera permissions...</Text>
+            </View>
+        );
+    }
+
+    // Early return for permission denied
+    if (!permission.granted) {
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.message}>We need your permission to show the camera</Text>
+                <Button onPress={requestPermission} title="Grant Permission" />
+            </View>
+        );
+    }
 
     const renderRide = ({ item }) => (
         <View style={styles.rideCard}>
@@ -180,39 +220,21 @@ export default function EmployeeHomeScreen() {
             </Text>
             <Text style={styles.detailText}>Status: {item.statusDisplay}</Text>
             <TouchableOpacity
-                style={styles.checkInButton}
+                style={[styles.checkInButton, isCheckingIn && styles.buttonDisabled]}
                 onPress={() => startCheckIn(item._id)}
                 disabled={isCheckingIn}
             >
-                <Text style={styles.checkInText}>Begin Check-In</Text>
+                <Text style={styles.checkInText}>
+                    {isCheckingIn ? 'Processing...' : 'Begin Check-In'}
+                </Text>
             </TouchableOpacity>
         </View>
     );
 
-    // Early return for permission loading
-    if (!permission) {
-        return (
-            <View style={styles.container}>
-                <Text style={styles.loadingText}>Checking camera permissions...</Text>
-            </View>
-        );
-    }
-
-    // Early return for permission denied
-    if (!permission.granted) {
-        return (
-            <View style={styles.container}>
-                <Text style={styles.message}>We need your permission to show the camera</Text>
-                <Button onPress={requestPermission} title="Grant Permission" />
-            </View>
-        );
-    }
-
-    // Main render
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Employee Check-In</Text>
-            {loading ? (
+            {isLoadingRides ? (
                 <Text style={styles.loadingText}>Loading...</Text>
             ) : (
                 <FlatList
@@ -334,6 +356,13 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
         backgroundColor: '#F7FAFC',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#fff',
     },
     title: {
         fontSize: 28,
@@ -470,11 +499,6 @@ const styles = StyleSheet.create({
         marginVertical: 10,
         paddingHorizontal: 20,
     },
-    confirmationText: {
-        fontSize: 18,
-        color: '#4A5568',
-        marginLeft: 15,
-    },
     buttonGroup: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -507,5 +531,8 @@ const styles = StyleSheet.create({
         borderColor: '#FFFFFF',
         borderRadius: 10,
         backgroundColor: 'transparent',
+    },
+    buttonDisabled: {
+        opacity: 0.7,
     },
 });

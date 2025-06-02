@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Modal, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -6,21 +6,36 @@ import RideCard from '../../components/RideCard';
 import { useLocalSearchParams } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-
+import { useApi } from '../../hooks/useApi';
+import ErrorDisplay from '../../components/ErrorDisplay';
 
 export default function RidesScreen() {
     const router = useRouter();
     const { user } = useAuth();
     const params = useLocalSearchParams();
     const [searchResults, setSearchResults] = useState([]);
-    const [userBookings, setUserBookings] = useState([]);
-    const [refreshing, setRefreshing] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         available: true,
         full: true,
         booked: true,
     });
     const [selectedRide, setSelectedRide] = useState(null);
+
+    const {
+        data: userBookings,
+        error: bookingsError,
+        isLoading: isLoadingBookings,
+        execute: fetchUserBookings,
+        retry: retryFetchBookings
+    } = useApi(async () => {
+        if (!user?.id || !user?.token) {
+            throw new Error('User ID or token missing');
+        }
+        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
+            headers: { Authorization: `Bearer ${user.token}` },
+        });
+        return response.data;
+    });
 
     useEffect(() => {
         if (params.rides) {
@@ -29,7 +44,6 @@ export default function RidesScreen() {
                 setSearchResults(parsedRides);
             } catch (error) {
                 console.error('Error parsing search results:', error);
-                Alert.alert('Error', 'Failed to load search results');
             }
         }
     }, [params.rides]);
@@ -40,28 +54,7 @@ export default function RidesScreen() {
         }
     }, [user]);
 
-    const fetchUserBookings = async () => {
-        try {
-            if (!user?.id || !user?.token) {
-                console.error('User ID or token missing');
-                return;
-            }
-            
-            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
-                headers: { Authorization: `Bearer ${user.token}` },
-            });
-            
-            setUserBookings(response.data);
-        } catch (error) {
-            console.error('Error fetching user bookings:', error.response?.data || error.message);
-            Alert.alert('Error', 'Failed to fetch user bookings. Please try again.');
-        } finally {
-            setRefreshing(false);
-        }
-    };
-
     const onRefresh = useCallback(async () => {
-        setRefreshing(true);
         try {
             await fetchUserBookings();
             if (params.rides) {
@@ -69,14 +62,11 @@ export default function RidesScreen() {
                 setSearchResults(parsedRides);
             }
         } catch (error) {
+            // Error is already handled by useApi
             console.error('Error refreshing:', error);
-            Alert.alert('Error', 'Failed to refresh. Please try again.');
-        } finally {
-            setRefreshing(false);
         }
     }, [params.rides]);
 
-    
     const groupRidesByDate = (ridesToGroup) => {
         const grouped = ridesToGroup.reduce((acc, ride) => {
             const date = new Date(ride.departure_time).toLocaleDateString();
@@ -109,8 +99,22 @@ export default function RidesScreen() {
         }));
     };
 
+    if (bookingsError) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <ErrorDisplay
+                    error={bookingsError}
+                    onRetry={retryFetchBookings}
+                    title="Error Loading Bookings"
+                    message="We couldn't load your booked rides at this time."
+                    retryText="Retry"
+                />
+            </SafeAreaView>
+        );
+    }
+
     // Separate available rides and booked rides
-    const bookedRideIds = new Set(userBookings.map((ride) => ride._id));
+    const bookedRideIds = new Set(userBookings?.map((ride) => ride._id) || []);
     const availableRides = searchResults.filter(
         (ride) => !bookedRideIds.has(ride._id) && ride.available_seats > 0
     );
@@ -122,34 +126,19 @@ export default function RidesScreen() {
     const groupedAvailableRides = groupRidesByDate(availableRides);
     const groupedBookedRides = groupRidesByDate(bookedRidesFromSearch);
     const groupedFullRides = groupRidesByDate(fullRides);
-    const allBookedRides = groupRidesByDate(userBookings);
+    const allBookedRides = groupRidesByDate(userBookings || []);
 
     const hasSearchResults = searchResults.length > 0;
-    const hasBookings = userBookings.length > 0;
-
-    // const handleCancelBooking = async (rideId) => {
-    //     try {
-    //         console.log('Canceling booking:', rideId);
-    //         await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`, {
-    //             headers: { Authorization: `Bearer ${user.token}` },
-    //         });
-    //         await fetchUserBookings();
-    //         onRefresh();
-    //         Alert.alert('Success', 'Booking canceled');
-    //     } catch (error) {
-    //         console.error('Error canceling booking:', error.response?.data || error.message);
-    //         Alert.alert('Error', 'Failed to cancel booking. Please try again.');
-    //     }
-    // };
+    const hasBookings = userBookings?.length > 0;
 
     return (
-        <View style={{ flex: 1, padding: 16 }}>
+        <SafeAreaView style={{ flex: 1, padding: 16 }}>
             <FlatList
                 data={[]}
                 renderItem={null}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing}
+                        refreshing={isLoadingBookings}
                         onRefresh={onRefresh}
                         colors={['#4CAF50']}
                         tintColor='#4CAF50'
@@ -273,7 +262,6 @@ export default function RidesScreen() {
                                                         availableSeats={ride.available_seats}
                                                         statusDisplay={ride.statusDisplay}
                                                         isFull
-                                                        // onCancelBooking={() => handleCancelBooking(ride._id)}
                                                     />
                                                 ))}
                                             </View>
@@ -299,7 +287,7 @@ export default function RidesScreen() {
                     </>
                 }
             />
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -368,5 +356,15 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: 'black',
+        textAlign: 'center',
+        marginLeft: 10,
+        marginRight: 10,
+    },
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#fff', // optional, but helps avoid transparency issues
     },
 });

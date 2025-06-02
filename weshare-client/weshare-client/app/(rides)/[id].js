@@ -1,73 +1,74 @@
 // app/(rides)/[id].js
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
+import { useApi } from '../../hooks/useApi';
+import ErrorDisplay from '../../components/ErrorDisplay';
 
 export default function RideDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { user } = useAuth();
-    const [ride, setRide] = useState(null);
-    const [loading, setLoading] = useState(true);
+
+    const {
+        data: ride,
+        error: rideError,
+        isLoading: isLoadingRide,
+        execute: fetchRideDetails,
+        retry: retryFetchRide
+    } = useApi(async () => {
+        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/${id}`);
+        return response.data;
+    });
+
+    const {
+        error: bookingError,
+        isLoading: isBooking,
+        execute: bookRide,
+        retry: retryBooking
+    } = useApi(async () => {
+        const response = await axios.post(
+            `${process.env.EXPO_PUBLIC_API_URL}/rides/${id}/book`,
+            {},
+            {
+                headers: {
+                    Authorization: `Bearer ${user.token}`
+                }
+            }
+        );
+        return response.data;
+    });
 
     useEffect(() => {
-        
-
         if (id === 'employee') {
-            
             router.replace('/(rides)/employee');
             return;
         }
-        // Rest of your existing ID validation...
+
         const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
         if (!id || !isValidObjectId(id)) {
             router.replace('/(rides)');
             return;
         }
 
-
         fetchRideDetails();
     }, [id, router]);
 
-    const fetchRideDetails = async () => {
-        try {
-           
-            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/${id}`);
-
-            setRide(response.data);
-        } catch (error) {
-            console.error('Error fetching ride details in [id].js:', error);
-
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleBookRide = async () => {
         try {
-            const response = await axios.post(
-                `${process.env.EXPO_PUBLIC_API_URL}/rides/${id}/book`,
-                {},
-                {
-                    headers: {
-                        Authorization: `Bearer ${user.token}`
-                    }
-                }
-            );
-
-            Alert.alert('Success', 'Ride booked successfully!');
+            await bookRide();
             fetchRideDetails();
-            router.replace('/(rides)/booked'); // Changed from push to replace
+            router.replace('/(rides)/booked');
         } catch (error) {
+            // Error is already handled by useApi
             console.error('Booking error:', error);
-            Alert.alert('Error', error.response?.data?.error || 'Failed to book ride');
         }
     };
 
-    if (loading || !ride) {
+    if (isLoadingRide) {
         return (
             <View style={styles.container}>
                 <Text>Loading ride details...</Text>
@@ -75,10 +76,39 @@ export default function RideDetails() {
         );
     }
 
+    if (rideError) {
+        return (
+            <View style={styles.container}>
+                <ErrorDisplay
+                    error={rideError}
+                    onRetry={retryFetchRide}
+                    title="Error Loading Ride"
+                    message="We couldn't load the ride details at this time."
+                />
+            </View>
+        );
+    }
+
+    if (bookingError) {
+        return (
+            <View style={styles.container}>
+                <ErrorDisplay
+                    error={bookingError}
+                    onRetry={retryBooking}
+                    title="Booking Failed"
+                    message="We couldn't book your ride at this time."
+                />
+            </View>
+        );
+    }
+
+    if (!ride) {
+        return null;
+    }
+
     // Determine status color
     const statusColor = ride.statusDisplay === 'Full' ? '#FF0000' :
         ride.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
-
 
     return (
         <View style={styles.container}>
@@ -124,12 +154,14 @@ export default function RideDetails() {
             </View>
 
             <TouchableOpacity
-                style={styles.bookButton}
+                style={[styles.bookButton, (isBooking || ride.statusDisplay === 'Full') && styles.bookButtonDisabled]}
                 onPress={handleBookRide}
-                disabled={ride.statusDisplay === 'Full'}
+                disabled={isBooking || ride.statusDisplay === 'Full'}
             >
                 <Text style={styles.bookButtonText}>
-                    {ride.statusDisplay === 'Full' ? 'RideFull' : 'Book This Ride'}
+                    {isBooking ? 'Booking...' :
+                        ride.statusDisplay === 'Full' ? 'Ride Full' :
+                            'Book This Ride'}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -183,5 +215,9 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    bookButtonDisabled: {
+        backgroundColor: '#ccc',
+        opacity: 0.7,
     },
 });

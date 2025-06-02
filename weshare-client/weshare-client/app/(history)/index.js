@@ -1,12 +1,12 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { useInView } from 'react-intersection-observer';
 import axios from 'axios';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ErrorDisplay from '../../components/ErrorDisplay';
 
 
 const fetchRideHistory = async ({ pageParam = 1 }) => {
@@ -58,7 +58,7 @@ export default function RideHistory() {
     };
 
     const renderItem = ({ item, index }) => (
-        
+
         <View style={styles.card}>
             <View style={styles.row}>
                 <View>
@@ -70,7 +70,7 @@ export default function RideHistory() {
                 <View style={styles.priceContainer}>
                     <Text style={styles.price}>Rwf {item.price.toFixed(2)}</Text>
                     <Text style={styles.status}>
-                        {item.status} 
+                        {item.status}
                     </Text>
                 </View>
             </View>
@@ -81,7 +81,13 @@ export default function RideHistory() {
     if (error) {
         return (
             <View style={styles.container}>
-                <Text style={styles.error}>Error: {error}</Text>
+                <ErrorDisplay
+                    error={error}
+                    onRetry={() => loadRides(1)}
+                    title="Error Loading Ride History"
+                    message="We encountered an error while loading your ride history."
+                    retryText="Retry"
+                />
             </View>
         );
     }

@@ -18,20 +18,20 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
         try {
-          
+
             const token = await AsyncStorage.getItem('token');
             if (!token) {
                 setLoading(false);
                 return;
             }
-            
+
 
             const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/status`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
             const data = response.data;
-                
+
 
             if (data.isAuthenticated) {
                 const userData = {
@@ -45,13 +45,13 @@ export const AuthProvider = ({ children }) => {
                 };
                 setUser(userData);
 
-               
-                    
+
+
 
                 const targetRoute = data.role === 'agency' ? '/(agency)' :
                     data.role === 'agency_employee' ? '/(employee)' :
                         '/(home)';
-                    
+
                 // Only navigate if not already on the target route
                 if (router.pathname !== targetRoute) {
                     console.log('Navigating to:', targetRoute);
@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('role');
         } finally {
-            
+
             setLoading(false);
         }
     };
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
             });
 
             const data = response.data;
-            
+
 
             if (response.status !== 200) {
                 throw new Error(data.error || 'Login failed');
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }) => {
                 destinationCategoryId: data.destinationCategoryId,
             };
             setUser(userData);
-            
+
 
             const route = data.role === 'agency' ? '/(agency)' :
                 data.role === 'agency_employee' ? '/(employee)' :
@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }) => {
                 ...userData,
                 role,
             });
-            
+
             if (response.status !== 201) {
                 throw new Error(response.data.error || 'Signup failed');
             }

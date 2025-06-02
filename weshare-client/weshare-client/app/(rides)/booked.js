@@ -6,45 +6,50 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
+import { useApi } from '../../hooks/useApi';
+import ErrorDisplay from '../../components/ErrorDisplay';
+
 export default function BookedRidesScreen() {
-    const [bookedRides, setBookedRides] = useState([]);
-    const [refreshing, setRefreshing] = useState(false);
     const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
     const [selectedRideId, setSelectedRideId] = useState(null);
-
     const { user } = useAuth();
     const router = useRouter();
 
-    const fetchUserBookings = async () => {
-        try {
-            if (!user?.id || !user?.token) {
-                console.error('User ID or token missing');
-                return;
-            }
-            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
-                headers: { Authorization: `Bearer ${user.token}` },
-            });
+    const {
+        data: bookedRides,
+        error: fetchError,
+        isLoading: isLoadingRides,
+        execute: fetchUserBookings,
+        retry: retryFetchBookings
+    } = useApi(async () => {
+        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
+            headers: { Authorization: `Bearer ${user.token}` },
+        });
+        return response.data;
+    });
 
-            setBookedRides(response.data);
-        } catch (error) {
-            console.error('Error fetching user bookings:', error.response?.data || error.message);
-            Alert.alert('Error', 'Failed to fetch user bookings. Please try again.');
-        } finally {
-            setRefreshing(false);
-        }
-    };
+    const {
+        error: cancelError,
+        isLoading: isCancelling,
+        execute: cancelBooking,
+        retry: retryCancel
+    } = useApi(async (rideId) => {
+        const response = await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`, {
+            headers: { Authorization: `Bearer ${user.token}` },
+        });
+        return response.data;
+    });
 
     useEffect(() => {
         fetchUserBookings();
     }, []);
 
     const onRefresh = useCallback(() => {
-        setRefreshing(true);
         fetchUserBookings();
     }, []);
 
     const generateQRCodeData = (rideId) => {
-        const ride = bookedRides.find(ride => ride._id === rideId);
+        const ride = bookedRides?.find(ride => ride._id === rideId);
         if (!ride) {
             console.warn(`Ride not found for rideId: ${rideId}`);
             return JSON.stringify({ rideId, userId: user.id, bookingId: null });
@@ -55,7 +60,6 @@ export default function BookedRidesScreen() {
             console.warn(`No bookingId found for rideId: ${rideId}, userId: ${user.id}`);
         }
         const data = { rideId, userId: user.id, bookingId };
-
         return JSON.stringify(data);
     };
 
@@ -66,16 +70,39 @@ export default function BookedRidesScreen() {
 
     const handleCancelBooking = async (rideId) => {
         try {
-            const response = await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/cancel`, {
-                headers: { Authorization: `Bearer ${user.token}` },
-            });
-            Alert.alert('Success', 'Booking cancelled successfully');
-            fetchUserBookings(); // Refresh the list
+            await cancelBooking(rideId);
+            fetchUserBookings();
         } catch (error) {
-            console.error('Error cancelling booking:', error.response?.data || error.message);
-            Alert.alert('Error', error.response?.data?.error || 'Failed to cancel booking');
+            // Error is already handled by useApi
+            console.error('Error cancelling booking:', error);
         }
     };
+
+    if (fetchError) {
+        return (
+            <View style={styles.container}>
+                <ErrorDisplay
+                    error={fetchError}
+                    onRetry={retryFetchBookings}
+                    title="Error Loading Bookings"
+                    message="We couldn't load your booked rides at this time."
+                />
+            </View>
+        );
+    }
+
+    if (cancelError) {
+        return (
+            <View style={styles.container}>
+                <ErrorDisplay
+                    error={cancelError}
+                    onRetry={retryCancel}
+                    title="Error Cancelling Booking"
+                    message="We couldn't cancel your booking at this time."
+                />
+            </View>
+        );
+    }
 
     const renderRide = ({ item }) => {
         const userBooking = item.bookedBy?.find(b => b.userId === user.id);
@@ -124,10 +151,13 @@ export default function BookedRidesScreen() {
                             <Text style={styles.buttonText}>Show QR Code</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={styles.cancelButton}
+                            style={[styles.cancelButton, isCancelling && styles.buttonDisabled]}
                             onPress={() => handleCancelBooking(item._id)}
+                            disabled={isCancelling}
                         >
-                            <Text style={styles.buttonText}>Cancel</Text>
+                            <Text style={styles.buttonText}>
+                                {isCancelling ? 'Cancelling...' : 'Cancel'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -135,7 +165,7 @@ export default function BookedRidesScreen() {
         );
     };
 
-    const sortedRides = [...bookedRides].sort((a, b) => {
+    const sortedRides = [...(bookedRides || [])].sort((a, b) => {
         const aCheckedIn = a.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
         const bCheckedIn = b.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
         return aCheckedIn === bCheckedIn ? 0 : aCheckedIn ? -1 : 1;
@@ -149,9 +179,18 @@ export default function BookedRidesScreen() {
                 renderItem={renderRide}
                 keyExtractor={(item) => item._id}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    <RefreshControl
+                        refreshing={isLoadingRides}
+                        onRefresh={onRefresh}
+                        colors={['#4CAF50']}
+                        tintColor='#4CAF50'
+                    />
                 }
-                ListEmptyComponent={<Text style={styles.emptyText}>No booked rides found</Text>}
+                ListEmptyComponent={
+                    !isLoadingRides ? (
+                        <Text style={styles.emptyText}>No booked rides found</Text>
+                    ) : null
+                }
             />
             <Modal
                 visible={qrCodeModalVisible}
@@ -329,5 +368,8 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
+    },
+    buttonDisabled: {
+        opacity: 0.7,
     },
 });

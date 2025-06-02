@@ -5,35 +5,39 @@ import { Layout, Text, Button, Card, Avatar, Divider } from '@ui-kitten/componen
 import Ionicons from '@expo/vector-icons/Ionicons';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
+import { useApi } from '../../hooks/useApi';
+import ErrorDisplay from '../../components/ErrorDisplay';
 
 export default function Profile() {
     const { user, logout } = useAuth();
     const [agencyName, setAgencyName] = useState('');
     const [destinationCategory, setDestinationCategory] = useState('');
 
-    // Fetch agency and destination category details for agency_employee
-    // console.log(user);
-    // const apiUrl = process.env.EXPO_PUBLIC_API_URL + '/auth/agencies/' + user.agencyId + '/categories/' + user.destinationCategoryId;
-    // console.log(apiUrl);
+    const {
+        error: agencyError,
+        isLoading: isLoadingAgency,
+        execute: fetchAgencyDetails,
+        retry: retryFetchAgency
+    } = useApi(async () => {
+        if (!user?.role === 'agency_employee' || !user?.agencyId || !user?.destinationCategoryId) {
+            return null;
+        }
+        const [agencyRes, categoryRes] = await Promise.all([
+            axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies/${user.agencyId}`, {
+                headers: { Authorization: `Bearer ${user.token}` }
+            }),
+            axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies/${user.agencyId}/categories/${user.destinationCategoryId}`, {
+                headers: { Authorization: `Bearer ${user.token}` }
+            })
+        ]);
+        setAgencyName(agencyRes.data.name);
+        setDestinationCategory(`${categoryRes.data.from} to ${categoryRes.data.to}`);
+        return { agency: agencyRes.data, category: categoryRes.data };
+    });
+
     useEffect(() => {
         if (user?.role === 'agency_employee' && user.agencyId && user.destinationCategoryId) {
-            const fetchDetails = async () => {
-                try {
-                    const [agencyRes, categoryRes] = await Promise.all([
-                        axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies/${user.agencyId}`, {
-                            headers: { Authorization: `Bearer ${user.token}` }
-                        }),
-                        axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies/${user.agencyId}/categories/${user.destinationCategoryId}`, {
-                            headers: { Authorization: `Bearer ${user.token}` }
-                        })
-                    ]);
-                    setAgencyName(agencyRes.data.name);
-                    setDestinationCategory(`${categoryRes.data.from} to ${categoryRes.data.to}`);
-                } catch (error) {
-                    console.error('Error fetching agency/category:', error);
-                }
-            };
-            fetchDetails();
+            fetchAgencyDetails();
         }
     }, [user]);
 
@@ -48,6 +52,19 @@ export default function Profile() {
         }
         return { text: user?.name?.[0]?.toUpperCase() || '?' };
     };
+
+    if (agencyError) {
+        return (
+            <Layout style={styles.container}>
+                <ErrorDisplay
+                    error={agencyError}
+                    onRetry={retryFetchAgency}
+                    title="Error Loading Profile Details"
+                    message="We couldn't load your agency details at this time."
+                />
+            </Layout>
+        );
+    }
 
     if (!user) {
         return (
@@ -80,11 +97,15 @@ export default function Profile() {
                         <Text category='s1' style={styles.roleText}>
                             Role: {user.role === 'user' ? 'Normal User' : 'Agency Employee'}
                         </Text>
-                        
+
                         {user.role === 'agency_employee' && (
                             <>
-                                <Text category='s1' appearance='hint'>Agency: {agencyName || 'Not set'}</Text>
-                                <Text category='s1' appearance='hint'>Destination Category: {destinationCategory || 'Not set'}</Text>
+                                <Text category='s1' appearance='hint'>
+                                    Agency: {isLoadingAgency ? 'Loading...' : agencyName || 'Not set'}
+                                </Text>
+                                <Text category='s1' appearance='hint'>
+                                    Destination Category: {isLoadingAgency ? 'Loading...' : destinationCategory || 'Not set'}
+                                </Text>
                             </>
                         )}
                     </Layout>
@@ -207,6 +228,6 @@ const styles = StyleSheet.create({
     },
     logoutButton: {
         marginTop: 8,
-        
+
     },
 });
