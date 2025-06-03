@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'expo-router';
 import { Button, Input, Text, Layout, Select, SelectItem } from '@ui-kitten/components';
 import axios from 'axios';
+import ErrorDisplay from '../../components/ErrorDisplay';
 
 export default function Signup() {
     const [name, setName] = useState('');
@@ -15,7 +16,13 @@ export default function Signup() {
     const [destinationCategoryId, setDestinationCategoryId] = useState('');
     const [agencies, setAgencies] = useState([]);
     const [categories, setCategories] = useState([]);
-    const { signup } = useAuth();
+    const {
+        signup,
+        signupError,
+        setSignupError,
+        signupRetry
+    } = useAuth();
+
 
     const fetchAgencies = async () => {
         try {
@@ -23,7 +30,7 @@ export default function Signup() {
             setAgencies(res.data);
         } catch (error) {
             console.error('Error fetching agencies:', error);
-            Alert.alert('Error', 'Failed to load agencies');
+            
         }
     };
 
@@ -41,7 +48,7 @@ export default function Signup() {
                     setCategories(res.data);
                 } catch (error) {
                     console.error('Error fetching categories:', error);
-                    Alert.alert('Error', 'Failed to load categories');
+                    setError('Failed to load categories');
                 }
             };
             fetchCategories();
@@ -72,13 +79,33 @@ export default function Signup() {
                 agencyId: role === 'agency_employee' ? agencyId : undefined,
                 destinationCategoryId: role === 'agency_employee' ? destinationCategoryId : undefined,
             };
-            console.log('Signup data:', { userData, role }); // Debug log
+          
             await signup(userData, role);
         } catch (error) {
             console.error('Signup error:', error.message);
-            Alert.alert('Signup Failed', error.message);
+            
         }
     };
+    const handleRetry = () => {
+        setSignupError(null);
+        signupRetry();
+        
+    };
+
+    if (signupError) {
+        return (
+            <Layout style={styles.container}>
+                <ErrorDisplay
+                    error={signupError}
+                    onRetry={handleRetry}
+                    title="Signup Failed"
+                    message="We couldn't sign you up at this time. Check your credentials and try again."
+                    retryText="Try Again"
+                />
+            </Layout>
+        );
+    }
+
 
     return (
         <Layout style={styles.container}>
@@ -120,8 +147,10 @@ export default function Signup() {
                     value={roleDisplay}
                     onSelect={index => {
                         const newRole = index.row === 0 ? 'user' : 'agency_employee';
-                        console.log('Role selected:', newRole); // Debug log
+                        
+                       setTimeout(() => {
                         setRole(newRole);
+                       }, 1000);
                     }}
                 >
                     <SelectItem title="Normal User" />
@@ -135,8 +164,9 @@ export default function Signup() {
                             value={agencyDisplay}
                             onSelect={index => {
                                 const newAgencyId = agencies[index.row]?._id || '';
-                                console.log('Agency selected:', newAgencyId); // Debug log
-                                setAgencyId(newAgencyId);
+                                setTimeout(() => {
+                                    setAgencyId(newAgencyId);
+                                }, 1000);
                             }}
                             disabled={agencies.length === 0}
                         >
@@ -150,8 +180,9 @@ export default function Signup() {
                             value={categoryDisplay}
                             onSelect={index => {
                                 const newCategoryId = categories[index.row]?._id || '';
-                                console.log('Category selected:', newCategoryId); // Debug log
-                                setDestinationCategoryId(newCategoryId);
+                                setTimeout(() => {
+                                    setDestinationCategoryId(newCategoryId);
+                                }, 1000);
                             }}
                             disabled={!agencyId || categories.length === 0}
                         >
