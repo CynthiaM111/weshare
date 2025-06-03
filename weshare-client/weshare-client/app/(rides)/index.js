@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -144,6 +144,7 @@ export default function RidesScreen() {
                         tintColor='#4CAF50'
                     />
                 }
+                contentContainerStyle={{ padding: 16 }}
                 ListHeaderComponent={
                     <>
                         {!hasSearchResults && (
@@ -165,20 +166,6 @@ export default function RidesScreen() {
                                     />
                                     <Text style={styles.searchButtonText}>Search for Rides</Text>
                                 </TouchableOpacity>
-                                {hasBookings && (
-                                    <TouchableOpacity
-                                        style={[styles.searchButton, { marginTop: 10 }]}
-                                        onPress={() => router.push('/booked')}
-                                    >
-                                        <FontAwesome5
-                                            name="ticket-alt"
-                                            size={16}
-                                            color="black"
-                                            style={styles.searchIcon}
-                                        />
-                                        <Text style={styles.searchButtonText}>View Booked Rides</Text>
-                                    </TouchableOpacity>
-                                )}
                             </View>
                         )}
 
@@ -270,19 +257,30 @@ export default function RidesScreen() {
                                 )}
                             </View>
                         )}
-                        {hasSearchResults && hasBookings && (
-                            <TouchableOpacity
-                                style={[styles.searchButton, { marginBottom: 24 }]}
-                                onPress={() => router.push('/booked')}
-                            >
-                                <FontAwesome5
-                                    name="ticket-alt"
-                                    size={16}
-                                    color="black"
-                                    style={styles.searchIcon}
-                                />
-                                <Text style={styles.searchButtonText}>View Booked Rides</Text>
-                            </TouchableOpacity>
+
+                        {hasSearchResults && groupedBookedRides.length > 0 && (
+                            <View style={styles.bookedContainer}>
+                                <Text style={styles.bookedMessage}>🎉 You've already booked this ride!</Text>
+                                <TouchableOpacity
+                                    style={styles.bookedButton}
+                                    onPress={() => router.push('/booked')}
+                                >
+                                    <FontAwesome5 name="ticket-alt" size={16} color="#fff" style={styles.bookedIcon} />
+                                    <Text style={styles.bookedButtonText}>View Booked Rides</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        {hasBookings && !groupedBookedRides.length > 0 && (
+                            <View style={styles.bookedContainer}>
+                                <TouchableOpacity
+                                    style={styles.bookedButton}
+                                    onPress={() => router.push('/booked')}
+                                >
+                                    <FontAwesome5 name="ticket-alt" size={16} color="#fff" style={styles.bookedIcon} />
+                                    <Text style={styles.bookedButtonText}>View Booked Rides</Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
                     </>
                 }
@@ -359,6 +357,48 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginLeft: 10,
         marginRight: 10,
+    },
+    bookedContainer: {
+        marginTop: 20,
+        alignItems: 'center',
+        backgroundColor: '#F0F4FF',
+        padding: 16,
+        borderRadius: 12,
+        borderColor: '#D1D5DB',
+        borderWidth: 1,
+    },
+
+    bookedMessage: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        marginBottom: 12,
+        marginTop: 10,
+        padding: 10,
+    },
+
+    bookedButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2563EB',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+
+    bookedIcon: {
+        marginRight: 8,
+    },
+
+    bookedButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
     container: {
         flex: 1,

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { format } from 'date-fns';
+import { useRouter } from 'expo-router';
 
 export default function RideCard({
     ride,
@@ -161,7 +162,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#FF0000',
         padding: 10,
         borderRadius: 6,
-       
     },
     cancelButtonText: {
         color: 'white',
@@ -176,6 +176,18 @@ const styles = StyleSheet.create({
         borderRadius: 6,
     },
     qrButtonText: {
+        color: 'white',
+        fontSize: 14,
+        marginLeft: 8,
+    },
+    viewBookingsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2196F3',
+        padding: 10,
+        borderRadius: 6,
+    },
+    viewBookingsText: {
         color: 'white',
         fontSize: 14,
         marginLeft: 8,
