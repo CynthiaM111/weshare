@@ -1,7 +1,7 @@
 import { View, Text, StatusBar, TextInput, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
-import { styles } from '../../styles/HomeScreenStyles';
+// import { styles } from '../../styles/HomeScreenStyles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -9,6 +9,7 @@ import { useApi } from '../../hooks/useApi';
 import ErrorDisplay from '../../components/ErrorDisplay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, Platform } from 'react-native';
 
 const rwandaDistricts = [
     "Burera",
@@ -218,7 +219,11 @@ export default function HomeScreen() {
                 </View>
 
                 {/* Scrollable Content */}
-                <View style={styles.searchContainer}>
+                <ScrollView
+                    style={styles.searchContainer}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
                     <View style={styles.inputContainer}>
                         <View style={styles.inputWrapper}>
                             <Ionicons name="location" size={24} color="#0a2472" style={styles.inputIcon} />
@@ -305,8 +310,294 @@ export default function HomeScreen() {
                             </View>
                         </View>
                     )}
-                </View>
+
+                    {/* Private Rides Section */}
+                    <View style={styles.privateRidesContainer}>
+                        <View style={styles.privateRidesHeader}>
+                            <Ionicons name="car-sport-outline" size={24} color="#0a2472" style={styles.privateRidesIcon} />
+                            <Text style={styles.privateRidesTitle}>Want to go private?</Text>
+                        </View>
+                        <Text style={styles.privateRidesDescription}>
+                            Book a private ride for a more comfortable and exclusive experience
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.privateRidesButton}
+                            onPress={() => { }}
+                        >
+                            <Text style={styles.privateRidesButtonText}>Book Private Ride</Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
             </SafeAreaView>
         </LinearGradient>
     );
 }
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    backgroundGradient: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        backgroundColor: 'rgba(10, 36, 114, 0.8)',
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    notificationIcon: {
+        padding: 8,
+    },
+    searchContainer: {
+        flex: 1, // Changed from flexGrow to flex for proper ScrollView behavior
+    },
+    scrollContent: {
+        padding: 20,
+        paddingBottom: 100, // Ensure enough space for bottom navigation
+    },
+    inputContainer: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        padding: 15,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+    inputIcon: {
+        marginRight: 10,
+    },
+    input: {
+        flex: 1,
+        fontSize: 16,
+        color: '#333',
+        paddingVertical: 8,
+    },
+    inputDivider: {
+        height: 1,
+        backgroundColor: '#E0E0E0',
+        marginVertical: 8,
+    },
+    suggestionsContainer: {
+        backgroundColor: 'white',
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 200,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    suggestionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    suggestionIcon: {
+        marginRight: 10,
+    },
+    suggestionText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    findButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 15,
+        borderRadius: 12,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        marginBottom: 20, // Added margin for spacing
+    },
+    findButtonDisabled: {
+        backgroundColor: 'rgba(10, 36, 114, 0.7)',
+    },
+    findButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    frequentSearchesContainer: {
+        marginTop: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        padding: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        marginBottom: 20, // Added margin for spacing
+    },
+    frequentSearchesTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    frequentSearchesIcon: {
+        marginRight: 8,
+    },
+    frequentSearchesTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0a2472',
+    },
+    frequentSearchesGrid: {
+        flexDirection: 'column',
+        gap: 10,
+    },
+    frequentSearchItem: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        padding: 12,
+        width: '100%',
+        marginBottom: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(10, 36, 114, 0.2)',
+    },
+    frequentSearchContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    frequentSearchLocation: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    frequentSearchIcon: {
+        marginRight: 6,
+    },
+    frequentSearchFrom: {
+        fontSize: 15,
+        color: '#0a2472',
+        flex: 1,
+        fontWeight: '500',
+    },
+    frequentSearchTo: {
+        fontSize: 15,
+        color: '#0a2472',
+        flex: 1,
+        fontWeight: '500',
+    },
+    bottomNav: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingVertical: 12,
+        backgroundColor: '#fff',
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
+    navItem: {
+        alignItems: 'center',
+        paddingHorizontal: 10,
+    },
+    navText: {
+        fontSize: 12,
+        marginTop: 4,
+    },
+    iosButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    iosButton: {
+        backgroundColor: '#0a2472',
+        padding: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 20,
+    },
+    pickerContainer: {
+        backgroundColor: '#333',
+        borderRadius: Platform.OS === 'ios' ? 10 : 0,
+        padding: Platform.OS === 'ios' ? 10 : 0,
+        margin: 10,
+        height: Platform.OS === 'ios' ? 200 : 'auto',
+    },
+    buttonContainer: {
+        margin: 10,
+    },
+    dateTimeInput: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingRight: 12,
+    },
+    dateTimeText: {
+        fontSize: 16,
+        color: '#000',
+    },
+    privateRidesContainer: {
+        marginTop: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        marginBottom: 20, // Ensure consistent bottom margin
+    },
+    privateRidesHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    privateRidesIcon: {
+        marginRight: 10,
+    },
+    privateRidesTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0a2472',
+    },
+    privateRidesDescription: {
+        fontSize: 13,
+        color: '#666',
+        marginBottom: 12,
+        lineHeight: 18,
+    },
+    privateRidesButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    privateRidesButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+});

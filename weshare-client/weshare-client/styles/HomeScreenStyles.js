@@ -29,6 +29,8 @@ export const styles = StyleSheet.create({
     searchContainer: {
         flexGrow: 1,
         padding: 20,
+        flexDirection: 'column',
+        paddingBottom: 100,
     },
     inputContainer: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -105,7 +107,7 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     frequentSearchesContainer: {
-        marginTop: 30,
+        marginTop: 20,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderRadius: 12,
         padding: 15,
@@ -219,5 +221,48 @@ export const styles = StyleSheet.create({
     dateTimeText: {
         fontSize: 16,
         color: '#000',
+    },
+    privateRidesContainer: {
+        marginTop: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        marginBottom: Platform.OS === 'ios' ? 40 : 20,
+    },
+    privateRidesHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    privateRidesIcon: {
+        marginRight: 10,
+    },
+    privateRidesTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0a2472',
+    },
+    privateRidesDescription: {
+        fontSize: 13,
+        color: '#666',
+        marginBottom: 12,
+        lineHeight: 18,
+    },
+    privateRidesButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    privateRidesButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
