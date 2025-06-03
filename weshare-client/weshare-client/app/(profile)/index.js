@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Link, router } from 'expo-router';
 import { Layout, Text, Button, Card, Avatar, Divider } from '@ui-kitten/components';
@@ -100,12 +100,30 @@ export default function Profile() {
 
                         {user.role === 'agency_employee' && (
                             <>
-                                <Text category='s1' appearance='hint'>
-                                    Agency: {isLoadingAgency ? 'Loading...' : agencyName || 'Not set'}
-                                </Text>
-                                <Text category='s1' appearance='hint'>
-                                    Destination Category: {isLoadingAgency ? 'Loading...' : destinationCategory || 'Not set'}
-                                </Text>
+                                <View style={styles.infoRow}>
+                                    <Ionicons name="business-outline" size={20} color="#3B82F6" style={styles.infoIcon} />
+                                    <View style={styles.infoContent}>
+                                        <Text category='s2' style={styles.infoLabel}>Agency</Text>
+                                        <Text category='s1' style={styles.infoValue}>
+                                            {isLoadingAgency ? 'Loading...' : agencyName || 'Not set'}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.infoRow}>
+                                    <Ionicons name="map-outline" size={20} color="#3B82F6" style={styles.infoIcon} />
+                                    <View style={styles.infoContent}>
+                                        <Text category='s2' style={styles.infoLabel}>Destination Category</Text>
+                                        <View style={styles.destinationContainer}>
+                                            <Text category='s1' style={styles.infoValue}>
+                                                {isLoadingAgency ? 'Loading...' : destinationCategory?.split(' to ')[0] || 'Not set'}
+                                            </Text>
+                                            <Ionicons name="arrow-forward" size={16} color="#6B7280" style={styles.arrowIcon} />
+                                            <Text category='s1' style={styles.infoValue}>
+                                                {isLoadingAgency ? 'Loading...' : destinationCategory?.split(' to ')[1] || 'Not set'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
                             </>
                         )}
                     </Layout>
@@ -161,52 +179,56 @@ export default function Profile() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#F9FAFB',
         padding: 16,
         justifyContent: 'center',
     },
     card: {
-        elevation: 4,
+        padding: 24,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
         shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        marginHorizontal: 8,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 3,
     },
     title: {
         textAlign: 'center',
+        fontSize: 22,
+        fontWeight: '700',
         marginBottom: 8,
+        color: '#1F2937',
     },
     subtitle: {
         textAlign: 'center',
-        color: '#8F9BB3',
+        fontSize: 15,
+        color: '#6B7280',
         marginBottom: 20,
     },
     button: {
-        marginTop: 8,
-        backgroundColor: 'royalblue',
+        marginTop: 16,
+        backgroundColor: '#2563EB',
+        borderRadius: 8,
     },
     profileCard: {
-        elevation: 4,
+        padding: 24,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
         shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 3,
     },
     headerSection: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 20,
     },
     avatar: {
         marginRight: 16,
-        backgroundColor: '#3e4e50',
+        backgroundColor: '#3B82F6',
     },
     userInfo: {
         flex: 1,
@@ -214,20 +236,63 @@ const styles = StyleSheet.create({
     },
     roleText: {
         marginTop: 8,
-        fontWeight: 'bold',
+        fontWeight: '600',
+        fontSize: 14,
+        color: '#374151',
     },
     divider: {
-        marginVertical: 16,
+        marginVertical: 20,
+        backgroundColor: '#E5E7EB',
     },
     menuSection: {
         backgroundColor: 'transparent',
     },
     menuItem: {
         justifyContent: 'space-between',
-        marginVertical: 4,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        backgroundColor: '#F3F4F6',
+        marginBottom: 8,
     },
     logoutButton: {
-        marginTop: 8,
-
+        marginTop: 12,
+        borderRadius: 8,
+        borderColor: '#DC2626',
+        borderWidth: 1,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 12,
+        backgroundColor: '#F3F4F6',
+        padding: 12,
+        borderRadius: 8,
+    },
+    infoIcon: {
+        marginRight: 12,
+    },
+    infoContent: {
+        flex: 1,
+    },
+    infoLabel: {
+        color: '#6B7280',
+        marginBottom: 2,
+        fontSize: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    infoValue: {
+        color: '#1F2937',
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    destinationContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    arrowIcon: {
+        marginHorizontal: 4,
     },
 });

@@ -7,7 +7,7 @@ import axios from 'axios';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ErrorDisplay from '../../components/ErrorDisplay';
-
+import { Ionicons } from '@expo/vector-icons';
 
 const fetchRideHistory = async ({ pageParam = 1 }) => {
     const token = await AsyncStorage.getItem('token');
@@ -124,36 +124,42 @@ export default function RideHistory() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
-        backgroundColor: '#f5f5f5',
+        paddingHorizontal: 16,
+        paddingTop: 20,
+        backgroundColor: '#F9FAFB',
     },
     header: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 16,
+        fontSize: 26,
+        fontWeight: '700',
+        color: '#1F2937',
+        marginBottom: 20,
+        textAlign: 'center',
     },
     card: {
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
         padding: 16,
         marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 3,
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
     },
     title: {
         fontSize: 18,
         fontWeight: '600',
+        color: '#111827',
+        marginBottom: 4,
     },
     subtitle: {
         fontSize: 14,
-        color: '#666',
+        color: '#6B7280',
     },
     priceContainer: {
         alignItems: 'flex-end',
@@ -161,30 +167,34 @@ const styles = StyleSheet.create({
     price: {
         fontSize: 18,
         fontWeight: '600',
+        color: '#10B981',
+        marginBottom: 4,
     },
     status: {
         fontSize: 12,
-        color: '#666',
+        fontWeight: '500',
+        color: '#6366F1',
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 6,
+        overflow: 'hidden',
         textTransform: 'capitalize',
-    },
-    error: {
-        color: 'red',
-        fontSize: 16,
-        textAlign: 'center',
     },
     footer: {
         paddingVertical: 16,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     footerText: {
         fontSize: 14,
-        color: '#666',
-        textAlign: 'center',
+        color: '#9CA3AF',
+        marginTop: 8,
     },
     emptyText: {
         fontSize: 16,
-        color: '#666',
+        color: '#9CA3AF',
         textAlign: 'center',
-        marginTop: 20,
+        marginTop: 40,
     },
 });

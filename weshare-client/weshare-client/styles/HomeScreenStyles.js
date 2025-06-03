@@ -115,11 +115,18 @@ export const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
+    frequentSearchesTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    frequentSearchesIcon: {
+        marginRight: 8,
+    },
     frequentSearchesTitle: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#0a2472',
-        marginBottom: 15,
     },
     frequentSearchesGrid: {
         flexDirection: 'column',
@@ -144,6 +151,14 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
+    frequentSearchLocation: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    frequentSearchIcon: {
+        marginRight: 6,
+    },
     frequentSearchFrom: {
         fontSize: 15,
         color: '#0a2472',
@@ -154,7 +169,6 @@ export const styles = StyleSheet.create({
         fontSize: 15,
         color: '#0a2472',
         flex: 1,
-        textAlign: 'right',
         fontWeight: '500',
     },
     bottomNav: {

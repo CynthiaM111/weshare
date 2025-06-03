@@ -281,7 +281,10 @@ export default function HomeScreen() {
                     {/* Frequent Searches */}
                     {frequentSearches.length > 0 && (
                         <View style={styles.frequentSearchesContainer}>
-                            <Text style={styles.frequentSearchesTitle}>Frequent Searches</Text>
+                            <View style={styles.frequentSearchesTitleContainer}>
+                                <Ionicons name="star-outline" size={24} color="#0a2472" style={styles.frequentSearchesIcon} />
+                                <Text style={styles.frequentSearchesTitle}>Frequent Searches</Text>
+                            </View>
                             <View style={styles.frequentSearchesGrid}>
                                 {frequentSearches.map((search, index) => (
                                     <TouchableOpacity
@@ -290,7 +293,10 @@ export default function HomeScreen() {
                                         onPress={() => handleSearch(search.from, search.to)}
                                     >
                                         <View style={styles.frequentSearchContent}>
-                                            <Text style={styles.frequentSearchFrom}>{search.from}</Text>
+                                            <View style={styles.frequentSearchLocation}>
+                                                <Ionicons name="home-outline" size={16} color="#0a2472" style={styles.frequentSearchIcon} />
+                                                <Text style={styles.frequentSearchFrom}>{search.from}</Text>
+                                            </View>
                                             <Ionicons name="arrow-forward" size={16} color="#0a2472" />
                                             <Text style={styles.frequentSearchTo}>{search.to}</Text>
                                         </View>
