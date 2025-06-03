@@ -487,8 +487,7 @@ const getEmployeeRides = async (req, res) => {
 const checkInPassenger = async (req, res) => {
     try {
         const { rideId, userId, bookingId } = req.body;
-        console.log('checkInPassenger called:', { rideId, userId, bookingId });
-
+        
         if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
             console.error('Invalid rideId or userId:', { rideId, userId });
             return res.status(400).json({ error: 'Invalid rideId or userId' });
