@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -28,17 +28,17 @@ export default function PrivateRidesScreen() {
         if (!user?.id || !user?.token) {
             throw new Error('User ID or token missing');
         }
-        
+
         const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/private`, {
             headers: { Authorization: `Bearer ${user.token}` },
         });
-        
+
         return response.data.rides || [];
     });
 
     useEffect(() => {
         if (user) {
-            
+
             fetchPrivateRides();
         }
     }, [user]);
@@ -83,6 +83,45 @@ export default function PrivateRidesScreen() {
         }));
     };
 
+    const handleDeleteRide = async (rideId) => {
+        Alert.alert(
+            "Delete Ride",
+            "Are you sure you want to delete this ride?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+
+                            await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}`, {
+                                headers: { Authorization: `Bearer ${user.token}` },
+                            });
+                            // Refresh the rides list
+                            fetchPrivateRides();
+                        } catch (error) {
+
+                            Alert.alert("Error", "Failed to delete ride. Please try again.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleEditRide = (ride) => {
+        router.push({
+            pathname: '/(rides)/add-private-ride',
+            params: {
+                ride: JSON.stringify(ride)
+            }
+        });
+    };
+
     if (privateRidesError) {
         return (
             <SafeAreaView style={styles.container}>
@@ -98,18 +137,18 @@ export default function PrivateRidesScreen() {
     }
 
     const rides = Array.isArray(privateRides) ? privateRides : [];
-    
+
 
     const currentDate = new Date();
 
     const activeRides = rides.filter(ride => new Date(ride.departure_time) >= currentDate);
     const pastRides = rides.filter(ride => new Date(ride.departure_time) < currentDate);
 
-    
+
     const groupedActiveRides = groupRidesByDate(activeRides);
     const groupedPastRides = groupRidesByDate(pastRides);
 
-    
+
 
     return (
         <LinearGradient
@@ -174,12 +213,27 @@ export default function PrivateRidesScreen() {
                                                                 <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                             </View>
                                                             {group.rides.map((ride) => (
-                                                                <RideCard
-                                                                    key={ride._id}
-                                                                    ride={ride}
-                                                                    onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                                    isPrivate={true}
-                                                                />
+                                                                <View key={ride._id} style={styles.rideCardContainer}>
+                                                                    <RideCard
+                                                                        ride={ride}
+                                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                                        isPrivate={true}
+                                                                    />
+                                                                    <View style={styles.rideActions}>
+                                                                        <TouchableOpacity
+                                                                            style={[styles.actionButton, styles.editButton]}
+                                                                            onPress={() => handleEditRide(ride)}
+                                                                        >
+                                                                            <FontAwesome5 name="edit" size={16} color="#fff" />
+                                                                        </TouchableOpacity>
+                                                                        <TouchableOpacity
+                                                                            style={[styles.actionButton, styles.deleteButton]}
+                                                                            onPress={() => handleDeleteRide(ride._id)}
+                                                                        >
+                                                                            <FontAwesome5 name="trash" size={16} color="#fff" />
+                                                                        </TouchableOpacity>
+                                                                    </View>
+                                                                </View>
                                                             ))}
                                                         </View>
                                                     ))}
@@ -216,12 +270,27 @@ export default function PrivateRidesScreen() {
                                                                 <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                             </View>
                                                             {group.rides.map((ride) => (
-                                                                <RideCard
-                                                                    key={ride._id}
-                                                                    ride={ride}
-                                                                    onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                                    isPrivate={true}
-                                                                />
+                                                                <View key={ride._id} style={styles.rideCardContainer}>
+                                                                    <RideCard
+                                                                        ride={ride}
+                                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                                        isPrivate={true}
+                                                                    />
+                                                                    <View style={styles.rideActions}>
+                                                                        <TouchableOpacity
+                                                                            style={[styles.actionButton, styles.editButton]}
+                                                                            onPress={() => handleEditRide(ride)}
+                                                                        >
+                                                                            <FontAwesome5 name="edit" size={16} color="#fff" />
+                                                                        </TouchableOpacity>
+                                                                        <TouchableOpacity
+                                                                            style={[styles.actionButton, styles.deleteButton]}
+                                                                            onPress={() => handleDeleteRide(ride._id)}
+                                                                        >
+                                                                            <FontAwesome5 name="trash" size={16} color="#fff" />
+                                                                        </TouchableOpacity>
+                                                                    </View>
+                                                                </View>
                                                             ))}
                                                         </View>
                                                     ))}
@@ -379,5 +448,37 @@ const styles = StyleSheet.create({
         },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
+    },
+    rideCardContainer: {
+        position: 'relative',
+        marginBottom: 8,
+    },
+    rideActions: {
+        position: 'absolute',
+        right: 8,
+        top: 8,
+        flexDirection: 'row',
+        gap: 8,
+    },
+    actionButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 1.41,
+    },
+    editButton: {
+        backgroundColor: '#0a2472',
+    },
+    deleteButton: {
+        backgroundColor: '#dc3545',
     },
 }); 

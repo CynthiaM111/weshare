@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
@@ -9,6 +9,8 @@ import { StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import { useLocalSearchParams } from 'expo-router';
+import { useRef } from 'react';
 
 export default function AddPrivateRideScreen() {
     const router = useRouter();
@@ -22,16 +24,51 @@ export default function AddPrivateRideScreen() {
     const [licensePlate, setLicensePlate] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [rideId, setRideId] = useState(null);
+
+    // Get ride data from route params if it exists
+    const params = useLocalSearchParams();
+    const hasInitialized = useRef(false);
+    useEffect(() => {
+        
+        if (params?.ride && !hasInitialized.current) {
+            try {
+                const parsedRide = JSON.parse(params.ride);
+                setIsEditing(true);
+                setRideId(parsedRide._id);
+                setFrom(parsedRide.from);
+                setTo(parsedRide.to);
+                setDescription(parsedRide.description);
+                setLicensePlate(parsedRide.licensePlate);
+                setEta(parsedRide.estimatedArrivalTime.toString());
+
+                // Set date and time from departure_time
+                const departureDate = new Date(parsedRide.departure_time);
+                setDate(departureDate);
+                setTime(departureDate);
+                hasInitialized.current = true;
+            } catch (error) {
+                console.error('Error parsing ride data:', error);
+            }
+        }
+    }, [params?.ride]);
 
     const { execute: addPrivateRide, isLoading } = useApi(async (rideData) => {
-        const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/rides`, rideData, {
+        const url = isEditing
+            ? `${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}`
+            : `${process.env.EXPO_PUBLIC_API_URL}/rides`;
+
+        const method = isEditing ? 'put' : 'post';
+
+        const response = await axios[method](url, rideData, {
             headers: {
                 'Authorization': `Bearer ${user.token}`
             }
         });
 
-        if (response.status !== 201) {
-            throw new Error('Failed to add private ride');
+        if (response.status !== (isEditing ? 200 : 201)) {
+            throw new Error(`Failed to ${isEditing ? 'update' : 'add'} private ride`);
         }
 
         return response.data;
@@ -65,7 +102,7 @@ export default function AddPrivateRideScreen() {
             await addPrivateRide(rideData);
             Alert.alert(
                 'Success',
-                'Private ride added successfully',
+                `Private ride ${isEditing ? 'updated' : 'added'} successfully`,
                 [
                     {
                         text: 'View My Rides',
@@ -82,7 +119,7 @@ export default function AddPrivateRideScreen() {
             );
         } catch (error) {
             console.error('Error submitting ride:', error);
-            Alert.alert('Error', 'Failed to add private ride. Please try again.');
+            Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'add'} private ride. Please try again.`);
         }
     };
 
@@ -108,7 +145,9 @@ export default function AddPrivateRideScreen() {
                             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                                 <Ionicons name="arrow-back" size={24} color="#fff" />
                             </TouchableOpacity>
-                            <Text style={styles.headerTitle}>Add Private Ride</Text>
+                            <Text style={styles.headerTitle}>
+                                {isEditing ? 'Edit Your Ride' : 'Add Your Ride'}
+                            </Text>
                         </View>
 
                         <View style={styles.formContainer}>
@@ -228,7 +267,9 @@ export default function AddPrivateRideScreen() {
                                 disabled={isLoading}
                             >
                                 <Text style={styles.submitButtonText}>
-                                    {isLoading ? 'Adding Ride...' : 'Add Private Ride'}
+                                    {isLoading
+                                        ? (isEditing ? 'Updating Ride...' : 'Adding Ride...')
+                                        : (isEditing ? 'Update Your Ride' : 'Add Your Ride')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
