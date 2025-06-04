@@ -22,64 +22,114 @@ const getRideStatus = (ride) => {
     }
 };
 
-// POST /rides - Create a new ride (Agency)
 const createRide = async (req, res) => {
     try {
         const {
+            isPrivate,
+            from,
+            to,
+            date,
+            time,
+            description,
+            estimatedArrivalTime, // hours (for private)
+            licensePlate,
             categoryId,
-            departure_time,
+            departure_time,       // ISO string (for public)
             seats,
-            price,
-            licensePlate
+            price
         } = req.body;
 
-        // Validate departure_time is not in the past
-        const departureTime = new Date(departure_time);
         const currentTime = new Date();
-        if (departureTime < currentTime) {
-            return res.status(400).json({ error: 'Cannot create a ride with a past departure time' });
-        }
-
-        // Verify category exists and belongs to agency
-        const category = await DestinationCategory.findOne({
-            _id: categoryId,
-            agencyId: req.user.id,
-            isActive: true
-        });
-
-        if (!category) {
-            return res.status(404).json({ error: 'Destination category not found' });
-        }
-
-        // Calculate estimated arrival time
-       
-        const estimatedArrivalTime = new Date(departureTime);
-        estimatedArrivalTime.setHours(estimatedArrivalTime.getHours() + category.averageTime);
-
-        const ride = new Ride({
-            categoryId,
-            from: category.from,
-            to: category.to,
-            departure_time: departureTime,
-            estimatedArrivalTime,
-            seats,
-            price: price || 0,
+        let rideData = {
             licensePlate,
-            agencyId: req.user.id,
-            booked_seats: 0
-        });
+            description,
+            isPrivate: !!isPrivate,
+            booked_seats: 0,
+            status: 'active',
+        };
 
+        if (isPrivate) {
+            // Validate required private ride fields
+            if (!from || !to || !date || !time || !description || !estimatedArrivalTime || !licensePlate) {
+                return res.status(400).json({ error: 'All private ride fields are required' });
+            }
+
+            const departureTime = new Date(`${date}T${time}`);
+            if (departureTime < currentTime) {
+                return res.status(400).json({ error: 'Cannot create a ride with a past departure time' });
+            }
+
+            rideData = {
+                ...rideData,
+                from,
+                to,
+                departure_time: departureTime,
+                estimatedArrivalTime: new Date(departureTime.getTime() + (parseInt(estimatedArrivalTime) * 60 * 60 * 1000)),
+                seats: 1,
+                price: 0,
+                userId: req.user.id,
+                categoryId: null,
+                agencyId: null
+            };
+        } else {
+            // Validate required public ride fields
+            if (!categoryId || !departure_time || !seats || !licensePlate) {
+                return res.status(400).json({ error: 'All public ride fields are required' });
+            }
+
+            const departureTime = new Date(departure_time);
+            if (departureTime < currentTime) {
+                return res.status(400).json({ error: 'Cannot create a ride with a past departure time' });
+            }
+
+            const category = await DestinationCategory.findOne({
+                _id: categoryId,
+                agencyId: req.user.id,
+                isActive: true
+            });
+
+            if (!category) {
+                return res.status(404).json({ error: 'Destination category not found' });
+            }
+
+            const arrivalTime = new Date(departureTime);
+            arrivalTime.setHours(arrivalTime.getHours() + category.averageTime);
+
+            rideData = {
+                ...rideData,
+                categoryId,
+                agencyId: req.user.id,
+                from: category.from,
+                to: category.to,
+                departure_time: departureTime,
+                estimatedArrivalTime: arrivalTime,
+                seats: parseInt(seats),
+                price: price || 0
+            };
+        }
+
+        const ride = new Ride(rideData);
         await ride.save();
         await clearCache();
+
         const rideWithStatus = {
             ...ride.toObject(),
             statusDisplay: getRideStatus(ride)
         };
-        res.status(201).json({ message: 'Ride created successfully', ride: rideWithStatus });
+
+        res.status(201).json({
+            message: isPrivate ? 'Private ride created successfully' : 'Ride created successfully',
+            ride: rideWithStatus
+        });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to create ride', details: error.message });
+        console.error('Error in createRide:', error);
+        res.status(500).json({
+            error: 'Failed to create ride',
+            details: error.message
+        });
     }
 };
+
 
 const getRides = async (req, res) => {
     try {
@@ -301,7 +351,7 @@ const bookRide = async (req, res) => {
     try {
         const { rideId } = req.params;
         const userId = req.user.id;
-       
+
 
         if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
             console.error('Invalid rideId or userId:', { rideId, userId });
@@ -487,7 +537,7 @@ const getEmployeeRides = async (req, res) => {
 const checkInPassenger = async (req, res) => {
     try {
         const { rideId, userId, bookingId } = req.body;
-        
+
         if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
             console.error('Invalid rideId or userId:', { rideId, userId });
             return res.status(400).json({ error: 'Invalid rideId or userId' });
@@ -586,6 +636,21 @@ const getRideHistory = async (req, res) => {
         });
     }
 };
+const getUserPrivateRides = async (req, res) => {
+    try {
+        const rides = await Ride.find(
+            { userId: req.user.id, isPrivate: true },
+            'from to departure_time estimatedArrivalTime licensePlate status description created_at'
+        )
+            .sort({ departure_time: -1 })
+            .lean();
+
+        res.status(200).json({ rides });
+    } catch (error) {
+        console.error('Error fetching private rides:', error);
+        res.status(500).json({ error: 'Failed to fetch private rides' });
+    }
+};
 
 module.exports = {
     createRide,
@@ -599,5 +664,7 @@ module.exports = {
     cancelRideBooking,
     getEmployeeRides,
     checkInPassenger,
-    getRideHistory
+    getRideHistory,
+    getUserPrivateRides
 };
+

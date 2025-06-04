@@ -4,7 +4,9 @@ const rideSchema = new mongoose.Schema({
     categoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'DestinationCategory',
-        required: true
+        required: function() {
+            return !this.isPrivate;
+        }
     },
     from: {
         type: String,
@@ -32,7 +34,9 @@ const rideSchema = new mongoose.Schema({
     agencyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Agency',
-        required: true,
+        required: function() {
+            return !this.isPrivate;
+        }
     },
     licensePlate: {
         type: String,
@@ -42,6 +46,15 @@ const rideSchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'canceled', 'completed', 'pending', 'delayed'],
         default: 'active',
+    },
+    isPrivate: {
+        type: Boolean,
+        default: false,
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        
     },
     price: {
         type: Number,
