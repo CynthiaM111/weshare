@@ -1,4 +1,4 @@
-import { View, Text, StatusBar, TextInput, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import { View, Text, StatusBar, TextInput, TouchableOpacity, ScrollView, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 // import { styles } from '../../styles/HomeScreenStyles';
@@ -10,6 +10,7 @@ import ErrorDisplay from '../../components/ErrorDisplay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Platform } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 
 const rwandaDistricts = [
     "Burera",
@@ -53,6 +54,7 @@ export default function HomeScreen() {
     const [showFromSuggestions, setShowFromSuggestions] = useState(false);
     const [showToSuggestions, setShowToSuggestions] = useState(false);
     const router = useRouter();
+    const { user } = useAuth();
 
     useEffect(() => {
         loadFrequentSearches();
@@ -174,6 +176,27 @@ export default function HomeScreen() {
         } catch (error) {
             console.error('Search error:', error);
         }
+    };
+
+    const handleAddPrivateRide = () => {
+        if (!user) {
+            Alert.alert(
+                "Authentication Required",
+                "You need to be logged in to add a private ride. Please sign in first.",
+                [
+                    {
+                        text: "Sign In",
+                        onPress: () => router.push('/(auth)/signup'),
+                    },
+                    {
+                        text: "Cancel",
+                        style: "cancel"
+                    }
+                ]
+            );
+            return;
+        }
+        router.push('/(rides)/add-private-ride');
     };
 
     const renderSuggestionItem = ({ item, onSelect }) => (
@@ -320,12 +343,20 @@ export default function HomeScreen() {
                         <Text style={styles.privateRidesDescription}>
                             Book a private ride for a more comfortable and exclusive experience
                         </Text>
-                        <TouchableOpacity
-                            style={styles.privateRidesButton}
-                            onPress={() => { }}
-                        >
-                            <Text style={styles.privateRidesButtonText}>Book Private Ride</Text>
-                        </TouchableOpacity>
+                        <View style={styles.privateRidesButtonsContainer}>
+                            <TouchableOpacity
+                                style={[styles.privateRidesButton, styles.privateRidesButtonPrimary]}
+                                onPress={() => { }}
+                            >
+                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextPrimary]}>Book Private Ride</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.privateRidesButton, styles.privateRidesButtonSecondary]}
+                                onPress={handleAddPrivateRide}
+                            >
+                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextSecondary]}>Add Private Ride</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -588,16 +619,39 @@ export const styles = StyleSheet.create({
         marginBottom: 12,
         lineHeight: 18,
     },
+    privateRidesButtonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
     privateRidesButton: {
-        backgroundColor: '#0a2472',
+        flex: 1,
         paddingVertical: 10,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         borderRadius: 8,
         alignItems: 'center',
     },
+    privateRidesButtonPrimary: {
+        backgroundColor: '#0a2472',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    privateRidesButtonSecondary: {
+        backgroundColor: '#ffffff',
+        borderWidth: 1.5,
+        borderColor: '#0a2472',
+    },
     privateRidesButtonText: {
-        color: '#fff',
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '600',
+    },
+    privateRidesButtonTextPrimary: {
+        color: '#ffffff',
+    },
+    privateRidesButtonTextSecondary: {
+        color: '#0a2472',
     },
 });

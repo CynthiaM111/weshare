@@ -39,6 +39,19 @@ export default function RidesLayout() {
                     gestureEnabled: false,
                 }}
             />
+            <Stack.Screen
+                name="add-private-ride"
+                options={{
+                    headerShown: false,
+
+                }}
+            />
+            <Stack.Screen
+                name="private"
+                options={{
+                    headerShown: false,
+                }}
+            />
         </Stack>
     );
 }

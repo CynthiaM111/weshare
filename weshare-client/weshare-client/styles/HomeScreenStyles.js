@@ -253,16 +253,29 @@ export const styles = StyleSheet.create({
         marginBottom: 12,
         lineHeight: 18,
     },
+    privateRidesButtonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
     privateRidesButton: {
-        backgroundColor: '#0a2472',
+        flex: 1,
         paddingVertical: 10,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         borderRadius: 8,
         alignItems: 'center',
     },
+    privateRidesButtonPrimary: {
+        backgroundColor: '#0a2472',
+    },
+    privateRidesButtonSecondary: {
+        backgroundColor: '#1e3a8a',
+        borderWidth: 1,
+        borderColor: '#0a2472',
+    },
     privateRidesButtonText: {
         color: '#fff',
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '600',
     },
 });

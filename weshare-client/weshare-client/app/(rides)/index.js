@@ -37,6 +37,22 @@ export default function RidesScreen() {
         return response.data;
     });
 
+    const {
+        data: privateRides,
+        error: privateRidesError,
+        isLoading: isLoadingPrivateRides,
+        execute: fetchPrivateRides,
+        retry: retryFetchPrivateRides
+    } = useApi(async () => {
+        if (!user?.id || !user?.token) {
+            throw new Error('User ID or token missing');
+        }
+        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/private/user/${user.id}`, {
+            headers: { Authorization: `Bearer ${user.token}` },
+        });
+        return response.data;
+    });
+
     useEffect(() => {
         if (params.rides) {
             try {
@@ -51,18 +67,21 @@ export default function RidesScreen() {
     useEffect(() => {
         if (user) {
             fetchUserBookings();
+            fetchPrivateRides();
         }
     }, [user]);
 
     const onRefresh = useCallback(async () => {
         try {
-            await fetchUserBookings();
+            await Promise.all([
+                fetchUserBookings(),
+                fetchPrivateRides()
+            ]);
             if (params.rides) {
                 const parsedRides = JSON.parse(params.rides);
                 setSearchResults(parsedRides);
             }
         } catch (error) {
-            // Error is already handled by useApi
             console.error('Error refreshing:', error);
         }
     }, [params.rides]);
@@ -127,6 +146,7 @@ export default function RidesScreen() {
     const groupedBookedRides = groupRidesByDate(bookedRidesFromSearch);
     const groupedFullRides = groupRidesByDate(fullRides);
     const allBookedRides = groupRidesByDate(userBookings || []);
+    const groupedPrivateRides = groupRidesByDate(privateRides || []);
 
     const hasSearchResults = searchResults.length > 0;
     const hasBookings = userBookings?.length > 0;
@@ -138,7 +158,7 @@ export default function RidesScreen() {
                 renderItem={null}
                 refreshControl={
                     <RefreshControl
-                        refreshing={isLoadingBookings}
+                        refreshing={isLoadingBookings || isLoadingPrivateRides}
                         onRefresh={onRefresh}
                         colors={['#4CAF50']}
                         tintColor='#4CAF50'
@@ -282,6 +302,18 @@ export default function RidesScreen() {
                                 </TouchableOpacity>
                             </View>
                         )}
+
+                        {user && (
+                            <View style={styles.privateRidesContainer}>
+                                <TouchableOpacity
+                                    style={styles.privateRidesButton}
+                                    onPress={() => router.push('/(rides)/private')}
+                                >
+                                    <FontAwesome5 name="car" size={16} color="#fff" style={styles.privateRidesIcon} />
+                                    <Text style={styles.privateRidesButtonText}>View Your Private Rides</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </>
                 }
             />
@@ -406,5 +438,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         backgroundColor: '#fff', // optional, but helps avoid transparency issues
+    },
+    privateRidesContainer: {
+        marginTop: 12,
+        alignItems: 'center',
+    },
+    privateRidesButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#0a2472',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    privateRidesIcon: {
+        marginRight: 8,
+    },
+    privateRidesButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });
