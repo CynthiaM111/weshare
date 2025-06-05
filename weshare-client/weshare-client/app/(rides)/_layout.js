@@ -34,6 +34,7 @@ export default function RidesLayout() {
             <Stack.Screen
                 name="booked"
                 options={{
+                    headerShown: false,
                     title: 'Booked Rides',
                     headerBackVisible: false,
                     gestureEnabled: false,

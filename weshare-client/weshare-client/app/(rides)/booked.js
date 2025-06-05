@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, RefreshControl, SafeAreaView } from 'react-native';
 import axios from 'axios';
 import QRCode from 'react-native-qrcode-svg';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { useApi } from '../../hooks/useApi';
 import ErrorDisplay from '../../components/ErrorDisplay';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function BookedRidesScreen() {
     const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
     const [selectedRideId, setSelectedRideId] = useState(null);
+    const [expandedSections, setExpandedSections] = useState({
+        public: true,
+        private: true,
+    });
     const { user } = useAuth();
     const router = useRouter();
 
@@ -48,6 +53,13 @@ export default function BookedRidesScreen() {
         fetchUserBookings();
     }, []);
 
+    const toggleExpand = (section) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
+
     const generateQRCodeData = (rideId) => {
         const ride = bookedRides?.find(ride => ride._id === rideId);
         if (!ride) {
@@ -80,27 +92,41 @@ export default function BookedRidesScreen() {
 
     if (fetchError) {
         return (
-            <View style={styles.container}>
-                <ErrorDisplay
-                    error={fetchError}
-                    onRetry={retryFetchBookings}
-                    title="Error Loading Bookings"
-                    message="We couldn't load your booked rides at this time."
-                />
-            </View>
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <ErrorDisplay
+                        error={fetchError}
+                        onRetry={retryFetchBookings}
+                        title="Error Loading Bookings"
+                        message="We couldn't load your booked rides at this time."
+                    />
+                </SafeAreaView>
+            </LinearGradient>
         );
     }
 
     if (cancelError) {
         return (
-            <View style={styles.container}>
-                <ErrorDisplay
-                    error={cancelError}
-                    onRetry={retryCancel}
-                    title="Error Cancelling Booking"
-                    message="We couldn't cancel your booking at this time."
-                />
-            </View>
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <ErrorDisplay
+                        error={cancelError}
+                        onRetry={retryCancel}
+                        title="Error Cancelling Booking"
+                        message="We couldn't cancel your booking at this time."
+                    />
+                </SafeAreaView>
+            </LinearGradient>
         );
     }
 
@@ -114,323 +140,400 @@ export default function BookedRidesScreen() {
     const publicBookings = sortedRides.filter(ride => !ride.isPrivate);
     const privateBookings = sortedRides.filter(ride => ride.isPrivate);
 
-    const renderRideSection = (rides, title, icon) => {
+    const renderRideSection = (rides, title, icon, sectionKey, sectionColor) => {
         if (rides.length === 0) return null;
 
         return (
             <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Ionicons name={icon} size={20} color="#fff" />
-                    <Text style={styles.sectionTitle}>{title} ({rides.length})</Text>
-                </View>
-                {rides.map((item) => {
-                    const userBooking = item.bookedBy?.find(b => b.userId === user.id);
-                    const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
-
-                    // Determine status color
-                    const statusColor = item.statusDisplay === 'Full' ? '#FF0000' :
-                        item.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
-
-                    return (
-                        <View key={item._id} style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
-                            {isCheckedIn && (
-                                <View style={styles.checkedInBadge}>
-                                    <Text style={styles.checkedInText}>Checked In</Text>
-                                </View>
-                            )}
-                            <View style={styles.routeContainer}>
-                                <Ionicons name="location-outline" size={20} color="#2C7A7B" style={styles.icon} />
-                                <Text style={styles.routeText}>
-                                    {item.from || item.categoryId?.from || 'Unknown'} → {item.to || item.categoryId?.to || 'Unknown'}
-                                </Text>
-                            </View>
-                            {item.isPrivate && (
-                                <View style={styles.privateTag}>
-                                    <Text style={styles.privateTagText}>Private Ride</Text>
-                                </View>
-                            )}
-                            <View style={styles.timeContainer}>
-                                <Ionicons name="calendar-outline" size={18} color="#F56565" style={styles.icon} />
-                                <Text style={styles.timeText}>
-                                    {format(new Date(item.departure_time), 'PPP')}
-                                </Text>
-                                <View style={styles.timeDetails}>
-                                    <Text style={styles.timeText}>
-                                        {format(new Date(item.departure_time), 'p')} - {format(new Date(item.estimatedArrivalTime), 'p')}
-                                    </Text>
-                                </View>
-                            </View>
-                            <Text style={styles.detailText}>
-                                Seats: {item.seats - item.booked_seats}/{item.seats}
-                            </Text>
-                            <Text style={[styles.detailText, { color: statusColor, fontWeight: 'bold' }]}>
-                                Status: {item.statusDisplay}
-                            </Text>
-                            {!isCheckedIn && (
-                                <View style={styles.buttonContainer}>
-                                    <TouchableOpacity
-                                        style={styles.qrButton}
-                                        onPress={() => handleOpenQRCode(item._id)}
-                                    >
-                                        <Text style={styles.buttonText}>Show QR Code</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.cancelButton, isCancelling && styles.buttonDisabled]}
-                                        onPress={() => handleCancelBooking(item._id)}
-                                        disabled={isCancelling}
-                                    >
-                                        <Text style={styles.buttonText}>
-                                            {isCancelling ? 'Cancelling...' : 'Cancel'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
+                <TouchableOpacity onPress={() => toggleExpand(sectionKey)}>
+                    <View style={[styles.sectionHeader, { backgroundColor: sectionColor }]}>
+                        <View style={styles.sectionHeaderLeft}>
+                            <Ionicons name={icon} size={20} color="#fff" />
+                            <Text style={styles.sectionTitle}>{title} ({rides.length})</Text>
                         </View>
-                    );
-                })}
+                        <FontAwesome5
+                            name={expandedSections[sectionKey] ? 'chevron-up' : 'chevron-down'}
+                            size={16}
+                            color="#fff"
+                        />
+                    </View>
+                </TouchableOpacity>
+
+                {expandedSections[sectionKey] && (
+                    <View style={styles.sectionContent}>
+                        {rides.map((item) => {
+                            const userBooking = item.bookedBy?.find(b => b.userId === user.id);
+                            const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
+
+                            // Determine status color
+                            const statusColor = item.statusDisplay === 'Full' ? '#FF0000' :
+                                item.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
+
+                            return (
+                                <View key={item._id} style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
+                                    {isCheckedIn && (
+                                        <View style={styles.checkedInBadge}>
+                                            <Text style={styles.checkedInText}>Checked In</Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.routeContainer}>
+                                        <Ionicons name="location-outline" size={20} color="#2C7A7B" style={styles.icon} />
+                                        <Text style={styles.routeText}>
+                                            {item.from || item.categoryId?.from || 'Unknown'} → {item.to || item.categoryId?.to || 'Unknown'}
+                                        </Text>
+                                    </View>
+                                    {item.isPrivate && (
+                                        <View style={styles.privateTag}>
+                                            <FontAwesome5 name="lock" size={10} color="#fff" />
+                                            <Text style={styles.privateTagText}>Private Ride</Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.timeContainer}>
+                                        <Ionicons name="calendar-outline" size={18} color="#F56565" style={styles.icon} />
+                                        <Text style={styles.timeText}>
+                                            {format(new Date(item.departure_time), 'PPP')}
+                                        </Text>
+                                        <View style={styles.timeDetails}>
+                                            <Text style={styles.timeText}>
+                                                {format(new Date(item.departure_time), 'p')} - {format(new Date(item.estimatedArrivalTime), 'p')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.detailText}>
+                                        Seats: {item.seats - item.booked_seats}/{item.seats}
+                                    </Text>
+                                    <Text style={[styles.detailText, { color: statusColor, fontWeight: 'bold' }]}>
+                                        Status: {item.statusDisplay}
+                                    </Text>
+                                    {!isCheckedIn && (
+                                        <View style={styles.buttonContainer}>
+                                            <TouchableOpacity
+                                                style={styles.qrButton}
+                                                onPress={() => handleOpenQRCode(item._id)}
+                                            >
+                                                <FontAwesome5 name="qrcode" size={16} color="white" />
+                                                <Text style={styles.buttonText}>Show QR</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.cancelButton, isCancelling && styles.buttonDisabled]}
+                                                onPress={() => handleCancelBooking(item._id)}
+                                                disabled={isCancelling}
+                                            >
+                                                <FontAwesome5 name="times" size={16} color="white" />
+                                                <Text style={styles.buttonText}>
+                                                    {isCancelling ? 'Cancelling...' : 'Cancel'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
             </View>
         );
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>My Booked Rides</Text>
-            <FlatList
-                data={[]}
-                renderItem={null}
-                keyExtractor={() => 'dummy'}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isLoadingRides}
-                        onRefresh={onRefresh}
-                        colors={['#4CAF50']}
-                        tintColor='#4CAF50'
-                    />
-                }
-                ListHeaderComponent={
-                    <View>
-                        {renderRideSection(publicBookings, 'Public Rides', 'bus-outline')}
-                        {renderRideSection(privateBookings, 'Private Rides', 'car-outline')}
-                        {sortedRides.length === 0 && !isLoadingRides && (
-                            <Text style={styles.emptyText}>No booked rides found</Text>
-                        )}
-                    </View>
-                }
-            />
-            <Modal
-                visible={qrCodeModalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setQRCodeModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Ride QR Code</Text>
-                        {selectedRideId && (
-                            <QRCode
-                                value={generateQRCodeData(selectedRideId)}
-                                size={200}
-                                color="#000000"
-                                backgroundColor="#FFFFFF"
-                            />
-                        )}
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={() => setQRCodeModalVisible(false)}
-                        >
-                            <Text style={styles.closeButtonText}>Close</Text>
-                        </TouchableOpacity>
-                    </View>
+        <LinearGradient
+            colors={['#0a2472', '#1E90FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.backgroundGradient}
+        >
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>My Booked Rides</Text>
+                    <View style={styles.headerPlaceholder} />
                 </View>
-            </Modal>
-        </View>
+
+                <FlatList
+                    data={[]}
+                    renderItem={null}
+                    keyExtractor={() => 'dummy'}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isLoadingRides}
+                            onRefresh={onRefresh}
+                            colors={['#4CAF50']}
+                            tintColor='#4CAF50'
+                        />
+                    }
+                    contentContainerStyle={styles.scrollContent}
+                    ListHeaderComponent={
+                        <View>
+                            {renderRideSection(publicBookings, 'Public Rides', 'bus-outline', 'public', '#2196F3')}
+                            {renderRideSection(privateBookings, 'Private Rides', 'car-outline', 'private', '#9C27B0')}
+                            {sortedRides.length === 0 && !isLoadingRides && (
+                                <View style={styles.emptyContainer}>
+                                    <FontAwesome5 name="calendar-times" size={64} color="rgba(255, 255, 255, 0.6)" />
+                                    <Text style={styles.emptyText}>No booked rides found</Text>
+                                    <Text style={styles.emptySubText}>Book a ride to see it here</Text>
+                                </View>
+                            )}
+                        </View>
+                    }
+                />
+
+                <Modal
+                    visible={qrCodeModalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setQRCodeModalVisible(false)}
+                >
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Ride QR Code</Text>
+                            {selectedRideId && (
+                                <QRCode
+                                    value={generateQRCodeData(selectedRideId)}
+                                    size={200}
+                                    color="#000000"
+                                    backgroundColor="#FFFFFF"
+                                />
+                            )}
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setQRCodeModalVisible(false)}
+                            >
+                                <Text style={styles.closeButtonText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+            </SafeAreaView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
+    backgroundGradient: {
+        flex: 1,
+    },
     container: {
         flex: 1,
-        padding: 20,
-
-        backgroundColor: '#F7FAFC',
     },
-    title: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: '#2D3748',
-        marginBottom: 20,
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        backgroundColor: 'rgba(10, 36, 114, 0.8)',
+    },
+    backButton: {
+        padding: 8,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#fff',
+        flex: 1,
         textAlign: 'center',
     },
-    rideCard: {
-        backgroundColor: '#FFFFFF',
-        padding: 20,
+    headerPlaceholder: {
+        width: 32,
+        height: 32,
+    },
+    scrollContent: {
+        padding: 16,
+    },
+    section: {
+        marginBottom: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderRadius: 12,
-        marginBottom: 15,
+        overflow: 'hidden',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 15,
+    },
+    sectionHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#fff',
+        marginLeft: 10,
+    },
+    sectionContent: {
+        padding: 15,
+    },
+    rideCard: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
         elevation: 3,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 3.84,
         borderLeftWidth: 4,
-        borderLeftColor: '#319795',
+        borderLeftColor: '#2196F3',
         position: 'relative',
-        marginTop: 10,
     },
     checkedInCard: {
         borderLeftColor: '#4CAF50',
+        backgroundColor: '#f8fff8',
     },
     checkedInBadge: {
         position: 'absolute',
-        top: -10,
-        right: 20,
+        top: 8,
+        right: 8,
         backgroundColor: '#4CAF50',
-        paddingVertical: 5,
-        paddingHorizontal: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         borderRadius: 12,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        zIndex: 1,
     },
     checkedInText: {
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: '600',
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
     },
     routeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 10,
-        marginTop: 10,
+        marginBottom: 12,
     },
     routeText: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#2C7A7B',
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#0a2472',
+        marginLeft: 8,
+        flex: 1,
+    },
+    privateTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#9C27B0',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+    },
+    privateTagText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+        marginLeft: 4,
     },
     timeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 10,
-        flexWrap: 'wrap',
+        marginBottom: 8,
+    },
+    timeDetails: {
+        marginLeft: 'auto',
     },
     timeText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#F56565',
-        marginRight: 15,
+        fontSize: 14,
+        color: '#666',
+        marginLeft: 8,
     },
     detailText: {
         fontSize: 14,
-        color: '#4A5568',
-        marginBottom: 5,
+        color: '#555',
+        marginBottom: 4,
     },
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 10,
+        marginTop: 12,
+        gap: 10,
     },
     qrButton: {
-        backgroundColor: '#319795',
+        backgroundColor: '#0a2472',
         paddingVertical: 10,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         borderRadius: 8,
         flex: 1,
-        marginRight: 10,
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
     },
     cancelButton: {
-        backgroundColor: '#F56565',
+        backgroundColor: '#dc3545',
         paddingVertical: 10,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         borderRadius: 8,
         flex: 1,
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
+        color: '#fff',
+        fontSize: 14,
         fontWeight: '600',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+    },
+    emptyText: {
+        fontSize: 18,
+        color: '#fff',
+        textAlign: 'center',
+        marginTop: 16,
+        fontWeight: '600',
+    },
+    emptySubText: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.7)',
+        textAlign: 'center',
+        marginTop: 8,
     },
     icon: {
         marginRight: 8,
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#4A5568',
-        textAlign: 'center',
-        marginTop: 20,
     },
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#fff',
         padding: 20,
         borderRadius: 12,
         alignItems: 'center',
-        width: '80%',
+        minWidth: 280,
     },
     modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#2D3748',
+        fontSize: 18,
+        fontWeight: 'bold',
         marginBottom: 20,
+        color: '#0a2472',
     },
     closeButton: {
-        backgroundColor: '#319795',
+        backgroundColor: '#0a2472',
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 8,
         marginTop: 20,
     },
     closeButtonText: {
-        color: '#FFFFFF',
+        color: '#fff',
         fontSize: 16,
-        fontWeight: '600',
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    section: {
-        marginBottom: 20,
-        backgroundColor: 'white',
-        borderRadius: 12,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#4CAF50',
-        padding: 15,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        marginLeft: 10,
-    },
-    privateTag: {
-        backgroundColor: '#9C27B0',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginTop: 8,
-        alignSelf: 'flex-start',
-    },
-    privateTagText: {
-        color: '#FFFFFF',
-        fontSize: 11,
         fontWeight: '600',
     },
 });

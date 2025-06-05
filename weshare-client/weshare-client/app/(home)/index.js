@@ -200,7 +200,8 @@ export default function HomeScreen() {
                 params: {
                     from: searchParams.from.trim(),
                     to: searchParams.to.trim(),
-                    exact_match: 'true'
+                    exact_match: 'true',
+                    isPrivate: 'false'
                 },
                 paramsSerializer: params => {
                     return Object.entries(params)
