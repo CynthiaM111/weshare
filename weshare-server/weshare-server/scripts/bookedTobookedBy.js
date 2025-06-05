@@ -9,10 +9,10 @@ async function main() {
         const db = mongoose.connection.db; // ✅ Corrected this line
 
         const rides = await db.collection('rides').find({ booked_users: { $exists: true } }).toArray();
-        
+
         for (const ride of rides) {
-            if (ride.booked_users ) {
-            
+            if (ride.booked_users) {
+
                 const newBookedBy = ride.booked_users.map(userId => ({
                     userId,
                     checkInStatus: 'pending',
@@ -37,6 +37,15 @@ async function main() {
 
         console.log("Rides with booked_users still present:", residualUsers);
         console.log("Rides with string bookedBy.userId:", stringUserIds);
+
+        // Add isPrivate field to all rides that don't have it
+        console.log('Adding isPrivate field to rides...');
+        const updateResult = await db.collection('rides').updateMany(
+            { isPrivate: { $exists: false } },
+            { $set: { isPrivate: false } }
+        );
+        console.log(`Updated ${updateResult.modifiedCount} rides with isPrivate field`);
+
         console.log('Script completed successfully');
     } catch (error) {
         console.error('❌ Error:', error);
@@ -47,3 +56,4 @@ async function main() {
 }
 
 main();
+

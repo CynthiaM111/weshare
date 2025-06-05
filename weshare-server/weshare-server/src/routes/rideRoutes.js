@@ -11,9 +11,10 @@ router.get('/rides/employee', authController.protect, rideController.getEmployee
 router.post('/rides/check-in', authController.protect, rideController.checkInPassenger);
 router.get('/rides/history', authController.protect, rideController.getRideHistory);
 router.get('/rides/private', authController.protect, rideController.getUserPrivateRides);
+router.get('/rides/private/available', authController.protect, rideController.getAvailablePrivateRides);
 router.get('/rides/:id', rideController.getRideById);
-router.put('/rides/:id', authController.protect, authController.agencyOnly, rideController.updateRide);
-router.delete('/rides/:id', authController.protect, authController.agencyOnly, rideController.deleteRide);
+router.put('/rides/:id', authController.protect, rideController.updateRide);
+router.delete('/rides/:id', authController.protect, rideController.deleteRide);
 
 // Protected routes (require authentication)
 router.post('/rides/:rideId/book', authController.protect, rideController.bookRide);

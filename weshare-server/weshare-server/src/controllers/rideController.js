@@ -50,7 +50,7 @@ const createRide = async (req, res) => {
 
         if (isPrivate) {
             // Validate required private ride fields
-            if (!from || !to || !date || !time || !description || !estimatedArrivalTime || !licensePlate) {
+            if (!from || !to || !date || !time || !description || !estimatedArrivalTime || !licensePlate || !seats || !price) {
                 return res.status(400).json({ error: 'All private ride fields are required' });
             }
 
@@ -65,8 +65,8 @@ const createRide = async (req, res) => {
                 to,
                 departure_time: departureTime,
                 estimatedArrivalTime: new Date(departureTime.getTime() + (parseInt(estimatedArrivalTime) * 60 * 60 * 1000)),
-                seats: 1,
-                price: 0,
+                seats: parseInt(seats),
+                price: parseInt(price),
                 userId: req.user.id,
                 categoryId: null,
                 agencyId: null
@@ -293,7 +293,7 @@ const deleteRide = async (req, res) => {
 // GET /rides/search?from=&to=&departure_time=&date=
 const searchRides = async (req, res) => {
     try {
-        const { from, to, exact_match } = req.query;
+        const { from, to, exact_match, isPrivate } = req.query;
 
         if (!from || !to) {
             return res.status(400).json({ error: 'At least origin or destination is required' });
@@ -304,6 +304,11 @@ const searchRides = async (req, res) => {
             status: 'active',
             departure_time: { $gte: new Date() }
         };
+
+        // Add isPrivate filter - default to false (public rides) if not specified
+        const privateFilter = isPrivate === 'true';
+        query.isPrivate = privateFilter;
+
         const exact = String(exact_match).toLowerCase() === 'true';
         query.from = exact ? from.trim() : new RegExp(from.trim(), 'i');
         query.to = exact ? to.trim() : new RegExp(to.trim(), 'i');
@@ -362,6 +367,12 @@ const bookRide = async (req, res) => {
         if (!ride) {
             console.error('Ride not found:', rideId);
             return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        // Prevent drivers from booking their own private rides
+        if (ride.isPrivate && ride.userId && ride.userId.toString() === userId) {
+            console.error('Driver cannot book their own ride:', { userId, rideId });
+            return res.status(400).json({ error: 'You cannot book your own ride' });
         }
 
         if (ride.booked_seats >= ride.seats) {
@@ -442,6 +453,8 @@ const getUserRides = async (req, res) => {
                 bookedBy: ride.bookedBy,
                 agencyId: ride.agencyId,
                 categoryId: ride.categoryId,
+                licensePlate: ride.licensePlate,
+                isPrivate: ride.isPrivate,
                 statusDisplay: getRideStatus(ride),
                 checkInStatus: booking ? booking.checkInStatus : 'unknown',
             };
@@ -640,7 +653,7 @@ const getUserPrivateRides = async (req, res) => {
     try {
         const rides = await Ride.find(
             { userId: req.user.id, isPrivate: true },
-            'from to departure_time estimatedArrivalTime licensePlate status description created_at'
+            'from to departure_time estimatedArrivalTime licensePlate status description created_at seats price booked_seats'
         )
             .sort({ departure_time: -1 })
             .lean();
@@ -649,6 +662,87 @@ const getUserPrivateRides = async (req, res) => {
     } catch (error) {
         console.error('Error fetching private rides:', error);
         res.status(500).json({ error: 'Failed to fetch private rides' });
+    }
+};
+
+const getAvailablePrivateRides = async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const currentDate = new Date();
+
+        // Build search query
+        let searchQuery = {
+            isPrivate: true,
+            status: 'active',
+            departure_time: { $gte: currentDate },
+            userId: { $ne: req.user.id }, // Exclude user's own rides
+            $expr: { $lt: ['$booked_seats', '$seats'] } // Rides with available seats
+        };
+
+        // Add search criteria if provided
+        if (from || to) {
+            const searchConditions = [];
+
+            if (from && to) {
+                // Both from and to provided - try exact match first, then partial matches
+                searchConditions.push(
+                    // Exact match for both
+                    { from: from.trim(), to: to.trim() },
+                    // Exact from, partial to
+                    { from: from.trim(), to: new RegExp(to.trim(), 'i') },
+                    // Partial from, exact to
+                    { from: new RegExp(from.trim(), 'i'), to: to.trim() },
+                    // Partial match for both
+                    { from: new RegExp(from.trim(), 'i'), to: new RegExp(to.trim(), 'i') }
+                );
+            } else if (from) {
+                // Only from provided
+                searchConditions.push(
+                    { from: from.trim() }, // Exact match
+                    { from: new RegExp(from.trim(), 'i') } // Partial match
+                );
+            } else if (to) {
+                // Only to provided
+                searchConditions.push(
+                    { to: to.trim() }, // Exact match
+                    { to: new RegExp(to.trim(), 'i') } // Partial match
+                );
+            }
+
+            searchQuery.$or = searchConditions;
+        }
+
+        // Find matching rides
+        const rides = await Ride.find(searchQuery)
+            .populate('userId', 'name email') // Get driver info
+            .select('from to departure_time estimatedArrivalTime licensePlate description seats price booked_seats userId bookedBy')
+            .sort({ departure_time: 1 })
+            .limit(50) // Limit results for performance
+            .lean();
+
+        // Format rides with statusDisplay and necessary fields
+        const ridesWithStatus = rides.map((ride) => {
+            const availableSeats = ride.seats - (ride.booked_seats || 0);
+            let statusDisplay = 'Available';
+
+            if (availableSeats === 0) {
+                statusDisplay = 'Full';
+            } else if (availableSeats <= ride.seats * 0.3) {
+                statusDisplay = 'Nearly Full';
+            }
+
+            return {
+                ...ride,
+                statusDisplay,
+                available_seats: availableSeats,
+                driver: ride.userId // Driver info
+            };
+        });
+
+        res.status(200).json({ rides: ridesWithStatus });
+    } catch (error) {
+        console.error('Error fetching available private rides:', error);
+        res.status(500).json({ error: 'Failed to fetch available private rides' });
     }
 };
 
@@ -665,6 +759,7 @@ module.exports = {
     getEmployeeRides,
     checkInPassenger,
     getRideHistory,
-    getUserPrivateRides
+    getUserPrivateRides,
+    getAvailablePrivateRides
 };
 
