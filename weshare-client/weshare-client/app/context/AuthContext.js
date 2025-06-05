@@ -4,14 +4,15 @@ import { jwtDecode } from 'jwt-decode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Alert } from 'react-native';
-import { useApi } from '../../hooks/useApi'; // Adjust path if needed
-import ErrorDisplay from '../../components/ErrorDisplay'; // Adjust path if needed
+import { useApi } from '../../hooks/useApi';
+import ErrorDisplay from '../../components/ErrorDisplay';
 import { handleApiError } from '../../utils/apiErrorHandler';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
     const loginApi = useApi(async (email, password) => {
@@ -26,12 +27,8 @@ export const AuthProvider = ({ children }) => {
             }
 
             const data = response.data;
-            await AsyncStorage.setItem('token', data.token);
-            await AsyncStorage.setItem('role', data.role);
-
-            const decoded = jwtDecode(data.token);
             const userData = {
-                id: decoded.id,
+                id: data.userId,
                 email,
                 name: data.name || '',
                 role: data.role,
@@ -39,6 +36,13 @@ export const AuthProvider = ({ children }) => {
                 agencyId: data.agencyId,
                 destinationCategoryId: data.destinationCategoryId,
             };
+
+            // Store auth data
+            await AsyncStorage.multiSet([
+                ['token', data.token],
+                ['role', data.role],
+                ['userData', JSON.stringify(userData)]
+            ]);
 
             setUser(userData);
 
@@ -67,37 +71,76 @@ export const AuthProvider = ({ children }) => {
     });
 
     const checkAuthApi = useApi(async () => {
-        const token = await AsyncStorage.getItem('token');
-        if (!token) return;
+        try {
+            const [token, storedUserData] = await AsyncStorage.multiGet(['token', 'userData']);
 
-        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/status`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = response.data;
-
-        if (data.isAuthenticated) {
-            const userData = {
-                id: data.userId,
-                email: data.email,
-                name: data.name,
-                role: data.role,
-                token,
-                agencyId: data.agencyId,
-                destinationCategoryId: data.destinationCategoryId,
-            };
-            setUser(userData);
-
-            const targetRoute = data.role === 'agency' ? '/(agency)' :
-                data.role === 'agency_employee' ? '/(employee)' :
-                    '/(home)';
-
-            if (router.pathname !== targetRoute) {
-                router.replace(targetRoute);
+            if (!token[1]) {
+                setIsLoading(false);
+                return;
             }
-        } else {
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('role');
+
+            // First try to use stored user data
+            if (storedUserData[1]) {
+                const parsedUserData = JSON.parse(storedUserData[1]);
+                setUser(parsedUserData);
+                setIsLoading(false);
+
+                // Verify token in background
+                try {
+                    const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/status`, {
+                        headers: { Authorization: `Bearer ${token[1]}` },
+                    });
+
+                    if (!response.data.isAuthenticated) {
+                        await logout();
+                    }
+                } catch (error) {
+                    console.error('Token verification failed:', error);
+                    // Only logout if it's an authentication error
+                    if (error.response?.status === 401) {
+                        await logout();
+                    }
+                }
+                return;
+            }
+
+            // If no stored user data, verify token and get user data
+            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/status`, {
+                headers: { Authorization: `Bearer ${token[1]}` },
+            });
+
+            if (response.data.isAuthenticated) {
+                const userData = {
+                    id: response.data.userId,
+                    email: response.data.email,
+                    name: response.data.name,
+                    role: response.data.role,
+                    token: token[1],
+                    agencyId: response.data.agencyId,
+                    destinationCategoryId: response.data.destinationCategoryId,
+                };
+
+                await AsyncStorage.setItem('userData', JSON.stringify(userData));
+                setUser(userData);
+
+                const targetRoute = response.data.role === 'agency' ? '/(agency)' :
+                    response.data.role === 'agency_employee' ? '/(employee)' :
+                        '/(home)';
+
+                if (router.pathname !== targetRoute) {
+                    router.replace(targetRoute);
+                }
+            } else {
+                await logout();
+            }
+        } catch (error) {
+            console.error('Auth check error:', error);
+            // Only logout if it's an authentication error
+            if (error.response?.status === 401) {
+                await logout();
+            }
+        } finally {
+            setIsLoading(false);
         }
     });
 
@@ -106,13 +149,19 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const logout = async () => {
-        await AsyncStorage.removeItem('token');
-        await AsyncStorage.removeItem('role');
-        setUser(null);
-        router.replace('/(auth)/login');
+        try {
+            await AsyncStorage.multiRemove(['token', 'role', 'userData']);
+            setUser(null);
+            router.replace('/(auth)/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
     };
 
-    // Show error screen on auth check error
+    if (isLoading) {
+        return null; // Or a loading spinner
+    }
+
     if (checkAuthApi.error) {
         return <ErrorDisplay error={checkAuthApi.error} onRetry={checkAuthApi.retry} />;
     }

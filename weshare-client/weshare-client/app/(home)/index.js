@@ -1,6 +1,6 @@
 import { View, Text, StatusBar, TextInput, TouchableOpacity, ScrollView, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 // import { styles } from '../../styles/HomeScreenStyles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
@@ -53,8 +53,13 @@ export default function HomeScreen() {
     const [toSuggestions, setToSuggestions] = useState([]);
     const [showFromSuggestions, setShowFromSuggestions] = useState(false);
     const [showToSuggestions, setShowToSuggestions] = useState(false);
+    const [isSelectingSuggestion, setIsSelectingSuggestion] = useState(false);
     const router = useRouter();
     const { user } = useAuth();
+
+    // Add refs for the inputs
+    const fromInputRef = useRef(null);
+    const toInputRef = useRef(null);
 
     useEffect(() => {
         loadFrequentSearches();
@@ -89,18 +94,49 @@ export default function HomeScreen() {
     };
 
     const handleFromSelect = (selected) => {
+        setIsSelectingSuggestion(true);
         setFrom(selected);
         setShowFromSuggestions(false);
+        // Focus the "To" input after selection
+        setTimeout(() => {
+            if (toInputRef.current) {
+                toInputRef.current.focus();
+            }
+            setIsSelectingSuggestion(false);
+        }, 100);
     };
 
     const handleToSelect = (selected) => {
+        setIsSelectingSuggestion(true);
         setTo(selected);
         setShowToSuggestions(false);
+        setTimeout(() => {
+            setIsSelectingSuggestion(false);
+        }, 100);
+    };
+
+    const handleFromBlur = () => {
+        if (!isSelectingSuggestion) {
+            setTimeout(() => {
+                setShowFromSuggestions(false);
+            }, 150);
+        }
+    };
+
+    const handleToBlur = () => {
+        if (!isSelectingSuggestion) {
+            setTimeout(() => {
+                setShowToSuggestions(false);
+            }, 150);
+        }
     };
 
     const loadFrequentSearches = async () => {
         try {
-            const searches = await AsyncStorage.getItem('frequentSearches');
+            const userId = user?.id;
+            if (!userId) return;
+
+            const searches = await AsyncStorage.getItem(`frequentSearches_${userId}`);
             if (searches) {
                 const parsedSearches = JSON.parse(searches);
                 // Sort by frequency and get top 4
@@ -113,15 +149,21 @@ export default function HomeScreen() {
                         count: value.count
                     }));
                 setFrequentSearches(sortedSearches);
+            } else {
+                setFrequentSearches([]);
             }
         } catch (error) {
             console.error('Error loading frequent searches:', error);
+            setFrequentSearches([]);
         }
     };
 
     const updateFrequentSearches = async (from, to) => {
         try {
-            const searches = await AsyncStorage.getItem('frequentSearches');
+            const userId = user?.id;
+            if (!userId) return;
+
+            const searches = await AsyncStorage.getItem(`frequentSearches_${userId}`);
             const parsedSearches = searches ? JSON.parse(searches) : {};
             const key = `${from}-${to}`;
 
@@ -131,7 +173,7 @@ export default function HomeScreen() {
                 parsedSearches[key] = { from, to, count: 1 };
             }
 
-            await AsyncStorage.setItem('frequentSearches', JSON.stringify(parsedSearches));
+            await AsyncStorage.setItem(`frequentSearches_${userId}`, JSON.stringify(parsedSearches));
             loadFrequentSearches();
         } catch (error) {
             console.error('Error updating frequent searches:', error);
@@ -246,51 +288,70 @@ export default function HomeScreen() {
                     style={styles.searchContainer}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.inputContainer}>
                         <View style={styles.inputWrapper}>
                             <Ionicons name="location" size={24} color="#0a2472" style={styles.inputIcon} />
                             <TextInput
+                                ref={fromInputRef}
                                 style={styles.input}
                                 placeholder="From "
                                 value={from}
                                 onChangeText={handleFromChange}
                                 placeholderTextColor="#666"
                                 onFocus={() => setShowFromSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowFromSuggestions(false), 200)}
+                                onBlur={handleFromBlur}
                             />
                         </View>
                         {showFromSuggestions && fromSuggestions.length > 0 && (
                             <View style={styles.suggestionsContainer}>
-                                <FlatList
-                                    data={fromSuggestions}
-                                    renderItem={({ item }) => renderSuggestionItem({ item, onSelect: handleFromSelect })}
-                                    keyExtractor={(item) => item}
-                                    keyboardShouldPersistTaps="handled"
-                                />
+                                {fromSuggestions.map((item) => (
+                                    <TouchableOpacity
+                                        key={item}
+                                        style={styles.suggestionItem}
+                                        onPressIn={() => setIsSelectingSuggestion(true)}
+                                        onPress={() => handleFromSelect(item)}
+                                        onPressOut={() => setTimeout(() => setIsSelectingSuggestion(false), 200)}
+                                        activeOpacity={0.7}
+                                        delayPressIn={0}
+                                    >
+                                        <Ionicons name="location" size={16} color="#0a2472" style={styles.suggestionIcon} />
+                                        <Text style={styles.suggestionText}>{item}</Text>
+                                    </TouchableOpacity>
+                                ))}
                             </View>
                         )}
                         <View style={styles.inputDivider} />
                         <View style={styles.inputWrapper}>
                             <Ionicons name="location" size={24} color="#0a2472" style={styles.inputIcon} />
                             <TextInput
+                                ref={toInputRef}
                                 style={styles.input}
                                 placeholder="To "
                                 value={to}
                                 onChangeText={handleToChange}
                                 placeholderTextColor="#666"
                                 onFocus={() => setShowToSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowToSuggestions(false), 200)}
+                                onBlur={handleToBlur}
                             />
                         </View>
                         {showToSuggestions && toSuggestions.length > 0 && (
                             <View style={styles.suggestionsContainer}>
-                                <FlatList
-                                    data={toSuggestions}
-                                    renderItem={({ item }) => renderSuggestionItem({ item, onSelect: handleToSelect })}
-                                    keyExtractor={(item) => item}
-                                    keyboardShouldPersistTaps="handled"
-                                />
+                                {toSuggestions.map((item) => (
+                                    <TouchableOpacity
+                                        key={item}
+                                        style={styles.suggestionItem}
+                                        onPressIn={() => setIsSelectingSuggestion(true)}
+                                        onPress={() => handleToSelect(item)}
+                                        onPressOut={() => setTimeout(() => setIsSelectingSuggestion(false), 200)}
+                                        activeOpacity={0.7}
+                                        delayPressIn={0}
+                                    >
+                                        <Ionicons name="location" size={16} color="#0a2472" style={styles.suggestionIcon} />
+                                        <Text style={styles.suggestionText}>{item}</Text>
+                                    </TouchableOpacity>
+                                ))}
                             </View>
                         )}
                     </View>
