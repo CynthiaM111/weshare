@@ -212,29 +212,46 @@ export default function PrivateRidesScreen() {
                                                                 <Text style={styles.dateText}>{group.date}</Text>
                                                                 <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                             </View>
-                                                            {group.rides.map((ride) => (
-                                                                <View key={ride._id} style={styles.rideCardContainer}>
-                                                                    <RideCard
-                                                                        ride={ride}
-                                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                                        isPrivate={true}
-                                                                    />
-                                                                    <View style={styles.rideActions}>
-                                                                        <TouchableOpacity
-                                                                            style={[styles.actionButton, styles.editButton]}
-                                                                            onPress={() => handleEditRide(ride)}
-                                                                        >
-                                                                            <FontAwesome5 name="edit" size={16} color="#fff" />
-                                                                        </TouchableOpacity>
-                                                                        <TouchableOpacity
-                                                                            style={[styles.actionButton, styles.deleteButton]}
-                                                                            onPress={() => handleDeleteRide(ride._id)}
-                                                                        >
-                                                                            <FontAwesome5 name="trash" size={16} color="#fff" />
-                                                                        </TouchableOpacity>
+                                                            {group.rides.map((ride) => {
+                                                                // Calculate ride status and available seats
+                                                                const availableSeats = ride.seats - (ride.booked_seats || 0);
+                                                                const getRideStatus = (ride) => {
+                                                                    if (ride.isPrivate) {
+                                                                        return ride.status === 'active' ? 'Available' : 'Inactive';
+                                                                    }
+                                                                    if (availableSeats === 0) return 'Full';
+                                                                    if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
+                                                                    return 'Available';
+                                                                };
+                                                                const statusDisplay = getRideStatus(ride);
+
+                                                                return (
+                                                                    <View key={ride._id} style={styles.rideCardContainer}>
+                                                                        <RideCard
+                                                                            ride={ride}
+                                                                            onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                                            isPrivate={true}
+                                                                            availableSeats={availableSeats}
+                                                                            statusDisplay={statusDisplay}
+                                                                            isFull={availableSeats === 0}
+                                                                        />
+                                                                        <View style={styles.rideActions}>
+                                                                            <TouchableOpacity
+                                                                                style={[styles.actionButton, styles.editButton]}
+                                                                                onPress={() => handleEditRide(ride)}
+                                                                            >
+                                                                                <FontAwesome5 name="edit" size={16} color="#fff" />
+                                                                            </TouchableOpacity>
+                                                                            <TouchableOpacity
+                                                                                style={[styles.actionButton, styles.deleteButton]}
+                                                                                onPress={() => handleDeleteRide(ride._id)}
+                                                                            >
+                                                                                <FontAwesome5 name="trash" size={16} color="#fff" />
+                                                                            </TouchableOpacity>
+                                                                        </View>
                                                                     </View>
-                                                                </View>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </View>
                                                     ))}
                                                 </View>
@@ -269,29 +286,46 @@ export default function PrivateRidesScreen() {
                                                                 <Text style={styles.dateText}>{group.date}</Text>
                                                                 <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                             </View>
-                                                            {group.rides.map((ride) => (
-                                                                <View key={ride._id} style={styles.rideCardContainer}>
-                                                                    <RideCard
-                                                                        ride={ride}
-                                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                                        isPrivate={true}
-                                                                    />
-                                                                    <View style={styles.rideActions}>
-                                                                        <TouchableOpacity
-                                                                            style={[styles.actionButton, styles.editButton]}
-                                                                            onPress={() => handleEditRide(ride)}
-                                                                        >
-                                                                            <FontAwesome5 name="edit" size={16} color="#fff" />
-                                                                        </TouchableOpacity>
-                                                                        <TouchableOpacity
-                                                                            style={[styles.actionButton, styles.deleteButton]}
-                                                                            onPress={() => handleDeleteRide(ride._id)}
-                                                                        >
-                                                                            <FontAwesome5 name="trash" size={16} color="#fff" />
-                                                                        </TouchableOpacity>
+                                                            {group.rides.map((ride) => {
+                                                                // Calculate ride status and available seats
+                                                                const availableSeats = ride.seats - (ride.booked_seats || 0);
+                                                                const getRideStatus = (ride) => {
+                                                                    if (ride.isPrivate) {
+                                                                        return ride.status === 'active' ? 'Available' : 'Inactive';
+                                                                    }
+                                                                    if (availableSeats === 0) return 'Full';
+                                                                    if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
+                                                                    return 'Available';
+                                                                };
+                                                                const statusDisplay = getRideStatus(ride);
+
+                                                                return (
+                                                                    <View key={ride._id} style={styles.rideCardContainer}>
+                                                                        <RideCard
+                                                                            ride={ride}
+                                                                            onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                                            isPrivate={true}
+                                                                            availableSeats={availableSeats}
+                                                                            statusDisplay={statusDisplay}
+                                                                            isFull={availableSeats === 0}
+                                                                        />
+                                                                        <View style={styles.rideActions}>
+                                                                            <TouchableOpacity
+                                                                                style={[styles.actionButton, styles.editButton]}
+                                                                                onPress={() => handleEditRide(ride)}
+                                                                            >
+                                                                                <FontAwesome5 name="edit" size={16} color="#fff" />
+                                                                            </TouchableOpacity>
+                                                                            <TouchableOpacity
+                                                                                style={[styles.actionButton, styles.deleteButton]}
+                                                                                onPress={() => handleDeleteRide(ride._id)}
+                                                                            >
+                                                                                <FontAwesome5 name="trash" size={16} color="#fff" />
+                                                                            </TouchableOpacity>
+                                                                        </View>
                                                                     </View>
-                                                                </View>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </View>
                                                     ))}
                                                 </View>

@@ -26,12 +26,13 @@ export default function AddPrivateRideScreen() {
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [rideId, setRideId] = useState(null);
-
+    const [seats, setSeats] = useState('');
+    const [price, setPrice] = useState('');
     // Get ride data from route params if it exists
     const params = useLocalSearchParams();
     const hasInitialized = useRef(false);
     useEffect(() => {
-        
+
         if (params?.ride && !hasInitialized.current) {
             try {
                 const parsedRide = JSON.parse(params.ride);
@@ -42,11 +43,15 @@ export default function AddPrivateRideScreen() {
                 setDescription(parsedRide.description);
                 setLicensePlate(parsedRide.licensePlate);
                 setEta(parsedRide.estimatedArrivalTime.toString());
-
+                setSeats(parsedRide.seats.toString());
+                setPrice(parsedRide.price.toString());
                 // Set date and time from departure_time
-                const departureDate = new Date(parsedRide.departure_time);
-                setDate(departureDate);
-                setTime(departureDate);
+                if (parsedRide.departure_time) {
+                    const departureDate = new Date(parsedRide.departure_time);
+                    setDate(departureDate);
+                    setTime(departureDate);
+                }
+
                 hasInitialized.current = true;
             } catch (error) {
                 console.error('Error parsing ride data:', error);
@@ -75,8 +80,28 @@ export default function AddPrivateRideScreen() {
     });
 
     const handleSubmit = async () => {
-        if (!from || !to || !description || !eta || !licensePlate) {
+        if (!from || !to || !description || !eta || !licensePlate || !seats || price === '') {
             Alert.alert('Error', 'Please fill in all required fields');
+            return;
+        }
+
+        // Validate numeric fields
+        const numSeats = parseInt(seats);
+        const numPrice = parseFloat(price);
+        const numEta = parseInt(eta);
+
+        if (isNaN(numSeats) || numSeats < 1) {
+            Alert.alert('Error', 'Please enter a valid number of seats (minimum 1)');
+            return;
+        }
+
+        if (isNaN(numPrice) || numPrice < 0) {
+            Alert.alert('Error', 'Please enter a valid price (0 or higher)');
+            return;
+        }
+
+        if (isNaN(numEta) || numEta < 1) {
+            Alert.alert('Error', 'Please enter a valid ETA in hours (minimum 1)');
             return;
         }
 
@@ -94,9 +119,11 @@ export default function AddPrivateRideScreen() {
                 date: formattedDate,
                 time: formattedTime,
                 description,
-                estimatedArrivalTime: parseInt(eta),
+                estimatedArrivalTime: numEta,
                 licensePlate,
-                isPrivate: true
+                isPrivate: true,
+                seats: numSeats,
+                price: numPrice
             };
 
             await addPrivateRide(rideData);
@@ -246,6 +273,30 @@ export default function AddPrivateRideScreen() {
                                     onChangeText={setEta}
                                     placeholder="e.g., 2 hours"
                                     placeholderTextColor="#666"
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Seats</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={seats}
+                                    onChangeText={setSeats}
+                                    placeholder="Enter the number of seats"
+                                    placeholderTextColor="#666"
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Price ($)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={price}
+                                    onChangeText={setPrice}
+                                    placeholder="Enter the price (0 for negotiable)"
+                                    placeholderTextColor="#666"
+                                    keyboardType="numeric"
                                 />
                             </View>
 

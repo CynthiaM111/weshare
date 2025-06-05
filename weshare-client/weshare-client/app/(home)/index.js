@@ -63,7 +63,17 @@ export default function HomeScreen() {
 
     useEffect(() => {
         loadFrequentSearches();
-    }, []);
+    }, [loadFrequentSearches]);
+
+    // Load frequent searches when user changes (login/logout)
+    useEffect(() => {
+        if (user) {
+            loadFrequentSearches();
+        } else {
+            // Clear frequent searches when user logs out
+            setFrequentSearches([]);
+        }
+    }, [user, loadFrequentSearches]);
 
     const filterDestinations = useCallback((query) => {
         if (!query) return [];
@@ -131,10 +141,13 @@ export default function HomeScreen() {
         }
     };
 
-    const loadFrequentSearches = async () => {
+    const loadFrequentSearches = useCallback(async () => {
         try {
             const userId = user?.id;
-            if (!userId) return;
+            if (!userId) {
+                setFrequentSearches([]);
+                return;
+            }
 
             const searches = await AsyncStorage.getItem(`frequentSearches_${userId}`);
             if (searches) {
@@ -156,7 +169,7 @@ export default function HomeScreen() {
             console.error('Error loading frequent searches:', error);
             setFrequentSearches([]);
         }
-    };
+    }, [user?.id]);
 
     const updateFrequentSearches = async (from, to) => {
         try {
