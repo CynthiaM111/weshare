@@ -234,24 +234,11 @@ export default function HomeScreen() {
     };
 
     const handleAddPrivateRide = () => {
-        if (!user) {
-            Alert.alert(
-                "Authentication Required",
-                "You need to be logged in to add a private ride. Please sign in first.",
-                [
-                    {
-                        text: "Sign In",
-                        onPress: () => router.push('/(auth)/signup'),
-                    },
-                    {
-                        text: "Cancel",
-                        style: "cancel"
-                    }
-                ]
-            );
-            return;
-        }
         router.push('/(rides)/add-private-ride');
+    };
+
+    const handleBookPrivateRide = () => {
+        router.push('/(rides)/private');
     };
 
     const renderSuggestionItem = ({ item, onSelect }) => (
@@ -420,7 +407,7 @@ export default function HomeScreen() {
                         <View style={styles.privateRidesButtonsContainer}>
                             <TouchableOpacity
                                 style={[styles.privateRidesButton, styles.privateRidesButtonPrimary]}
-                                onPress={() => { }}
+                                onPress={handleBookPrivateRide}
                             >
                                 <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextPrimary]}>Book Private Ride</Text>
                             </TouchableOpacity>

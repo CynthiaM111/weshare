@@ -104,80 +104,101 @@ export default function BookedRidesScreen() {
         );
     }
 
-    const renderRide = ({ item }) => {
-        const userBooking = item.bookedBy?.find(b => b.userId === user.id);
-        const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
-
-        // Determine status color
-        const statusColor = item.statusDisplay === 'Full' ? '#FF0000' :
-            item.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
-
-        return (
-            <View style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
-                {isCheckedIn && (
-                    <View style={styles.checkedInBadge}>
-                        <Text style={styles.checkedInText}>Checked In</Text>
-                    </View>
-                )}
-                <View style={styles.routeContainer}>
-                    <Ionicons name="location-outline" size={20} color="#2C7A7B" style={styles.icon} />
-                    <Text style={styles.routeText}>
-                        {item.from || item.categoryId?.from || 'Unknown'} → {item.to || item.categoryId?.to || 'Unknown'}
-                    </Text>
-                </View>
-                <View style={styles.timeContainer}>
-                    <Ionicons name="calendar-outline" size={18} color="#F56565" style={styles.icon} />
-                    <Text style={styles.timeText}>
-                        {format(new Date(item.departure_time), 'PPP')}
-                    </Text>
-                    <View style={styles.timeDetails}>
-                        <Text style={styles.timeText}>
-                            {format(new Date(item.departure_time), 'p')} - {format(new Date(item.estimatedArrivalTime), 'p')}
-                        </Text>
-                    </View>
-                </View>
-                <Text style={styles.detailText}>
-                    Seats: {item.seats - item.booked_seats}/{item.seats}
-                </Text>
-                <Text style={[styles.detailText, { color: statusColor, fontWeight: 'bold' }]}>
-                    Status: {item.statusDisplay}
-                </Text>
-                {!isCheckedIn && (
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity
-                            style={styles.qrButton}
-                            onPress={() => handleOpenQRCode(item._id)}
-                        >
-                            <Text style={styles.buttonText}>Show QR Code</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.cancelButton, isCancelling && styles.buttonDisabled]}
-                            onPress={() => handleCancelBooking(item._id)}
-                            disabled={isCancelling}
-                        >
-                            <Text style={styles.buttonText}>
-                                {isCancelling ? 'Cancelling...' : 'Cancel'}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
-        );
-    };
-
     const sortedRides = [...(bookedRides || [])].sort((a, b) => {
         const aCheckedIn = a.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
         const bCheckedIn = b.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
         return aCheckedIn === bCheckedIn ? 0 : aCheckedIn ? -1 : 1;
     });
 
+    // Separate public and private bookings
+    const publicBookings = sortedRides.filter(ride => !ride.isPrivate);
+    const privateBookings = sortedRides.filter(ride => ride.isPrivate);
+
+    const renderRideSection = (rides, title, icon) => {
+        if (rides.length === 0) return null;
+
+        return (
+            <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                    <Ionicons name={icon} size={20} color="#fff" />
+                    <Text style={styles.sectionTitle}>{title} ({rides.length})</Text>
+                </View>
+                {rides.map((item) => {
+                    const userBooking = item.bookedBy?.find(b => b.userId === user.id);
+                    const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
+
+                    // Determine status color
+                    const statusColor = item.statusDisplay === 'Full' ? '#FF0000' :
+                        item.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
+
+                    return (
+                        <View key={item._id} style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
+                            {isCheckedIn && (
+                                <View style={styles.checkedInBadge}>
+                                    <Text style={styles.checkedInText}>Checked In</Text>
+                                </View>
+                            )}
+                            <View style={styles.routeContainer}>
+                                <Ionicons name="location-outline" size={20} color="#2C7A7B" style={styles.icon} />
+                                <Text style={styles.routeText}>
+                                    {item.from || item.categoryId?.from || 'Unknown'} → {item.to || item.categoryId?.to || 'Unknown'}
+                                </Text>
+                            </View>
+                            {item.isPrivate && (
+                                <View style={styles.privateTag}>
+                                    <Text style={styles.privateTagText}>Private Ride</Text>
+                                </View>
+                            )}
+                            <View style={styles.timeContainer}>
+                                <Ionicons name="calendar-outline" size={18} color="#F56565" style={styles.icon} />
+                                <Text style={styles.timeText}>
+                                    {format(new Date(item.departure_time), 'PPP')}
+                                </Text>
+                                <View style={styles.timeDetails}>
+                                    <Text style={styles.timeText}>
+                                        {format(new Date(item.departure_time), 'p')} - {format(new Date(item.estimatedArrivalTime), 'p')}
+                                    </Text>
+                                </View>
+                            </View>
+                            <Text style={styles.detailText}>
+                                Seats: {item.seats - item.booked_seats}/{item.seats}
+                            </Text>
+                            <Text style={[styles.detailText, { color: statusColor, fontWeight: 'bold' }]}>
+                                Status: {item.statusDisplay}
+                            </Text>
+                            {!isCheckedIn && (
+                                <View style={styles.buttonContainer}>
+                                    <TouchableOpacity
+                                        style={styles.qrButton}
+                                        onPress={() => handleOpenQRCode(item._id)}
+                                    >
+                                        <Text style={styles.buttonText}>Show QR Code</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.cancelButton, isCancelling && styles.buttonDisabled]}
+                                        onPress={() => handleCancelBooking(item._id)}
+                                        disabled={isCancelling}
+                                    >
+                                        <Text style={styles.buttonText}>
+                                            {isCancelling ? 'Cancelling...' : 'Cancel'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+                    );
+                })}
+            </View>
+        );
+    };
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>My Booked Rides</Text>
             <FlatList
-                data={sortedRides}
-                renderItem={renderRide}
-                keyExtractor={(item) => item._id}
+                data={[]}
+                renderItem={null}
+                keyExtractor={() => 'dummy'}
                 refreshControl={
                     <RefreshControl
                         refreshing={isLoadingRides}
@@ -186,10 +207,14 @@ export default function BookedRidesScreen() {
                         tintColor='#4CAF50'
                     />
                 }
-                ListEmptyComponent={
-                    !isLoadingRides ? (
-                        <Text style={styles.emptyText}>No booked rides found</Text>
-                    ) : null
+                ListHeaderComponent={
+                    <View>
+                        {renderRideSection(publicBookings, 'Public Rides', 'bus-outline')}
+                        {renderRideSection(privateBookings, 'Private Rides', 'car-outline')}
+                        {sortedRides.length === 0 && !isLoadingRides && (
+                            <Text style={styles.emptyText}>No booked rides found</Text>
+                        )}
+                    </View>
                 }
             />
             <Modal
@@ -371,5 +396,41 @@ const styles = StyleSheet.create({
     },
     buttonDisabled: {
         opacity: 0.7,
+    },
+    section: {
+        marginBottom: 20,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4CAF50',
+        padding: 15,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        marginLeft: 10,
+    },
+    privateTag: {
+        backgroundColor: '#9C27B0',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginTop: 8,
+        alignSelf: 'flex-start',
+    },
+    privateTagText: {
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: '600',
     },
 });

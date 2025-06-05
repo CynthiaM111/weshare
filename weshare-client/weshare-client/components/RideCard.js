@@ -100,7 +100,7 @@ export default function RideCard({
                         <Text style={styles.detailLabel}>Price</Text>
                     </View>
                     <Text style={[styles.detailValue, styles.priceValue]}>
-                        ${ridePrice}
+                        {ridePrice} RWF
                     </Text>
                 </View>
             </View>
