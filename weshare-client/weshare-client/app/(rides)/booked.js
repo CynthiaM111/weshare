@@ -267,7 +267,7 @@ export default function BookedRidesScreen() {
                     ListHeaderComponent={
                         <View>
                             {renderRideSection(publicBookings, 'Public Rides', 'bus-outline', 'public', '#2196F3')}
-                            {renderRideSection(privateBookings, 'Private Rides', 'car-outline', 'private', '#9C27B0')}
+                            {renderRideSection(privateBookings, 'Private Rides', 'car-outline', 'private', '#d65108')}
                             {sortedRides.length === 0 && !isLoadingRides && (
                                 <View style={styles.emptyContainer}>
                                     <FontAwesome5 name="calendar-times" size={64} color="rgba(255, 255, 255, 0.6)" />
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     privateTag: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#9C27B0',
+        backgroundColor: '#d65108',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
