@@ -4,7 +4,7 @@ const rideSchema = new mongoose.Schema({
     categoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'DestinationCategory',
-        required: function() {
+        required: function () {
             return !this.isPrivate;
         }
     },
@@ -34,7 +34,7 @@ const rideSchema = new mongoose.Schema({
     agencyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Agency',
-        required: function() {
+        required: function () {
             return !this.isPrivate;
         }
     },
@@ -54,7 +54,7 @@ const rideSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        
+
     },
     price: {
         type: Number,
@@ -62,11 +62,11 @@ const rideSchema = new mongoose.Schema({
     },
     created_at: {
         type: Date,
-        default: Date.now, 
+        default: Date.now,
     },
     updated_at: {
         type: Date,
-        default: Date.now, 
+        default: Date.now,
     },
     booked_seats: {
         type: Number,
@@ -85,15 +85,18 @@ const rideSchema = new mongoose.Schema({
     },
     bookedBy: [{
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        checkInStatus: { type: String, enum: ['pending', 'checked-in'], default: 'pending' },
-        bookingId: { type: String, unique: true, required: true } // Unique ID for QR code
+        checkInStatus: { type: String, enum: ['pending', 'checked-in', 'completed'], default: 'pending' },
+        bookingId: { type: String, unique: true, required: true }, // Unique ID for QR code
+        completionPin: { type: String }, // PIN for ride completion
+        pinGeneratedAt: { type: Date }, // When the PIN was generated
+        completedAt: { type: Date } // When the ride was completed
     }],
     // booked_users: [{
     //     type: mongoose.Schema.Types.ObjectId,
     //     ref: 'User'
     // }]
 }, {
-    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, 
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
 });
 
 // Virtual for available_seats

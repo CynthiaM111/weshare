@@ -11,6 +11,7 @@ router.get('/rides/employee', authController.protect, rideController.getEmployee
 router.post('/rides/check-in', authController.protect, rideController.checkInPassenger);
 router.get('/rides/history', authController.protect, rideController.getRideHistory);
 router.get('/rides/private', authController.protect, rideController.getUserPrivateRides);
+router.get('/rides/private/history', authController.protect, rideController.getUserPrivateRideHistory);
 router.get('/rides/private/available', authController.protect, rideController.getAvailablePrivateRides);
 router.get('/rides/:id', rideController.getRideById);
 router.put('/rides/:id', authController.protect, rideController.updateRide);
@@ -18,8 +19,10 @@ router.delete('/rides/:id', authController.protect, rideController.deleteRide);
 
 // Protected routes (require authentication)
 router.post('/rides/:rideId/book', authController.protect, rideController.bookRide);
-
 router.delete('/rides/:rideId/cancel', authController.protect, rideController.cancelRideBooking);
 
+// PIN-based completion routes for private rides
+router.post('/rides/:rideId/generate-completion-pin', authController.protect, rideController.generateCompletionPin);
+router.post('/rides/:rideId/complete-with-pin', authController.protect, rideController.completeRideWithPin);
 
 module.exports = router;

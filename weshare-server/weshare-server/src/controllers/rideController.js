@@ -425,10 +425,10 @@ const getUserRides = async (req, res) => {
         }
 
         // Find rides where user is in bookedBy and departure_time is in the future
+        // Also exclude rides where the user's booking is completed
         const rides = await Ride.find({
             'bookedBy.userId': userId,
             departure_time: { $gte: currentDate },
-            // status: { $in: ['active', 'pending', 'delayed'] }, // Exclude canceled/completed rides
         })
             .populate('agencyId', 'name email')
             .populate('categoryId', 'from to averageTime')
@@ -438,27 +438,35 @@ const getUserRides = async (req, res) => {
             return res.status(200).json([]);
         }
 
-        // Format rides with statusDisplay and necessary fields
-        const ridesWithStatus = rides.map((ride) => {
-            const booking = ride.bookedBy.find((b) => b.userId.toString() === userId);
-            return {
-                _id: ride._id,
-                from: ride.from,
-                to: ride.to,
-                departure_time: ride.departure_time,
-                estimatedArrivalTime: ride.estimatedArrivalTime,
-                price: ride.price,
-                seats: ride.seats,
-                booked_seats: ride.booked_seats,
-                bookedBy: ride.bookedBy,
-                agencyId: ride.agencyId,
-                categoryId: ride.categoryId,
-                licensePlate: ride.licensePlate,
-                isPrivate: ride.isPrivate,
-                statusDisplay: getRideStatus(ride),
-                checkInStatus: booking ? booking.checkInStatus : 'unknown',
-            };
-        });
+        // Format rides with statusDisplay and necessary fields, excluding completed bookings
+        const ridesWithStatus = rides
+            .map((ride) => {
+                const booking = ride.bookedBy.find((b) => b.userId.toString() === userId);
+
+                // Skip rides where user's booking is completed
+                if (booking && booking.checkInStatus === 'completed') {
+                    return null;
+                }
+
+                return {
+                    _id: ride._id,
+                    from: ride.from,
+                    to: ride.to,
+                    departure_time: ride.departure_time,
+                    estimatedArrivalTime: ride.estimatedArrivalTime,
+                    price: ride.price,
+                    seats: ride.seats,
+                    booked_seats: ride.booked_seats,
+                    bookedBy: ride.bookedBy,
+                    agencyId: ride.agencyId,
+                    categoryId: ride.categoryId,
+                    licensePlate: ride.licensePlate,
+                    isPrivate: ride.isPrivate,
+                    statusDisplay: getRideStatus(ride),
+                    checkInStatus: booking ? booking.checkInStatus : 'unknown',
+                };
+            })
+            .filter(ride => ride !== null); // Remove null entries
 
         // Cache the result for 5 minutes
         await redisClient.setEx(cacheKey, 300, JSON.stringify(ridesWithStatus));
@@ -603,12 +611,19 @@ const getRideHistory = async (req, res) => {
         // Get current date for comparison
         const currentDate = new Date();
 
-        // Find past rides for the user
+        // Find rides for the user that are either:
+        // 1. Past rides (departure_time < currentDate)
+        // 2. Rides where user's booking is completed
         const rides = await Ride.find({
             'bookedBy.userId': req.user.id,
-            departure_time: { $lt: currentDate }
+            $or: [
+                { departure_time: { $lt: currentDate } },
+                { 'bookedBy': { $elemMatch: { userId: req.user.id, checkInStatus: 'completed' } } }
+            ]
         })
-            .select('from to departure_time price bookedBy status')
+            .populate('agencyId', 'name email')
+            .populate('categoryId', 'from to averageTime')
+            .select('from to departure_time estimatedArrivalTime price bookedBy status isPrivate licensePlate agencyId categoryId')
             .sort({ departure_time: -1 })
             .skip(skip)
             .limit(limit);
@@ -617,19 +632,28 @@ const getRideHistory = async (req, res) => {
         const history = rides.map(ride => {
             const booking = ride.bookedBy.find(b => b.userId.toString() === req.user.id.toString());
             return {
+                _id: ride._id,
                 from: ride.from,
                 to: ride.to,
                 departure_time: ride.departure_time,
-                price: ride.price,  // Always use the ride's price
+                estimatedArrivalTime: ride.estimatedArrivalTime,
+                price: ride.price,
+                isPrivate: ride.isPrivate,
+                licensePlate: ride.licensePlate,
+                agencyId: ride.agencyId,
+                categoryId: ride.categoryId,
                 status: booking ? booking.checkInStatus : 'unknown',
-
+                rideStatus: ride.status, // Overall ride status
             };
         });
 
         // Get total count for pagination
         const total = await Ride.countDocuments({
             'bookedBy.userId': req.user.id,
-            departure_time: { $lt: currentDate }
+            $or: [
+                { departure_time: { $lt: currentDate } },
+                { 'bookedBy': { $elemMatch: { userId: req.user.id, checkInStatus: 'completed' } } }
+            ]
         });
 
         res.status(200).json({
@@ -651,14 +675,50 @@ const getRideHistory = async (req, res) => {
 };
 const getUserPrivateRides = async (req, res) => {
     try {
-        const rides = await Ride.find(
-            { userId: req.user.id, isPrivate: true },
-            'from to departure_time estimatedArrivalTime licensePlate status description created_at seats price booked_seats'
-        )
+        // Get current date for comparison
+        const currentDate = new Date();
+
+        // Find active private rides (excluding completed ones)
+        const rides = await Ride.find({
+            userId: req.user.id,
+            isPrivate: true,
+            $and: [
+                {
+                    $or: [
+                        { departure_time: { $gte: currentDate } }, // Future rides
+                        { status: { $ne: 'completed' } } // Non-completed past rides
+                    ]
+                },
+                { status: { $ne: 'completed' } } // Exclude explicitly completed rides
+            ]
+        })
+            .populate('bookedBy.userId', 'name email')
             .sort({ departure_time: -1 })
             .lean();
 
-        res.status(200).json({ rides });
+        // Add computed fields for ride completion status
+        const ridesWithStatus = rides.map(ride => {
+            const allPassengersCompleted = ride.bookedBy.length > 0 &&
+                ride.bookedBy.every(booking => booking.checkInStatus === 'completed');
+
+            const somePassengersCompleted = ride.bookedBy.some(booking => booking.checkInStatus === 'completed');
+
+            let computedStatus = ride.status;
+            if (allPassengersCompleted && ride.status !== 'completed') {
+                computedStatus = 'completed'; // Should be marked as completed if all passengers are done
+            }
+
+            return {
+                ...ride,
+                allPassengersCompleted,
+                somePassengersCompleted,
+                computedStatus,
+                pendingPassengers: ride.bookedBy.filter(booking => booking.checkInStatus !== 'completed').length,
+                completedPassengers: ride.bookedBy.filter(booking => booking.checkInStatus === 'completed').length
+            };
+        });
+
+        res.status(200).json({ rides: ridesWithStatus });
     } catch (error) {
         console.error('Error fetching private rides:', error);
         res.status(500).json({ error: 'Failed to fetch private rides' });
@@ -668,81 +728,298 @@ const getUserPrivateRides = async (req, res) => {
 const getAvailablePrivateRides = async (req, res) => {
     try {
         const { from, to } = req.query;
-        const currentDate = new Date();
+        const userId = req.user.id;
 
-        // Build search query
-        let searchQuery = {
+        // Build search criteria
+        const searchCriteria = {
             isPrivate: true,
             status: 'active',
-            departure_time: { $gte: currentDate },
-            userId: { $ne: req.user.id }, // Exclude user's own rides
-            $expr: { $lt: ['$booked_seats', '$seats'] } // Rides with available seats
+            departure_time: { $gte: new Date() },
+            userId: { $ne: userId }, // Exclude user's own rides
         };
 
-        // Add search criteria if provided
-        if (from || to) {
-            const searchConditions = [];
-
-            if (from && to) {
-                // Both from and to provided - try exact match first, then partial matches
-                searchConditions.push(
-                    // Exact match for both
-                    { from: from.trim(), to: to.trim() },
-                    // Exact from, partial to
-                    { from: from.trim(), to: new RegExp(to.trim(), 'i') },
-                    // Partial from, exact to
-                    { from: new RegExp(from.trim(), 'i'), to: to.trim() },
-                    // Partial match for both
-                    { from: new RegExp(from.trim(), 'i'), to: new RegExp(to.trim(), 'i') }
-                );
-            } else if (from) {
-                // Only from provided
-                searchConditions.push(
-                    { from: from.trim() }, // Exact match
-                    { from: new RegExp(from.trim(), 'i') } // Partial match
-                );
-            } else if (to) {
-                // Only to provided
-                searchConditions.push(
-                    { to: to.trim() }, // Exact match
-                    { to: new RegExp(to.trim(), 'i') } // Partial match
-                );
-            }
-
-            searchQuery.$or = searchConditions;
+        if (from) {
+            searchCriteria.from = { $regex: from, $options: 'i' };
         }
 
-        // Find matching rides
-        const rides = await Ride.find(searchQuery)
-            .populate('userId', 'name email') // Get driver info
-            .select('from to departure_time estimatedArrivalTime licensePlate description seats price booked_seats userId bookedBy')
+        if (to) {
+            searchCriteria.to = { $regex: to, $options: 'i' };
+        }
+
+        const rides = await Ride.find(searchCriteria)
+            .populate('userId', 'name email')
+            .select('from to departure_time estimatedArrivalTime licensePlate status description created_at seats price booked_seats userId')
             .sort({ departure_time: 1 })
-            .limit(50) // Limit results for performance
             .lean();
 
-        // Format rides with statusDisplay and necessary fields
-        const ridesWithStatus = rides.map((ride) => {
-            const availableSeats = ride.seats - (ride.booked_seats || 0);
-            let statusDisplay = 'Available';
+        // Add driver info and available seats
+        const ridesWithDriver = rides.map(ride => ({
+            ...ride,
+            driver: ride.userId,
+            available_seats: ride.seats - (ride.booked_seats || 0)
+        }));
 
-            if (availableSeats === 0) {
-                statusDisplay = 'Full';
-            } else if (availableSeats <= ride.seats * 0.3) {
-                statusDisplay = 'Nearly Full';
-            }
-
-            return {
-                ...ride,
-                statusDisplay,
-                available_seats: availableSeats,
-                driver: ride.userId // Driver info
-            };
-        });
-
-        res.status(200).json({ rides: ridesWithStatus });
+        res.status(200).json({ rides: ridesWithDriver });
     } catch (error) {
         console.error('Error fetching available private rides:', error);
         res.status(500).json({ error: 'Failed to fetch available private rides' });
+    }
+};
+
+// Generate completion PIN for private ride
+const generateCompletionPin = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const { pin } = req.body;
+        const userId = req.user.id;
+
+        console.log('generateCompletionPin called with:', { rideId, pin, userId });
+
+        if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
+            console.log('Invalid IDs:', { rideId, userId });
+            return res.status(400).json({ error: 'Invalid rideId or userId' });
+        }
+
+        if (!pin || pin.length !== 6) {
+            console.log('Invalid PIN length:', pin);
+            return res.status(400).json({ error: 'PIN must be exactly 6 digits' });
+        }
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) {
+            console.log('Ride not found:', rideId);
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        console.log('Found ride for PIN generation:', {
+            id: ride._id,
+            bookedBy: ride.bookedBy.map(b => ({
+                userId: b.userId.toString(),
+                checkInStatus: b.checkInStatus
+            }))
+        });
+
+        // Check if user is booked on this ride
+        const booking = ride.bookedBy.find(b => b.userId.toString() === userId);
+        if (!booking) {
+            console.log('User not booked on ride. Looking for userId:', userId);
+            console.log('Available bookings:', ride.bookedBy.map(b => b.userId.toString()));
+            return res.status(400).json({ error: 'User is not booked on this ride' });
+        }
+
+        if (booking.checkInStatus === 'completed') {
+            console.log('Ride already completed for user:', userId);
+            return res.status(400).json({ error: 'Ride already completed' });
+        }
+
+        // Store PIN temporarily (you might want to use Redis with expiration)
+        booking.completionPin = pin;
+        booking.pinGeneratedAt = new Date();
+
+        console.log('Storing PIN for booking:', {
+            userId: booking.userId.toString(),
+            pin: pin,
+            pinGeneratedAt: booking.pinGeneratedAt
+        });
+
+        await ride.save();
+
+        console.log('PIN saved successfully for user:', userId);
+
+        res.status(200).json({
+            message: 'Completion PIN generated successfully',
+            pin: pin
+        });
+    } catch (error) {
+        console.error('Error generating completion PIN:', error);
+        res.status(500).json({ error: 'Failed to generate completion PIN' });
+    }
+};
+
+// Complete ride with PIN (driver enters this)
+const completeRideWithPin = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const { pin, passengerUserId } = req.body;
+        const driverId = req.user.id;
+
+        console.log('completeRideWithPin called with:', { rideId, pin, passengerUserId, driverId });
+
+        if (!mongoose.Types.ObjectId.isValid(rideId)) {
+            console.log('Invalid rideId:', rideId);
+            return res.status(400).json({ error: 'Invalid rideId' });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(passengerUserId)) {
+            console.log('Invalid passengerUserId:', passengerUserId);
+            return res.status(400).json({ error: 'Invalid passengerUserId' });
+        }
+
+        if (!pin || pin.length !== 6) {
+            console.log('Invalid PIN:', pin);
+            return res.status(400).json({ error: 'PIN must be exactly 6 digits' });
+        }
+
+        const ride = await Ride.findById(rideId).populate('bookedBy.userId', 'name email');
+        if (!ride) {
+            console.log('Ride not found:', rideId);
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        console.log('Found ride:', {
+            id: ride._id,
+            isPrivate: ride.isPrivate,
+            driverId: ride.userId,
+            bookedBy: ride.bookedBy.map(b => ({
+                userId: b.userId._id,
+                checkInStatus: b.checkInStatus,
+                hasPin: !!b.completionPin
+            }))
+        });
+
+        // Check if the current user is the driver of this private ride
+        if (ride.isPrivate && ride.userId.toString() !== driverId) {
+            console.log('Not the driver. Ride userId:', ride.userId.toString(), 'Current user:', driverId);
+            return res.status(403).json({ error: 'Only the ride driver can complete the ride' });
+        }
+
+        // Find the passenger booking
+        const booking = ride.bookedBy.find(b => b.userId._id.toString() === passengerUserId);
+        if (!booking) {
+            console.log('Passenger booking not found. Looking for userId:', passengerUserId);
+            console.log('Available bookings:', ride.bookedBy.map(b => ({
+                userId: b.userId._id.toString(),
+                checkInStatus: b.checkInStatus
+            })));
+            return res.status(400).json({ error: 'Passenger not found on this ride' });
+        }
+
+        if (!booking.completionPin) {
+            console.log('No completion PIN for passenger:', passengerUserId);
+            return res.status(400).json({ error: 'No completion PIN generated for this passenger' });
+        }
+
+        if (booking.completionPin !== pin) {
+            console.log('PIN mismatch. Expected:', booking.completionPin, 'Received:', pin);
+            return res.status(400).json({ error: 'Invalid PIN' });
+        }
+
+        // Check PIN expiration (15 minutes)
+        const pinAge = (new Date() - booking.pinGeneratedAt) / (1000 * 60);
+        if (pinAge > 15) {
+            console.log('PIN expired. Age in minutes:', pinAge);
+            return res.status(400).json({ error: 'PIN has expired. Please generate a new one.' });
+        }
+
+        // Mark ride as completed for this passenger
+        booking.checkInStatus = 'completed';
+        booking.completedAt = new Date();
+        booking.completionPin = undefined; // Clear the PIN
+        booking.pinGeneratedAt = undefined;
+
+        // Check if all passengers have completed the ride
+        const allCompleted = ride.bookedBy.every(b => b.checkInStatus === 'completed');
+        if (allCompleted) {
+            ride.status = 'completed';
+            console.log('Marking ride as completed:', ride._id);
+        }
+
+        await ride.save();
+        console.log('Ride saved with status:', ride.status, 'All completed:', allCompleted);
+
+        // Clear cache
+        await redisClient.del(`bookedRides:${passengerUserId}`);
+        if (ride.isPrivate) {
+            await redisClient.del(`privateRides:${driverId}`);
+        }
+
+        // Clear additional caches to ensure UI updates
+        await clearCache(); // Clear general rides cache
+
+        // Clear cache for all passengers on this ride
+        for (const booking of ride.bookedBy) {
+            await redisClient.del(`bookedRides:${booking.userId._id || booking.userId}`);
+        }
+
+        console.log('Ride completed successfully for passenger:', passengerUserId);
+
+        res.status(200).json({
+            message: 'Ride completed successfully',
+            passenger: {
+                name: booking.userId.name,
+                email: booking.userId.email,
+            },
+            rideCompleted: allCompleted
+        });
+    } catch (error) {
+        console.error('Error completing ride with PIN:', error);
+        res.status(500).json({ error: 'Failed to complete ride' });
+    }
+};
+
+const getUserPrivateRideHistory = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Get current date for comparison
+        const currentDate = new Date();
+
+        // Find completed private rides for the driver
+        const rides = await Ride.find({
+            userId: req.user.id,
+            isPrivate: true,
+            $or: [
+                { status: 'completed' },
+                { departure_time: { $lt: currentDate } }
+            ]
+        })
+            .populate('bookedBy.userId', 'name email')
+            .select('from to departure_time estimatedArrivalTime price bookedBy status licensePlate description seats booked_seats')
+            .sort({ departure_time: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // Add computed fields for ride completion status
+        const ridesWithStatus = rides.map(ride => {
+            const allPassengersCompleted = ride.bookedBy.length > 0 &&
+                ride.bookedBy.every(booking => booking.checkInStatus === 'completed');
+
+            const somePassengersCompleted = ride.bookedBy.some(booking => booking.checkInStatus === 'completed');
+
+            return {
+                ...ride,
+                allPassengersCompleted,
+                somePassengersCompleted,
+                completedPassengers: ride.bookedBy.filter(booking => booking.checkInStatus === 'completed').length,
+                totalPassengers: ride.bookedBy.length
+            };
+        });
+
+        // Get total count for pagination
+        const total = await Ride.countDocuments({
+            userId: req.user.id,
+            isPrivate: true,
+            $or: [
+                { status: 'completed' },
+                { departure_time: { $lt: currentDate } }
+            ]
+        });
+
+        res.status(200).json({
+            history: ridesWithStatus,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(total / limit),
+                totalItems: total,
+                itemsPerPage: limit
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching private ride history:', error);
+        res.status(500).json({ error: 'Failed to fetch private ride history' });
     }
 };
 
@@ -760,6 +1037,9 @@ module.exports = {
     checkInPassenger,
     getRideHistory,
     getUserPrivateRides,
-    getAvailablePrivateRides
+    getAvailablePrivateRides,
+    generateCompletionPin,
+    completeRideWithPin,
+    getUserPrivateRideHistory
 };
 
