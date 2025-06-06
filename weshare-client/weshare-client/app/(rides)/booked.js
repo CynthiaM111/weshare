@@ -12,7 +12,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function BookedRidesScreen() {
     const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
+    const [pinModalVisible, setPinModalVisible] = useState(false);
     const [selectedRideId, setSelectedRideId] = useState(null);
+    const [generatedPin, setGeneratedPin] = useState('');
     const [expandedSections, setExpandedSections] = useState({
         public: true,
         private: true,
@@ -90,6 +92,54 @@ export default function BookedRidesScreen() {
         }
     };
 
+    const handleFinishRide = async (rideId) => {
+        Alert.alert(
+            "Finish Ride",
+            "Are you sure you want to finish this ride?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Yes, Finish",
+                    onPress: async () => {
+                        try {
+                            // Generate a 6-digit PIN
+                            const pin = Math.floor(100000 + Math.random() * 900000).toString();
+
+                            console.log('Generated PIN for ride completion:', { rideId, pin, userId: user.id });
+
+                            // Call API to generate PIN for ride completion
+                            const response = await axios.post(
+                                `${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/generate-completion-pin`,
+                                { pin },
+                                {
+                                    headers: { Authorization: `Bearer ${user.token}` },
+                                }
+                            );
+
+                            console.log('PIN generation response:', response.data);
+
+                            setGeneratedPin(pin);
+                            setSelectedRideId(rideId);
+                            setPinModalVisible(true);
+
+                        } catch (error) {
+                            console.error('Error generating PIN:', error);
+                            console.error('Error response:', error.response?.data);
+                            console.error('Error status:', error.response?.status);
+                            Alert.alert(
+                                "Error",
+                                error.response?.data?.error || "Failed to generate completion PIN. Please try again."
+                            );
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     if (fetchError) {
         return (
             <LinearGradient
@@ -165,9 +215,25 @@ export default function BookedRidesScreen() {
                             const userBooking = item.bookedBy?.find(b => b.userId === user.id);
                             const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
 
-                            // Determine status color
-                            const statusColor = item.statusDisplay === 'Full' ? '#FF0000' :
-                                item.statusDisplay === 'Nearly Full' ? '#FFA500' : '#008000';
+                            // Determine status color with consistent color scheme
+                            const getStatusColor = (status) => {
+                                switch (status) {
+                                    case 'Full':
+                                        return '#e53e3e'; // Red
+                                    case 'Nearly Full':
+                                        return '#ff8c00'; // Dark Orange
+                                    case 'Available':
+                                        return '#38a169'; // Green
+                                    case 'Inactive':
+                                        return '#718096'; // Gray
+                                    case 'Completed':
+                                        return '#805ad5'; // Purple
+                                    default:
+                                        return '#38a169'; // Default Green
+                                }
+                            };
+
+                            const statusColor = getStatusColor(item.statusDisplay);
 
                             return (
                                 <View key={item._id} style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
@@ -207,13 +273,23 @@ export default function BookedRidesScreen() {
                                     </Text>
                                     {!isCheckedIn && (
                                         <View style={styles.buttonContainer}>
-                                            <TouchableOpacity
-                                                style={styles.qrButton}
-                                                onPress={() => handleOpenQRCode(item._id)}
-                                            >
-                                                <FontAwesome5 name="qrcode" size={16} color="white" />
-                                                <Text style={styles.buttonText}>Show QR</Text>
-                                            </TouchableOpacity>
+                                            {item.isPrivate ? (
+                                                <TouchableOpacity
+                                                    style={styles.finishRideButton}
+                                                    onPress={() => handleFinishRide(item._id)}
+                                                >
+                                                    <FontAwesome5 name="flag-checkered" size={16} color="white" />
+                                                    <Text style={styles.buttonText}>Finish Ride</Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <TouchableOpacity
+                                                    style={styles.qrButton}
+                                                    onPress={() => handleOpenQRCode(item._id)}
+                                                >
+                                                    <FontAwesome5 name="qrcode" size={16} color="white" />
+                                                    <Text style={styles.buttonText}>Show QR</Text>
+                                                </TouchableOpacity>
+                                            )}
                                             <TouchableOpacity
                                                 style={[styles.cancelButton, isCancelling && styles.buttonDisabled]}
                                                 onPress={() => handleCancelBooking(item._id)}
@@ -301,6 +377,38 @@ export default function BookedRidesScreen() {
                                 onPress={() => setQRCodeModalVisible(false)}
                             >
                                 <Text style={styles.closeButtonText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                <Modal
+                    visible={pinModalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setPinModalVisible(false)}
+                >
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <FontAwesome5 name="flag-checkered" size={48} color="#4CAF50" style={styles.modalIcon} />
+                            <Text style={styles.modalTitle}>Ride Completion PIN</Text>
+                            <Text style={styles.pinSubtitle}>Share this PIN with your driver to complete the ride</Text>
+                            <View style={styles.pinContainer}>
+                                <Text style={styles.pinText}>{generatedPin}</Text>
+                            </View>
+                            <Text style={styles.pinInstructions}>
+                                The driver will enter this PIN to mark the ride as completed.
+                                Once completed, this ride will be moved to your ride history.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => {
+                                    setPinModalVisible(false);
+                                    setGeneratedPin('');
+                                    setSelectedRideId(null);
+                                }}
+                            >
+                                <Text style={styles.closeButtonText}>Got it!</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -465,6 +573,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
     },
+    finishRideButton: {
+        backgroundColor: '#4CAF50',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
     cancelButton: {
         backgroundColor: '#dc3545',
         paddingVertical: 10,
@@ -535,5 +654,29 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    modalIcon: {
+        marginBottom: 20,
+    },
+    pinSubtitle: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 10,
+    },
+    pinContainer: {
+        backgroundColor: '#f0f0f0',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 20,
+    },
+    pinText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0a2472',
+    },
+    pinInstructions: {
+        fontSize: 12,
+        color: '#666',
+        textAlign: 'center',
     },
 });

@@ -54,6 +54,12 @@ export default function RidesLayout() {
                     headerShown: false,
                 }}
             />
+            <Stack.Screen
+                name="private-history"
+                options={{
+                    headerShown: false,
+                }}
+            />
         </Stack>
     );
 }

@@ -14,7 +14,8 @@ export default function RideCard({
     onCancelBooking,
     onShowQRCode,
     isCheckedIn,
-    isPrivate
+    isPrivate,
+    onFinishRide
 }) {
     // Ensure we have valid numbers for calculations
     const totalSeats = parseInt(ride.seats) || 1;
@@ -36,10 +37,27 @@ export default function RideCard({
         return 'Available';
     })();
 
-    // Determine status color
-    const statusColor = calculatedStatusDisplay === 'Full' ? '#FF0000' :
-        calculatedStatusDisplay === 'Nearly Full' ? '#FFA500' :
-            calculatedStatusDisplay === 'Inactive' ? '#666' : '#008000';
+    // Determine status color with more distinguishable colors
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'Full':
+                return '#e53e3e'; // Red
+            case 'Nearly Full':
+                return '#ff8c00'; // Dark Orange
+            case 'Available':
+                return '#38a169'; // Green
+            case 'Inactive':
+                return '#718096'; // Gray
+            case 'Completed':
+                return '#805ad5'; // Purple
+            case 'Pending':
+                return '#3182ce'; // Blue
+            default:
+                return '#38a169'; // Default Green
+        }
+    };
+
+    const statusColor = getStatusColor(calculatedStatusDisplay);
 
     return (
         <TouchableOpacity
@@ -130,7 +148,16 @@ export default function RideCard({
             )}
 
             <View style={styles.buttonContainer}>
-                {isBooked && !isCheckedIn && (
+                {isBooked && !isCheckedIn && isPrivate && (
+                    <TouchableOpacity
+                        style={styles.finishRideButton}
+                        onPress={onFinishRide}
+                    >
+                        <FontAwesome5 name="flag-checkered" size={16} color="white" />
+                        <Text style={styles.finishRideButtonText}>Finish Ride</Text>
+                    </TouchableOpacity>
+                )}
+                {isBooked && !isCheckedIn && !isPrivate && (
                     <TouchableOpacity
                         style={styles.qrButton}
                         onPress={onShowQRCode}
@@ -321,5 +348,17 @@ const styles = StyleSheet.create({
         color: '#34495e',
         lineHeight: 20,
         paddingLeft: 24,
+    },
+    finishRideButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4CAF50',
+        padding: 10,
+        borderRadius: 6,
+    },
+    finishRideButtonText: {
+        color: 'white',
+        fontSize: 14,
+        marginLeft: 8,
     },
 });

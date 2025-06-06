@@ -60,12 +60,7 @@ export default function RidesScreen() {
             try {
                 const parsedRides = JSON.parse(params.rides);
                 setSearchResults(parsedRides);
-                console.log('🔍 Search params:', {
-                    ridesParam: params.rides,
-                    parsedLength: parsedRides.length,
-                    hasSearched: true,
-                    hasResults: parsedRides.length > 0
-                });
+                
             } catch (error) {
                 console.error('Error parsing search results:', error);
                 setSearchResults([]);

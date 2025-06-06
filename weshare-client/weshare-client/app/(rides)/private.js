@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Alert, TextInput } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Alert, TextInput, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -15,10 +15,15 @@ export default function PrivateRidesScreen() {
     const [expandedSections, setExpandedSections] = useState({
         available: true,
         myRides: true,
+        completed: true,
     });
     const [searchFrom, setSearchFrom] = useState('');
     const [searchTo, setSearchTo] = useState('');
     const [hasSearched, setHasSearched] = useState(false);
+    const [pinModalVisible, setPinModalVisible] = useState(false);
+    const [pinInput, setPinInput] = useState('');
+    const [selectedRideForCompletion, setSelectedRideForCompletion] = useState(null);
+    const [selectedPassenger, setSelectedPassenger] = useState(null);
 
     // User's own private rides
     const {
@@ -175,6 +180,62 @@ export default function PrivateRidesScreen() {
         });
     };
 
+    const handleCompleteRideWithPin = (ride, passenger) => {
+        setSelectedRideForCompletion(ride);
+        setSelectedPassenger(passenger);
+        setPinModalVisible(true);
+    };
+
+    const submitPinCompletion = async () => {
+        if (pinInput.length !== 6) {
+            Alert.alert('Invalid PIN', 'Please enter a 6-digit PIN');
+            return;
+        }
+
+        try {
+            // Get the correct passenger user ID
+            const passengerUserId = selectedPassenger.userId._id || selectedPassenger.userId;
+
+            console.log('Submitting PIN completion:', {
+                rideId: selectedRideForCompletion._id,
+                pin: pinInput,
+                passengerUserId: passengerUserId,
+                passenger: selectedPassenger
+            });
+
+            const response = await axios.post(
+                `${process.env.EXPO_PUBLIC_API_URL}/rides/${selectedRideForCompletion._id}/complete-with-pin`,
+                {
+                    pin: pinInput,
+                    passengerUserId: passengerUserId
+                },
+                {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                }
+            );
+
+            const passengerName = selectedPassenger.userId?.name || selectedPassenger.userId?.email || 'the passenger';
+            Alert.alert('Success', `Ride completed for ${passengerName}`);
+
+            // Reset modal state
+            setPinModalVisible(false);
+            setPinInput('');
+            setSelectedRideForCompletion(null);
+            setSelectedPassenger(null);
+
+            // Refresh the rides list
+            fetchPrivateRides();
+
+        } catch (error) {
+            console.error('Error completing ride with PIN:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+
+            const errorMessage = error.response?.data?.error || 'Failed to complete ride with PIN';
+            Alert.alert('Error', errorMessage);
+        }
+    };
+
     if (privateRidesError) {
         return (
             <SafeAreaView style={styles.container}>
@@ -208,10 +269,24 @@ export default function PrivateRidesScreen() {
 
     const currentDate = new Date();
 
-    const activeRides = rides.filter(ride => new Date(ride.departure_time) >= currentDate);
-    const pastRides = rides.filter(ride => new Date(ride.departure_time) < currentDate);
+    const activeRides = rides.filter(ride =>
+        new Date(ride.departure_time) >= currentDate &&
+        ride.computedStatus !== 'completed'
+    );
+
+    const completedRides = rides.filter(ride =>
+        ride.computedStatus === 'completed' ||
+        (ride.bookedBy && ride.bookedBy.length > 0 && ride.allPassengersCompleted)
+    );
+
+    const pastRides = rides.filter(ride =>
+        new Date(ride.departure_time) < currentDate &&
+        ride.computedStatus !== 'completed' &&
+        !(ride.bookedBy && ride.bookedBy.length > 0 && ride.allPassengersCompleted)
+    );
 
     const groupedActiveRides = groupRidesByDate(activeRides);
+    const groupedCompletedRides = groupRidesByDate(completedRides);
     const groupedPastRides = groupRidesByDate(pastRides);
     const groupedAvailableRides = groupRidesByDate(availableRides);
 
@@ -228,9 +303,14 @@ export default function PrivateRidesScreen() {
                         <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Private Rides</Text>
-                    <TouchableOpacity onPress={() => router.push('/(rides)/add-private-ride')} style={styles.addButton}>
-                        <FontAwesome5 name="plus" size={20} color="#fff" />
-                    </TouchableOpacity>
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity onPress={() => router.push('/(rides)/private-history')} style={styles.historyButton}>
+                            <FontAwesome5 name="history" size={18} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push('/(rides)/add-private-ride')} style={styles.addButton}>
+                            <FontAwesome5 name="plus" size={20} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <FlatList
@@ -415,6 +495,71 @@ export default function PrivateRidesScreen() {
                                                                     statusDisplay={statusDisplay}
                                                                     isFull={availableSeats === 0}
                                                                 />
+
+                                                                {/* Show booked passengers */}
+                                                                {ride.bookedBy && ride.bookedBy.length > 0 && (
+                                                                    <View style={styles.passengersSection}>
+                                                                        <View style={styles.passengersSectionHeader}>
+                                                                            <Text style={styles.passengersSectionTitle}>
+                                                                                Booked Passengers ({ride.bookedBy.length})
+                                                                            </Text>
+                                                                            {ride.allPassengersCompleted && (
+                                                                                <View style={styles.rideCompletedBadge}>
+                                                                                    <FontAwesome5 name="check-circle" size={12} color="#fff" />
+                                                                                    <Text style={styles.rideCompletedText}>Ride Completed</Text>
+                                                                                </View>
+                                                                            )}
+                                                                            {ride.somePassengersCompleted && !ride.allPassengersCompleted && (
+                                                                                <View style={styles.partialCompletedBadge}>
+                                                                                    <FontAwesome5 name="clock" size={12} color="#fff" />
+                                                                                    <Text style={styles.partialCompletedText}>
+                                                                                        {ride.completedPassengers}/{ride.bookedBy.length} Completed
+                                                                                    </Text>
+                                                                                </View>
+                                                                            )}
+                                                                        </View>
+                                                                        {ride.bookedBy.map((booking, index) => {
+                                                                            const passenger = booking.userId || booking;
+                                                                            const passengerName = passenger.name || passenger.email || `Passenger ${index + 1}`;
+                                                                            const checkInStatus = booking.checkInStatus || 'pending';
+
+                                                                            return (
+                                                                                <View key={booking.bookingId || index} style={styles.passengerContainer}>
+                                                                                    <View style={styles.passengerRow}>
+                                                                                        <View style={styles.passengerInfo}>
+                                                                                            <FontAwesome5 name="user" size={14} color="#666" />
+                                                                                            <Text style={styles.passengerName}>{passengerName}</Text>
+                                                                                        </View>
+                                                                                        <View style={[
+                                                                                            styles.statusBadge,
+                                                                                            checkInStatus === 'completed' ? styles.completedBadge :
+                                                                                                checkInStatus === 'checked-in' ? styles.checkedInBadge :
+                                                                                                    styles.pendingBadge
+                                                                                        ]}>
+                                                                                            <Text style={styles.statusBadgeText}>
+                                                                                                {checkInStatus === 'completed' ? 'Completed' :
+                                                                                                    checkInStatus === 'checked-in' ? 'Checked In' :
+                                                                                                        'Pending'}
+                                                                                            </Text>
+                                                                                        </View>
+                                                                                    </View>
+                                                                                    {checkInStatus !== 'completed' && !ride.allPassengersCompleted && (
+                                                                                        <View style={styles.buttonRow}>
+                                                                                            <TouchableOpacity
+                                                                                                style={styles.completePinButton}
+                                                                                                onPress={() => handleCompleteRideWithPin(ride, booking)}
+                                                                                            >
+                                                                                                <FontAwesome5 name="key" size={12} color="#fff" />
+                                                                                                <Text style={styles.completePinButtonText}>Complete with PIN</Text>
+                                                                                            </TouchableOpacity>
+                                                                                        </View>
+                                                                                    )}
+                                                                                </View>
+                                                                            );
+                                                                        })}
+                                                                    </View>
+                                                                )}
+
                                                                 <View style={styles.rideActions}>
                                                                     <TouchableOpacity
                                                                         style={[styles.actionButton, styles.editButton]}
@@ -429,6 +574,58 @@ export default function PrivateRidesScreen() {
                                                                         <FontAwesome5 name="trash" size={16} color="#fff" />
                                                                     </TouchableOpacity>
                                                                 </View>
+                                                            </View>
+                                                        );
+                                                    })}
+                                                </View>
+                                            ))}
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+
+                            {groupedCompletedRides.length > 0 && (
+                                <View style={styles.section}>
+                                    <TouchableOpacity onPress={() => toggleExpand('completed')}>
+                                        <View style={styles.sectionHeader}>
+                                            <Text style={styles.sectionTitle}>Completed Rides ({completedRides.length})</Text>
+                                            <FontAwesome5
+                                                name={expandedSections.completed ? 'chevron-up' : 'chevron-down'}
+                                                size={16}
+                                                color="#fff"
+                                            />
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    {expandedSections.completed && (
+                                        <View style={styles.sectionContent}>
+                                            {groupedCompletedRides.map((group) => (
+                                                <View key={`completed-${group.date}`} style={styles.dateGroup}>
+                                                    <View style={styles.dateHeader}>
+                                                        <FontAwesome5 name="calendar-alt" size={14} color="#0a2472" />
+                                                        <Text style={styles.dateTitle}>{group.date}</Text>
+                                                    </View>
+
+                                                    {group.rides.map((ride) => {
+                                                        const availableSeats = ride.available_seats || (ride.seats - (ride.booked_seats || 0));
+                                                        const statusDisplay = ride.statusDisplay || 'Completed';
+
+                                                        return (
+                                                            <View key={ride._id} style={styles.rideCardContainer}>
+                                                                <RideCard
+                                                                    ride={ride}
+                                                                    onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                                    isPrivate={true}
+                                                                    availableSeats={availableSeats}
+                                                                    statusDisplay={statusDisplay}
+                                                                    isFull={availableSeats === 0}
+                                                                />
+                                                                {ride.driver && (
+                                                                    <View style={styles.driverInfo}>
+                                                                        <FontAwesome5 name="user" size={12} color="#666" />
+                                                                        <Text style={styles.driverText}>Driver: {ride.driver.name || ride.driver.email}</Text>
+                                                                    </View>
+                                                                )}
                                                             </View>
                                                         );
                                                     })}
@@ -489,6 +686,42 @@ export default function PrivateRidesScreen() {
                                                                     statusDisplay={statusDisplay}
                                                                     isFull={availableSeats === 0}
                                                                 />
+
+                                                                {/* Show booked passengers for past rides */}
+                                                                {ride.bookedBy && ride.bookedBy.length > 0 && (
+                                                                    <View style={styles.passengersSection}>
+                                                                        <Text style={styles.passengersSectionTitle}>Passengers ({ride.bookedBy.length})</Text>
+                                                                        {ride.bookedBy.map((booking, index) => {
+                                                                            const passenger = booking.userId || booking;
+                                                                            const passengerName = passenger.name || passenger.email || `Passenger ${index + 1}`;
+                                                                            const checkInStatus = booking.checkInStatus || 'pending';
+
+                                                                            return (
+                                                                                <View key={booking.bookingId || index} style={styles.passengerContainer}>
+                                                                                    <View style={styles.passengerRow}>
+                                                                                        <View style={styles.passengerInfo}>
+                                                                                            <FontAwesome5 name="user" size={14} color="#666" />
+                                                                                            <Text style={styles.passengerName}>{passengerName}</Text>
+                                                                                        </View>
+                                                                                        <View style={[
+                                                                                            styles.statusBadge,
+                                                                                            checkInStatus === 'completed' ? styles.completedBadge :
+                                                                                                checkInStatus === 'checked-in' ? styles.checkedInBadge :
+                                                                                                    styles.pendingBadge
+                                                                                        ]}>
+                                                                                            <Text style={styles.statusBadgeText}>
+                                                                                                {checkInStatus === 'completed' ? 'Completed' :
+                                                                                                    checkInStatus === 'checked-in' ? 'Checked In' :
+                                                                                                        'Pending'}
+                                                                                            </Text>
+                                                                                        </View>
+                                                                                    </View>
+                                                                                </View>
+                                                                            );
+                                                                        })}
+                                                                    </View>
+                                                                )}
+
                                                                 <View style={styles.rideActions}>
                                                                     <TouchableOpacity
                                                                         style={[styles.actionButton, styles.editButton]}
@@ -513,7 +746,7 @@ export default function PrivateRidesScreen() {
                                 </View>
                             )}
 
-                            {!groupedActiveRides.length && !groupedPastRides.length && (
+                            {!groupedActiveRides.length && !groupedCompletedRides.length && !groupedPastRides.length && (
                                 <View style={styles.emptyContainer}>
                                     <Text style={styles.emptyText}>No private rides found</Text>
                                     <TouchableOpacity
@@ -528,6 +761,56 @@ export default function PrivateRidesScreen() {
                         </View>
                     }
                 />
+
+                <Modal
+                    visible={pinModalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setPinModalVisible(false)}
+                >
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <FontAwesome5 name="key" size={48} color="#4CAF50" style={styles.modalIcon} />
+                            <Text style={styles.modalTitle}>Complete Ride with PIN</Text>
+                            <Text style={styles.pinSubtitle}>
+                                {selectedPassenger ?
+                                    `Enter the PIN provided by ${selectedPassenger.userId?.name || selectedPassenger.userId?.email || 'the passenger'}` :
+                                    'Enter the PIN provided by the passenger'
+                                }
+                            </Text>
+                            <TextInput
+                                style={styles.pinInput}
+                                value={pinInput}
+                                onChangeText={setPinInput}
+                                placeholder="Enter 6-digit PIN"
+                                placeholderTextColor="#999"
+                                keyboardType="numeric"
+                                maxLength={6}
+                                autoFocus={true}
+                            />
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={styles.cancelModalButton}
+                                    onPress={() => {
+                                        setPinModalVisible(false);
+                                        setPinInput('');
+                                        setSelectedRideForCompletion(null);
+                                        setSelectedPassenger(null);
+                                    }}
+                                >
+                                    <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.submitPinButton, pinInput.length !== 6 && styles.disabledButton]}
+                                    onPress={submitPinCompletion}
+                                    disabled={pinInput.length !== 6}
+                                >
+                                    <Text style={styles.submitPinButtonText}>Complete Ride</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </SafeAreaView>
         </LinearGradient>
     );
@@ -561,6 +844,14 @@ const styles = StyleSheet.create({
         flex: 1,
         textAlign: 'center',
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    historyButton: {
+        padding: 8,
+    },
     section: {
         marginBottom: 20,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -583,15 +874,19 @@ const styles = StyleSheet.create({
         padding: 15,
     },
     dateGroup: {
-        marginBottom: 15,
+        marginBottom: 24,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 16,
+        padding: 16,
+        paddingBottom: 8,
     },
     dateHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 10,
-        paddingBottom: 5,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
+        marginBottom: 16,
+        paddingBottom: 8,
+        borderBottomWidth: 2,
+        borderBottomColor: 'rgba(255, 255, 255, 0.3)',
     },
     dateIcon: {
         marginRight: 8,
@@ -653,7 +948,17 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
     },
     rideCardContainer: {
-        marginBottom: 12,
+        marginBottom: 32,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 0,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
     },
     rideActions: {
         position: 'absolute',
@@ -810,5 +1115,212 @@ const styles = StyleSheet.create({
         color: 'rgba(255, 255, 255, 0.6)',
         marginTop: 20,
         textAlign: 'center',
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 10,
+        width: '80%',
+        alignItems: 'center',
+    },
+    modalIcon: {
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 10,
+    },
+    pinSubtitle: {
+        color: '#666',
+        fontSize: 14,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    pinInput: {
+        width: '100%',
+        padding: 15,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 5,
+        marginBottom: 20,
+        fontSize: 18,
+        textAlign: 'center',
+        letterSpacing: 5,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        gap: 10,
+    },
+    cancelModalButton: {
+        backgroundColor: '#dc3545',
+        padding: 12,
+        borderRadius: 5,
+        flex: 1,
+        alignItems: 'center',
+    },
+    cancelModalButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    submitPinButton: {
+        backgroundColor: '#4CAF50',
+        padding: 12,
+        borderRadius: 5,
+        flex: 1,
+        alignItems: 'center',
+    },
+    submitPinButtonText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,
+    },
+    disabledButton: {
+        backgroundColor: '#ccc',
+    },
+    passengersSection: {
+        backgroundColor: '#f8f9fa',
+        padding: 12,
+        margin: 0,
+        marginTop: 8,
+        borderTopWidth: 2,
+        borderTopColor: '#e0e0e0',
+        borderBottomLeftRadius: 12,
+        borderBottomRightRadius: 12,
+        borderLeftWidth: 0,
+    },
+    passengersSectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#d1d5db',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    passengersSectionTitle: {
+        fontWeight: 'bold',
+        color: '#0a2472',
+        fontSize: 16,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        flex: 1,
+        minWidth: 120,
+    },
+    rideCompletedBadge: {
+        backgroundColor: '#38a169',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        maxWidth: 120,
+    },
+    rideCompletedText: {
+        color: '#fff',
+        fontSize: 9,
+        fontWeight: 'bold',
+        marginLeft: 3,
+        flexShrink: 1,
+    },
+    partialCompletedBadge: {
+        backgroundColor: '#ff8c00',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        maxWidth: 100,
+    },
+    partialCompletedText: {
+        color: '#fff',
+        fontSize: 9,
+        fontWeight: 'bold',
+        marginLeft: 3,
+        flexShrink: 1,
+    },
+    passengerContainer: {
+        marginBottom: 8,
+        padding: 8,
+        backgroundColor: '#ffffff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    passengerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    passengerInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    passengerName: {
+        marginLeft: 8,
+        color: '#333',
+        fontSize: 14,
+        flex: 1,
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginLeft: 8,
+    },
+    statusBadgeText: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    completedBadge: {
+        backgroundColor: '#805ad5',
+    },
+    checkedInBadge: {
+        backgroundColor: '#3182ce',
+    },
+    pendingBadge: {
+        backgroundColor: '#ff8c00',
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginTop: 4,
+        paddingLeft: 22,
+    },
+    completePinButton: {
+        backgroundColor: '#4CAF50',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    completePinButtonText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,
     },
 }); 
