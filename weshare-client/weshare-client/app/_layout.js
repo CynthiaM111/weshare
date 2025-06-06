@@ -24,11 +24,24 @@ function RootLayoutNav() {
   const router = useRouter();
   const navigation = useNavigation();
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+  const [currentRouteName, setCurrentRouteName] = useState('');
 
-  // Track navigation readiness
+  // Track navigation readiness and current route
   useEffect(() => {
-    const unsubscribe = navigation.addListener('state', () => {
+    const unsubscribe = navigation.addListener('state', (e) => {
       setIsNavigationReady(true);
+
+      // Get the current route name
+      const state = navigation.getState();
+      if (state) {
+        const currentRoute = state.routes[state.index];
+        if (currentRoute?.state) {
+          const nestedRoute = currentRoute.state.routes[currentRoute.state.index];
+          setCurrentRouteName(nestedRoute?.name || '');
+        } else {
+          setCurrentRouteName(currentRoute?.name || '');
+        }
+      }
     });
     return unsubscribe;
   }, [navigation]);
@@ -48,7 +61,7 @@ function RootLayoutNav() {
     const homeRoute = user.role === 'agency_employee' ? '/(employee)' : '/(home)';
     // Only navigate if not already on the correct route
     if (router.pathname !== homeRoute) {
-      
+
       router.replace(homeRoute);
     }
   }, [user, loading, isNavigationReady, router]);
@@ -88,6 +101,28 @@ function RootLayoutNav() {
             ),
             tabBarLabel: 'Rides',
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
+            tabBarButton: ({ children, onPress, ...props }) => {
+              return (
+                <TouchableOpacity
+                  {...props}
+                  onPress={(e) => {
+                    // Check if we're currently on booked or private screens
+                    const isOnBookedScreen = currentRouteName === 'booked';
+                    const isOnPrivateScreen = currentRouteName === 'private';
+
+                    
+
+                    // Only allow navigation if we're NOT on these specific screens
+                    if (!isOnBookedScreen && !isOnPrivateScreen) {
+                      onPress?.(e);
+                    }
+                    // If we're on booked or private screens, do nothing (prevent navigation)
+                  }}
+                >
+                  {children}
+                </TouchableOpacity>
+              );
+            },
           }}
         />
         <Tabs.Screen

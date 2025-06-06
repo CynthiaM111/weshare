@@ -23,12 +23,13 @@ export default function RidesLayout() {
                 name="index"
                 options={{
                     title: 'Available Rides',
+                    headerShown: false,
                 }}
             />
             <Stack.Screen
                 name="[id]"
                 options={{
-                    title: 'Ride Details',
+                    headerShown: false,
                 }}
             />
             <Stack.Screen
