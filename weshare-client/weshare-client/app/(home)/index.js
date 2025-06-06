@@ -1,4 +1,4 @@
-import { View, Text, StatusBar, TextInput, TouchableOpacity, ScrollView, FlatList, Alert } from 'react-native';
+import { View, Text, StatusBar, TextInput, TouchableOpacity, ScrollView, FlatList, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef } from 'react';
 // import { styles } from '../../styles/HomeScreenStyles';
@@ -57,12 +57,28 @@ export default function HomeScreen() {
     const router = useRouter();
     const { user } = useAuth();
 
-    // Add refs for the inputs
+    // Add refs for the inputs and animations
     const fromInputRef = useRef(null);
     const toInputRef = useRef(null);
+    const bounceAnim = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
         loadFrequentSearches();
+        // Add subtle bounce animation
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(bounceAnim, {
+                    toValue: 1.05,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(bounceAnim, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
     }, [loadFrequentSearches]);
 
     // Load frequent searches when user changes (login/logout)
@@ -247,10 +263,17 @@ export default function HomeScreen() {
             style={styles.suggestionItem}
             onPress={() => onSelect(item)}
         >
-            <Ionicons name="location" size={16} color="#0a2472" style={styles.suggestionIcon} />
+            <Text style={styles.suggestionEmoji}>📍</Text>
             <Text style={styles.suggestionText}>{item}</Text>
         </TouchableOpacity>
     );
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good morning! ☀️";
+        if (hour < 17) return "Good afternoon! 🌤️";
+        return "Good evening! 🌙";
+    };
 
     if (searchError) {
         return (
@@ -258,9 +281,9 @@ export default function HomeScreen() {
                 <ErrorDisplay
                     error={searchError}
                     onRetry={() => handleSearch()}
-                    title="Search Failed"
-                    message="We couldn't search for rides at this time."
-                    retryText="Retry"
+                    title="Oops! Search Failed 😅"
+                    message="We couldn't find rides at the moment. Let's try again!"
+                    retryText="Try Again"
                 />
             </SafeAreaView>
         );
@@ -278,9 +301,12 @@ export default function HomeScreen() {
 
                 {/* Header Section */}
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Where to?</Text>
+                    <View>
+                        <Text style={styles.greetingText}>{getGreeting()}</Text>
+                        <Text style={styles.headerTitle}>Where are you heading? 🚗</Text>
+                    </View>
                     <TouchableOpacity style={styles.notificationIcon}>
-                        <Ionicons name="notifications-outline" size={24} color="#fff" />
+                        <Text style={styles.notificationEmoji}>🔔</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -291,16 +317,19 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
-                    <View style={styles.inputContainer}>
+                    {/* Fun Search Card */}
+                    <Animated.View style={[styles.inputContainer, { transform: [{ scale: bounceAnim }] }]}>
+                        <Text style={styles.searchCardTitle}>Let's find your perfect ride! 🎯</Text>
+
                         <View style={styles.inputWrapper}>
-                            <Ionicons name="location" size={24} color="#0a2472" style={styles.inputIcon} />
+                            <Text style={styles.inputEmoji}>🏠</Text>
                             <TextInput
                                 ref={fromInputRef}
                                 style={styles.input}
-                                placeholder="From "
+                                placeholder="Where are you now?"
                                 value={from}
                                 onChangeText={handleFromChange}
-                                placeholderTextColor="#666"
+                                placeholderTextColor="#999"
                                 onFocus={() => setShowFromSuggestions(true)}
                                 onBlur={handleFromBlur}
                             />
@@ -317,22 +346,26 @@ export default function HomeScreen() {
                                         activeOpacity={0.7}
                                         delayPressIn={0}
                                     >
-                                        <Ionicons name="location" size={16} color="#0a2472" style={styles.suggestionIcon} />
+                                        <Text style={styles.suggestionEmoji}>📍</Text>
                                         <Text style={styles.suggestionText}>{item}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
                         )}
-                        <View style={styles.inputDivider} />
+
+                        <View style={styles.inputDivider}>
+                            <Text style={styles.dividerEmoji}>⬇️</Text>
+                        </View>
+
                         <View style={styles.inputWrapper}>
-                            <Ionicons name="location" size={24} color="#0a2472" style={styles.inputIcon} />
+                            <Text style={styles.inputEmoji}>🎯</Text>
                             <TextInput
                                 ref={toInputRef}
                                 style={styles.input}
-                                placeholder="To "
+                                placeholder="Where do you want to go?"
                                 value={to}
                                 onChangeText={handleToChange}
-                                placeholderTextColor="#666"
+                                placeholderTextColor="#999"
                                 onFocus={() => setShowToSuggestions(true)}
                                 onBlur={handleToBlur}
                             />
@@ -349,31 +382,31 @@ export default function HomeScreen() {
                                         activeOpacity={0.7}
                                         delayPressIn={0}
                                     >
-                                        <Ionicons name="location" size={16} color="#0a2472" style={styles.suggestionIcon} />
+                                        <Text style={styles.suggestionEmoji}>📍</Text>
                                         <Text style={styles.suggestionText}>{item}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
                         )}
-                    </View>
+                    </Animated.View>
 
-                    {/* Find Button */}
+                    {/* Fun Find Button */}
                     <TouchableOpacity
                         style={[styles.findButton, isSearching && styles.findButtonDisabled]}
                         onPress={() => handleSearch()}
                         disabled={isSearching}
                     >
                         <Text style={styles.findButtonText}>
-                            {isSearching ? 'Searching...' : 'Find matching rides'}
+                            {isSearching ? '🔍 Searching for awesome rides...' : '🚀 Find My Ride!'}
                         </Text>
                     </TouchableOpacity>
 
-                    {/* Frequent Searches */}
+                    {/* Fun Frequent Searches */}
                     {frequentSearches.length > 0 && (
                         <View style={styles.frequentSearchesContainer}>
                             <View style={styles.frequentSearchesTitleContainer}>
-                                <Ionicons name="star-outline" size={24} color="#0a2472" style={styles.frequentSearchesIcon} />
-                                <Text style={styles.frequentSearchesTitle}>Frequent Searches</Text>
+                                <Text style={styles.frequentSearchesEmoji}>⭐</Text>
+                                <Text style={styles.frequentSearchesTitle}>Your favorite routes!</Text>
                             </View>
                             <View style={styles.frequentSearchesGrid}>
                                 {frequentSearches.map((search, index) => (
@@ -384,40 +417,58 @@ export default function HomeScreen() {
                                     >
                                         <View style={styles.frequentSearchContent}>
                                             <View style={styles.frequentSearchLocation}>
-                                                <Ionicons name="home-outline" size={16} color="#0a2472" style={styles.frequentSearchIcon} />
+                                                <Text style={styles.frequentSearchEmoji}>📍</Text>
                                                 <Text style={styles.frequentSearchFrom}>{search.from}</Text>
                                             </View>
-                                            <Ionicons name="arrow-forward" size={16} color="#0a2472" />
+                                            <Text style={styles.arrowEmoji}>➡️</Text>
                                             <Text style={styles.frequentSearchTo}>{search.to}</Text>
                                         </View>
+                                        <Text style={styles.frequentSearchBadge}>Used {search.count} times</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
                         </View>
                     )}
 
-                    {/* Private Rides Section */}
+                    {/* Fun Private Rides Section */}
                     <View style={styles.privateRidesContainer}>
                         <View style={styles.privateRidesHeader}>
-                            <Ionicons name="car-sport-outline" size={24} color="#0a2472" style={styles.privateRidesIcon} />
-                            <Text style={styles.privateRidesTitle}>Want to go private?</Text>
+                            <Text style={styles.privateRidesEmoji}>✨</Text>
+                            <Text style={styles.privateRidesTitle}>Want VIP treatment?</Text>
                         </View>
                         <Text style={styles.privateRidesDescription}>
-                            Book a private ride for a more comfortable and exclusive experience
+                            Get your own private ride! More comfort, more privacy, more awesome! 🎉
                         </Text>
                         <View style={styles.privateRidesButtonsContainer}>
                             <TouchableOpacity
                                 style={[styles.privateRidesButton, styles.privateRidesButtonPrimary]}
                                 onPress={handleBookPrivateRide}
                             >
-                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextPrimary]}>Book Private Ride</Text>
+                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextPrimary]}>🔥 Book VIP Ride</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.privateRidesButton, styles.privateRidesButtonSecondary]}
                                 onPress={handleAddPrivateRide}
                             >
-                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextSecondary]}>Add Private Ride</Text>
+                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextSecondary]}>🚗 Offer a Ride</Text>
                             </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* Fun Tips Section */}
+                    <View style={styles.tipsContainer}>
+                        <Text style={styles.tipsTitle}>💡 Pro Tips</Text>
+                        <View style={styles.tipItem}>
+                            <Text style={styles.tipEmoji}>🕐</Text>
+                            <Text style={styles.tipText}>Book early for better prices!</Text>
+                        </View>
+                        <View style={styles.tipItem}>
+                            <Text style={styles.tipEmoji}>👥</Text>
+                            <Text style={styles.tipText}>Share rides to meet new friends!</Text>
+                        </View>
+                        <View style={styles.tipItem}>
+                            <Text style={styles.tipEmoji}>🌟</Text>
+                            <Text style={styles.tipText}>Rate your driver to help the community!</Text>
                         </View>
                     </View>
                 </ScrollView>
@@ -443,87 +494,121 @@ export const styles = StyleSheet.create({
         paddingVertical: 15,
         backgroundColor: 'rgba(10, 36, 114, 0.8)',
     },
+    greetingText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#fff',
+        marginBottom: 2,
+    },
     headerTitle: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 'bold',
         color: '#fff',
     },
     notificationIcon: {
         padding: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 20,
+    },
+    notificationEmoji: {
+        fontSize: 24,
     },
     searchContainer: {
-        flex: 1, // Changed from flexGrow to flex for proper ScrollView behavior
+        flex: 1,
     },
     scrollContent: {
         padding: 20,
-        paddingBottom: 100, // Ensure enough space for bottom navigation
+        paddingBottom: 100,
     },
     inputContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
-        padding: 15,
-        marginBottom: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 15,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 8,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+    },
+    searchCardTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 15,
+        textAlign: 'center',
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        backgroundColor: '#f8f9ff',
+        borderRadius: 15,
+        marginVertical: 5,
     },
-    inputIcon: {
+    inputEmoji: {
+        fontSize: 20,
         marginRight: 10,
     },
     input: {
         flex: 1,
         fontSize: 16,
         color: '#333',
-        paddingVertical: 8,
+        paddingVertical: 5,
     },
     inputDivider: {
-        height: 1,
-        backgroundColor: '#E0E0E0',
-        marginVertical: 8,
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    dividerEmoji: {
+        fontSize: 16,
+        color: '#1E90FF',
     },
     suggestionsContainer: {
         backgroundColor: 'white',
-        borderRadius: 8,
-        marginTop: 4,
+        borderRadius: 15,
+        marginTop: 8,
         maxHeight: 200,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowRadius: 6,
+        elevation: 5,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
     },
     suggestionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
+        padding: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        borderBottomColor: '#f5f5f5',
     },
-    suggestionIcon: {
+    suggestionEmoji: {
+        fontSize: 16,
         marginRight: 10,
     },
     suggestionText: {
         fontSize: 16,
         color: '#333',
+        fontWeight: '500',
     },
     findButton: {
         backgroundColor: '#0a2472',
-        paddingVertical: 15,
-        borderRadius: 12,
+        paddingVertical: 18,
+        borderRadius: 25,
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        marginBottom: 20, // Added margin for spacing
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 6,
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     findButtonDisabled: {
         backgroundColor: 'rgba(10, 36, 114, 0.7)',
@@ -534,73 +619,204 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     frequentSearchesContainer: {
-        marginTop: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
-        padding: 15,
+        marginTop: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        borderRadius: 20,
+        padding: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        marginBottom: 20, // Added margin for spacing
+        shadowRadius: 8,
+        elevation: 5,
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: 'rgba(30, 144, 255, 0.3)',
     },
     frequentSearchesTitleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 15,
     },
-    frequentSearchesIcon: {
+    frequentSearchesEmoji: {
+        fontSize: 20,
         marginRight: 8,
     },
     frequentSearchesTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#0a2472',
+        color: '#1E90FF',
     },
     frequentSearchesGrid: {
         flexDirection: 'column',
-        gap: 10,
+        gap: 12,
     },
     frequentSearchItem: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 8,
-        padding: 12,
+        borderRadius: 15,
+        padding: 15,
         width: '100%',
-        marginBottom: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
+        shadowColor: '#1E90FF',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
         elevation: 4,
-        borderWidth: 1,
-        borderColor: 'rgba(10, 36, 114, 0.2)',
+        borderWidth: 2,
+        borderColor: 'rgba(30, 144, 255, 0.2)',
     },
     frequentSearchContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        marginBottom: 5,
     },
     frequentSearchLocation: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
     },
-    frequentSearchIcon: {
+    frequentSearchEmoji: {
+        fontSize: 16,
         marginRight: 6,
     },
     frequentSearchFrom: {
         fontSize: 15,
         color: '#0a2472',
         flex: 1,
-        fontWeight: '500',
+        fontWeight: '600',
     },
     frequentSearchTo: {
         fontSize: 15,
         color: '#0a2472',
         flex: 1,
+        fontWeight: '600',
+    },
+    arrowEmoji: {
+        fontSize: 16,
+        marginHorizontal: 8,
+    },
+    frequentSearchBadge: {
+        fontSize: 11,
+        color: '#999',
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+    },
+    privateRidesContainer: {
+        marginTop: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        borderRadius: 20,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: 'rgba(10, 36, 114, 0.3)',
+    },
+    privateRidesHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    privateRidesEmoji: {
+        fontSize: 20,
+        marginRight: 10,
+    },
+    privateRidesTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0a2472',
+    },
+    privateRidesDescription: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 15,
+        lineHeight: 20,
         fontWeight: '500',
     },
+    privateRidesButtonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    privateRidesButton: {
+        flex: 1,
+        paddingVertical: 15,
+        paddingHorizontal: 12,
+        borderRadius: 15,
+        alignItems: 'center',
+    },
+    privateRidesButtonPrimary: {
+        backgroundColor: '#0a2472',
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 4,
+    },
+    privateRidesButtonSecondary: {
+        backgroundColor: '#ffffff',
+        borderWidth: 2,
+        borderColor: '#0a2472',
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    privateRidesButtonText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    privateRidesButtonTextPrimary: {
+        color: '#ffffff',
+    },
+    privateRidesButtonTextSecondary: {
+        color: '#0a2472',
+    },
+    tipsContainer: {
+        marginTop: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        borderRadius: 20,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+        marginBottom: 30,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 193, 7, 0.3)',
+    },
+    tipsTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFC107',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    tipItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        backgroundColor: '#fff9e6',
+        padding: 12,
+        borderRadius: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: '#FFC107',
+    },
+    tipEmoji: {
+        fontSize: 18,
+        marginRight: 12,
+    },
+    tipText: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+        flex: 1,
+    },
+    // Legacy styles kept for compatibility
     bottomNav: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -649,71 +865,5 @@ export const styles = StyleSheet.create({
     dateTimeText: {
         fontSize: 16,
         color: '#000',
-    },
-    privateRidesContainer: {
-        marginTop: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        marginBottom: 20, // Ensure consistent bottom margin
-    },
-    privateRidesHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 6,
-    },
-    privateRidesIcon: {
-        marginRight: 10,
-    },
-    privateRidesTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#0a2472',
-    },
-    privateRidesDescription: {
-        fontSize: 13,
-        color: '#666',
-        marginBottom: 12,
-        lineHeight: 18,
-    },
-    privateRidesButtonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 10,
-    },
-    privateRidesButton: {
-        flex: 1,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    privateRidesButtonPrimary: {
-        backgroundColor: '#0a2472',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    privateRidesButtonSecondary: {
-        backgroundColor: '#ffffff',
-        borderWidth: 1.5,
-        borderColor: '#0a2472',
-    },
-    privateRidesButtonText: {
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    privateRidesButtonTextPrimary: {
-        color: '#ffffff',
-    },
-    privateRidesButtonTextSecondary: {
-        color: '#0a2472',
     },
 });

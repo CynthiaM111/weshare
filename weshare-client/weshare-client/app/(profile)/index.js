@@ -1,15 +1,16 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Image, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { Link, router } from 'expo-router';
-import { Layout, Text, Button, Card, Avatar, Divider } from '@ui-kitten/components';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import { FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi';
 import ErrorDisplay from '../../components/ErrorDisplay';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Profile() {
     const { user, logout } = useAuth();
+    const router = useRouter();
     const [agencyName, setAgencyName] = useState('');
     const [destinationCategory, setDestinationCategory] = useState('');
 
@@ -45,254 +46,457 @@ export default function Profile() {
         router.push('/(auth)/login');
     };
 
-    // Create a function to get the avatar content
-    const getAvatarContent = () => {
-        if (user?.photoUrl) {
-            return { source: { uri: user.photoUrl } };
+    const handleLogout = () => {
+        Alert.alert(
+            "Logout",
+            "Are you sure you want to logout?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Logout",
+                    style: "destructive",
+                    onPress: logout
+                }
+            ]
+        );
+    };
+
+    const getInitials = () => {
+        if (user?.name) {
+            return user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
         }
-        return { text: user?.name?.[0]?.toUpperCase() || '?' };
+        return user?.email?.[0]?.toUpperCase() || '?';
     };
 
     if (agencyError) {
         return (
-            <Layout style={styles.container}>
-                <ErrorDisplay
-                    error={agencyError}
-                    onRetry={retryFetchAgency}
-                    title="Error Loading Profile Details"
-                    message="We couldn't load your agency details at this time."
-                />
-            </Layout>
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Profile</Text>
+                        <View style={styles.headerPlaceholder} />
+                    </View>
+                    <ErrorDisplay
+                        error={agencyError}
+                        onRetry={retryFetchAgency}
+                        title="Error Loading Profile Details"
+                        message="We couldn't load your agency details at this time."
+                    />
+                </SafeAreaView>
+            </LinearGradient>
         );
     }
 
     if (!user) {
         return (
-            <Layout style={styles.container}>
-                <Card style={styles.card}>
-                    <Text category='h5' style={styles.title}>Sign in to WeShare</Text>
-                    <Text category='s1' style={styles.subtitle}>
-                        Access your profile, manage your rides, and more
-                    </Text>
-                    <Button onPress={handleLogin} style={styles.button}>
-                        LOGIN / SIGN UP
-                    </Button>
-                </Card>
-            </Layout>
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Profile</Text>
+                        <View style={styles.headerPlaceholder} />
+                    </View>
+
+                    <ScrollView contentContainerStyle={styles.scrollContent}>
+                        <View style={styles.loginCard}>
+                            <FontAwesome5 name="user-circle" size={80} color="rgba(255, 255, 255, 0.8)" style={styles.loginIcon} />
+                            <Text style={styles.loginTitle}>Sign in to WeShare</Text>
+                            <Text style={styles.loginSubtitle}>
+                                Access your profile, manage your rides, and more
+                            </Text>
+                            <TouchableOpacity onPress={handleLogin} style={styles.loginButton}>
+                                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
+                                <Text style={styles.loginButtonText}>LOGIN / SIGN UP</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </SafeAreaView>
+            </LinearGradient>
         );
     }
 
     return (
-        <Layout style={styles.container}>
-            <Card style={styles.profileCard}>
-                <Layout style={styles.headerSection}>
-                    <Avatar
-                        size='giant'
-                        style={styles.avatar}
-                        {...getAvatarContent()}
-                    />
-                    <Layout style={styles.userInfo}>
-                        <Text category='h5'>{user.name}</Text>
-                        <Text category='s1' appearance='hint'>{user.email}</Text>
-                        <Text category='s1' style={styles.roleText}>
-                            Role: {user.role === 'user' ? 'Normal User' : 'Agency Employee'}
-                        </Text>
+        <LinearGradient
+            colors={['#0a2472', '#1E90FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.backgroundGradient}
+        >
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Profile</Text>
+                    <View style={styles.headerPlaceholder} />
+                </View>
 
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <View style={styles.profileCard}>
+                        {/* Profile Header */}
+                        <View style={styles.profileHeader}>
+                            <View style={styles.avatarContainer}>
+                                {user?.photoUrl ? (
+                                    <Image source={{ uri: user.photoUrl }} style={styles.avatarImage} />
+                                ) : (
+                                    <View style={styles.avatarPlaceholder}>
+                                        <Text style={styles.avatarText}>{getInitials()}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <View style={styles.userInfo}>
+                                <Text style={styles.userName}>{user.name}</Text>
+                                <Text style={styles.userEmail}>{user.email}</Text>
+                                <View style={styles.roleContainer}>
+                                    <FontAwesome5
+                                        name={user.role === 'agency_employee' ? 'building' : 'user'}
+                                        size={12}
+                                        color="#0a2472"
+                                    />
+                                    <Text style={styles.roleText}>
+                                        {user.role === 'user' ? 'Normal User' : 'Agency Employee'}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Agency Information */}
                         {user.role === 'agency_employee' && (
-                            <>
+                            <View style={styles.agencySection}>
+                                <View style={styles.sectionDivider} />
+                                <Text style={styles.sectionTitle}>Agency Information</Text>
+
                                 <View style={styles.infoRow}>
-                                    <Ionicons name="business-outline" size={20} color="#3B82F6" style={styles.infoIcon} />
+                                    <FontAwesome5 name="building" size={16} color="#0a2472" />
                                     <View style={styles.infoContent}>
-                                        <Text category='s2' style={styles.infoLabel}>Agency</Text>
-                                        <Text category='s1' style={styles.infoValue}>
+                                        <Text style={styles.infoLabel}>Agency</Text>
+                                        <Text style={styles.infoValue}>
                                             {isLoadingAgency ? 'Loading...' : agencyName || 'Not set'}
                                         </Text>
                                     </View>
                                 </View>
+
                                 <View style={styles.infoRow}>
-                                    <Ionicons name="map-outline" size={20} color="#3B82F6" style={styles.infoIcon} />
+                                    <FontAwesome5 name="route" size={16} color="#0a2472" />
                                     <View style={styles.infoContent}>
-                                        <Text category='s2' style={styles.infoLabel}>Destination Category</Text>
+                                        <Text style={styles.infoLabel}>Destination Route</Text>
                                         <View style={styles.destinationContainer}>
-                                            <Text category='s1' style={styles.infoValue}>
+                                            <Text style={styles.infoValue}>
                                                 {isLoadingAgency ? 'Loading...' : destinationCategory?.split(' to ')[0] || 'Not set'}
                                             </Text>
-                                            <Ionicons name="arrow-forward" size={16} color="#6B7280" style={styles.arrowIcon} />
-                                            <Text category='s1' style={styles.infoValue}>
+                                            <FontAwesome5 name="arrow-right" size={12} color="#666" style={styles.arrowIcon} />
+                                            <Text style={styles.infoValue}>
                                                 {isLoadingAgency ? 'Loading...' : destinationCategory?.split(' to ')[1] || 'Not set'}
                                             </Text>
                                         </View>
                                     </View>
                                 </View>
-                            </>
+                            </View>
                         )}
-                    </Layout>
-                </Layout>
 
-                <Divider style={styles.divider} />
+                        {/* Menu Options */}
+                        <View style={styles.menuSection}>
+                            <View style={styles.sectionDivider} />
+                            <Text style={styles.sectionTitle}>Account</Text>
 
-                <Layout style={styles.menuSection}>
-                    <Button
-                        appearance='ghost'
-                        style={styles.menuItem}
-                        accessoryLeft={(props) => <Ionicons name="person-outline" size={24} color={props.style.tintColor} />}
-                        accessoryRight={(props) => <Ionicons name="chevron-forward-outline" size={24} color={props.style.tintColor} />}
-                    >
-                        Edit Profile
-                    </Button>
+                            <TouchableOpacity style={styles.menuItem}>
+                                <FontAwesome5 name="user-edit" size={18} color="#0a2472" />
+                                <Text style={styles.menuItemText}>Edit Profile</Text>
+                                <FontAwesome5 name="chevron-right" size={16} color="#666" />
+                            </TouchableOpacity>
 
-                    <Button
-                        appearance='ghost'
-                        style={styles.menuItem}
-                        accessoryLeft={(props) => <Ionicons name="notifications-outline" size={24} color={props.style.tintColor} />}
-                        accessoryRight={(props) => <Ionicons name="chevron-forward-outline" size={24} color={props.style.tintColor} />}
-                    >
-                        Notifications
-                    </Button>
+                            <TouchableOpacity style={styles.menuItem}>
+                                <FontAwesome5 name="bell" size={18} color="#0a2472" />
+                                <Text style={styles.menuItemText}>Notifications</Text>
+                                <FontAwesome5 name="chevron-right" size={16} color="#666" />
+                            </TouchableOpacity>
 
-                    <Button
-                        appearance='ghost'
-                        style={styles.menuItem}
-                        accessoryLeft={(props) => <Ionicons name="settings-outline" size={24} color={props.style.tintColor} />}
-                        accessoryRight={(props) => <Ionicons name="chevron-forward-outline" size={24} color={props.style.tintColor} />}
-                    >
-                        Settings
-                    </Button>
-                </Layout>
+                            <TouchableOpacity style={styles.menuItem}>
+                                <FontAwesome5 name="cog" size={18} color="#0a2472" />
+                                <Text style={styles.menuItemText}>Settings</Text>
+                                <FontAwesome5 name="chevron-right" size={16} color="#666" />
+                            </TouchableOpacity>
 
-                <Divider style={styles.divider} />
+                            <TouchableOpacity style={styles.menuItem}>
+                                <FontAwesome5 name="question-circle" size={18} color="#0a2472" />
+                                <Text style={styles.menuItemText}>Help & Support</Text>
+                                <FontAwesome5 name="chevron-right" size={16} color="#666" />
+                            </TouchableOpacity>
+                        </View>
 
-                <Button
-                    status='danger'
-                    appearance='ghost'
-                    onPress={logout}
-                    style={styles.logoutButton}
-                    accessoryLeft={(props) => <Ionicons name="log-out-outline" size={24} color={props.style.tintColor} />}
-                >
-                    Logout
-                </Button>
-            </Card>
-        </Layout>
+                        {/* Logout Button */}
+                        <View style={styles.logoutSection}>
+                            <View style={styles.sectionDivider} />
+                            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                                <FontAwesome5 name="sign-out-alt" size={18} color="#fff" />
+                                <Text style={styles.logoutButtonText}>Logout</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
+    backgroundGradient: {
+        flex: 1,
+    },
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        backgroundColor: 'rgba(10, 36, 114, 0.8)',
+    },
+    backButton: {
+        padding: 8,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#fff',
+        flex: 1,
+        textAlign: 'center',
+    },
+    headerPlaceholder: {
+        width: 32,
+        height: 32,
+    },
+    scrollContent: {
         padding: 16,
-        justifyContent: 'center',
     },
-    card: {
-        padding: 24,
-        borderRadius: 12,
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 3,
+    // Login Card Styles
+    loginCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 16,
+        padding: 32,
+        alignItems: 'center',
+        marginTop: 40,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
-    title: {
-        textAlign: 'center',
-        fontSize: 22,
-        fontWeight: '700',
+    loginIcon: {
+        marginBottom: 24,
+    },
+    loginTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#fff',
         marginBottom: 8,
-        color: '#1F2937',
-    },
-    subtitle: {
         textAlign: 'center',
-        fontSize: 15,
-        color: '#6B7280',
-        marginBottom: 20,
     },
-    button: {
-        marginTop: 16,
-        backgroundColor: '#2563EB',
+    loginSubtitle: {
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.8)',
+        marginBottom: 32,
+        textAlign: 'center',
+        lineHeight: 22,
+    },
+    loginButton: {
+        backgroundColor: '#fff',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
         borderRadius: 8,
-    },
-    profileCard: {
-        padding: 24,
-        borderRadius: 12,
-        backgroundColor: '#FFFFFF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 6,
+        shadowRadius: 3.84,
         elevation: 3,
     },
-    headerSection: {
+    loginButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0a2472',
+    },
+    // Profile Card Styles
+    profileCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 16,
+        padding: 20,
+        marginTop: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    profileHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
     },
-    avatar: {
+    avatarContainer: {
         marginRight: 16,
-        backgroundColor: '#3B82F6',
+    },
+    avatarImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        borderWidth: 3,
+        borderColor: '#0a2472',
+    },
+    avatarPlaceholder: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#0a2472',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 3,
+        borderColor: '#1E90FF',
+    },
+    avatarText: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#fff',
     },
     userInfo: {
         flex: 1,
-        backgroundColor: 'transparent',
     },
-    roleText: {
-        marginTop: 8,
-        fontWeight: '600',
+    userName: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 4,
+    },
+    userEmail: {
         fontSize: 14,
-        color: '#374151',
-    },
-    divider: {
-        marginVertical: 20,
-        backgroundColor: '#E5E7EB',
-    },
-    menuSection: {
-        backgroundColor: 'transparent',
-    },
-    menuItem: {
-        justifyContent: 'space-between',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        borderRadius: 8,
-        backgroundColor: '#F3F4F6',
+        color: '#666',
         marginBottom: 8,
     },
-    logoutButton: {
-        marginTop: 12,
-        borderRadius: 8,
-        borderColor: '#DC2626',
-        borderWidth: 1,
+    roleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f0f4ff',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignSelf: 'flex-start',
+    },
+    roleText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#0a2472',
+        marginLeft: 4,
+    },
+    // Agency Section
+    agencySection: {
+        marginBottom: 20,
+    },
+    sectionDivider: {
+        height: 1,
+        backgroundColor: '#e0e0e0',
+        marginVertical: 16,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 12,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: '#f8f9fa',
         padding: 12,
         borderRadius: 8,
-    },
-    infoIcon: {
-        marginRight: 12,
+        marginBottom: 8,
     },
     infoContent: {
         flex: 1,
+        marginLeft: 12,
     },
     infoLabel: {
-        color: '#6B7280',
-        marginBottom: 2,
         fontSize: 12,
+        color: '#666',
+        marginBottom: 4,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     infoValue: {
-        color: '#1F2937',
-        fontSize: 15,
+        fontSize: 14,
+        color: '#333',
         fontWeight: '500',
     },
     destinationContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
     },
     arrowIcon: {
-        marginHorizontal: 4,
+        marginHorizontal: 8,
+    },
+    // Menu Section
+    menuSection: {
+        marginBottom: 20,
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+        padding: 16,
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    menuItemText: {
+        flex: 1,
+        fontSize: 16,
+        color: '#333',
+        fontWeight: '500',
+        marginLeft: 12,
+    },
+    // Logout Section
+    logoutSection: {
+        marginTop: 20,
+    },
+    logoutButton: {
+        backgroundColor: '#dc3545',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+        elevation: 3,
+    },
+    logoutButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#fff',
     },
 });

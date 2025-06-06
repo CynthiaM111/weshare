@@ -13,7 +13,7 @@ export default function InboxLayout() {
                 },
                 headerBackTitle: 'Back',
             }}>
-            <Stack.Screen name="index" options={{ headerShown: true, title: "Activity",headerBackVisible: true }} />
+            <Stack.Screen name="index" options={{ headerShown: false, title: "Activity",headerBackVisible: true }} />
         </Stack>
     );
 }

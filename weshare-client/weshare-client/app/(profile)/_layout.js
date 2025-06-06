@@ -17,7 +17,7 @@ export default function ProfileLayout() {
                 name="index" 
                 options={{ 
                     title: "Profile",
-                    headerShown: true,
+                    headerShown: false,
                 }} 
             />
         </Stack>
