@@ -183,7 +183,20 @@ export default function BookedRidesScreen() {
     const sortedRides = [...(bookedRides || [])].sort((a, b) => {
         const aCheckedIn = a.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
         const bCheckedIn = b.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
-        return aCheckedIn === bCheckedIn ? 0 : aCheckedIn ? -1 : 1;
+
+        // Prioritize checked-in rides, then non-missed rides, then missed rides
+        const aStatus = a.checkInStatus;
+        const bStatus = b.checkInStatus;
+
+        if (aCheckedIn !== bCheckedIn) {
+            return aCheckedIn ? -1 : 1;
+        }
+
+        // Among non-checked-in rides, show missed rides last
+        if (aStatus === 'missed' && bStatus !== 'missed') return 1;
+        if (bStatus === 'missed' && aStatus !== 'missed') return -1;
+
+        return 0;
     });
 
     // Separate public and private bookings
@@ -214,6 +227,7 @@ export default function BookedRidesScreen() {
                         {rides.map((item) => {
                             const userBooking = item.bookedBy?.find(b => b.userId === user.id);
                             const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
+                            const isMissed = item.checkInStatus === 'missed';
 
                             // Determine status color with consistent color scheme
                             const getStatusColor = (status) => {
@@ -236,10 +250,20 @@ export default function BookedRidesScreen() {
                             const statusColor = getStatusColor(item.statusDisplay);
 
                             return (
-                                <View key={item._id} style={[styles.rideCard, isCheckedIn && styles.checkedInCard]}>
+                                <View key={item._id} style={[
+                                    styles.rideCard,
+                                    isCheckedIn && styles.checkedInCard,
+                                    isMissed && styles.missedCard
+                                ]}>
                                     {isCheckedIn && (
                                         <View style={styles.checkedInBadge}>
                                             <Text style={styles.checkedInText}>Checked In</Text>
+                                        </View>
+                                    )}
+                                    {isMissed && (
+                                        <View style={styles.missedBadge}>
+                                            <FontAwesome5 name="exclamation-triangle" size={10} color="#fff" />
+                                            <Text style={styles.missedText}>Missed</Text>
                                         </View>
                                     )}
                                     <View style={styles.routeContainer}>
@@ -271,7 +295,12 @@ export default function BookedRidesScreen() {
                                     <Text style={[styles.detailText, { color: statusColor, fontWeight: 'bold' }]}>
                                         Status: {item.statusDisplay}
                                     </Text>
-                                    {!isCheckedIn && (
+                                    {isMissed && (
+                                        <Text style={styles.missedMessage}>
+                                            This ride was missed. The departure time has passed without check-in.
+                                        </Text>
+                                    )}
+                                    {!isCheckedIn && !isMissed && (
                                         <View style={styles.buttonContainer}>
                                             {item.isPrivate ? (
                                                 <TouchableOpacity
@@ -678,5 +707,37 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
         textAlign: 'center',
+    },
+    missedCard: {
+        borderLeftColor: '#e53e3e',
+        backgroundColor: '#fff8f8',
+    },
+    missedBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: '#e53e3e',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    missedText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    missedMessage: {
+        color: '#e53e3e',
+        fontSize: 12,
+        marginTop: 8,
+        marginBottom: 4,
+        fontStyle: 'italic',
+        textAlign: 'center',
+        backgroundColor: 'rgba(229, 62, 62, 0.1)',
+        padding: 8,
+        borderRadius: 8,
     },
 });

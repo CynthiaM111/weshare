@@ -87,6 +87,8 @@ export default function RideHistory() {
                 return '#3182ce'; // Blue
             case 'pending':
                 return '#ff8c00'; // Orange
+            case 'missed':
+                return '#e53e3e'; // Red
             default:
                 return '#38a169'; // Green
         }
@@ -140,7 +142,8 @@ export default function RideHistory() {
                     <Text style={styles.statusText}>
                         {item.status === 'completed' ? 'Completed' :
                             item.status === 'checked-in' ? 'Checked In' :
-                                item.status === 'pending' ? 'Pending' : item.status}
+                                item.status === 'pending' ? 'Pending' :
+                                    item.status === 'missed' ? 'Missed' : item.status}
                     </Text>
                 </View>
             </View>

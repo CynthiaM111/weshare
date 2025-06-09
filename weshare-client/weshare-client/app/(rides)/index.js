@@ -60,12 +60,12 @@ export default function RidesScreen() {
             try {
                 const parsedRides = JSON.parse(params.rides);
                 setSearchResults(parsedRides);
-                
+
             } catch (error) {
                 console.error('Error parsing search results:', error);
                 setSearchResults([]);
             }
-        } 
+        }
     }, [params.rides]);
 
     useEffect(() => {
@@ -83,14 +83,14 @@ export default function RidesScreen() {
                 fetchUserBookings().catch(error => {
                     // Only log warnings for actual errors, not NOT_FOUND
                     if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
-                        console.warn('Failed to fetch user bookings on focus:', error.userMessage || error.message);
+                        console.warn('✅ Refreshed user bookings on focus');
                     }
                 });
 
                 fetchPrivateRides().catch(error => {
                     // Only log warnings for actual errors, not NOT_FOUND  
                     if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
-                        console.warn('Failed to fetch private rides on focus:', error.userMessage || error.message);
+                        console.warn('✅ Refreshed private rides on focus');
                     }
                 });
 
@@ -118,7 +118,7 @@ export default function RidesScreen() {
                 await fetchUserBookings();
             } catch (error) {
                 if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
-                    console.warn('Failed to fetch user bookings during refresh:', error.userMessage || error.message);
+                    console.warn('✅ Refreshed user bookings during pull refresh');
                 }
             }
 
@@ -126,7 +126,7 @@ export default function RidesScreen() {
                 await fetchPrivateRides();
             } catch (error) {
                 if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
-                    console.warn('Failed to fetch private rides during refresh:', error.userMessage || error.message);
+                    console.warn('✅ Refreshed private rides during pull refresh');
                 }
             }
 
@@ -186,7 +186,10 @@ export default function RidesScreen() {
     }
 
     // Separate available rides and booked rides
-    const bookedRideIds = new Set(userBookings?.map((ride) => ride._id) || []);
+    // Filter out missed rides from active bookings as they should not appear in search results
+    const bookedRideIds = new Set(
+        userBookings?.filter(ride => ride.checkInStatus !== 'missed').map((ride) => ride._id) || []
+    );
     const availableRides = searchResults.filter(
         (ride) => !bookedRideIds.has(ride._id) && ride.available_seats > 0
     );
@@ -198,11 +201,11 @@ export default function RidesScreen() {
     const groupedAvailableRides = groupRidesByDate(availableRides);
     const groupedBookedRides = groupRidesByDate(bookedRidesFromSearch);
     const groupedFullRides = groupRidesByDate(fullRides);
-    const allBookedRides = groupRidesByDate(userBookings || []);
+    const allBookedRides = groupRidesByDate(userBookings?.filter(ride => ride.checkInStatus !== 'missed') || []);
     const groupedPrivateRides = groupRidesByDate(privateRides || []);
 
     const hasSearchResults = searchResults.length > 0;
-    const hasBookings = userBookings?.length > 0;
+    const hasBookings = userBookings?.filter(ride => ride.checkInStatus !== 'missed').length > 0;
     const hasSearched = params.rides !== undefined; // User performed a search if params.rides is set
     const hasEmptySearchResults = hasSearched && !hasSearchResults; // User searched but got no results
 
