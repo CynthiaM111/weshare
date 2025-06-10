@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
+// import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 import { format } from 'date-fns';
 import axios from 'axios';
@@ -33,7 +33,7 @@ export default function PrivateHistoryScreen() {
         retry: retryFetchHistory
     } = useApi(async () => {
         if (!user?.id || !user?.token) {
-            throw new Error('User ID or token missing');
+            return;
         }
 
         const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/private/history`, {
@@ -155,25 +155,24 @@ export default function PrivateHistoryScreen() {
         setRepeatSeats('');
     };
 
+   useEffect(() => {
     if (historyError) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <ErrorDisplay
-                        error={historyError}
-                        onRetry={retryFetchHistory}
-                        title="Error Loading History"
-                        message="We couldn't load your private ride history at this time."
-                    />
-                </SafeAreaView>
-            </LinearGradient>
+        Alert.alert(
+            'Error Loading History',
+            historyError.userMessage || 'We encountered an error while loading your private ride history. Please try again.',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel'
+                },
+                {
+                    text: 'Retry',
+                    onPress: () => retryFetchHistory()
+                }
+            ]
         );
     }
+}, [historyError]);
 
     const history = historyData?.history || [];
 

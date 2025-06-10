@@ -1,12 +1,12 @@
 // app/(rides)/[id].js
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
+// import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 
@@ -37,13 +37,14 @@ export default function RideDetails() {
             {},
             {
                 headers: {
-                    Authorization: `Bearer ${user.token}`
+                    Authorization: `Bearer ${user?.token}`
                 }
             }
         );
         return response.data;
     });
 
+    // All useEffect hooks must be called before any conditional returns
     useEffect(() => {
         if (id === 'employee') {
             router.replace('/(rides)/employee');
@@ -58,6 +59,24 @@ export default function RideDetails() {
 
         fetchRideDetails();
     }, [id, router]);
+
+    useEffect(() => {
+        if (rideError) {
+            Alert.alert('Error Loading Ride Details', rideError.userMessage || 'We encountered an error while loading the ride details. Please try again.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Retry', onPress: retryFetchRide }
+            ]);
+        }
+    }, [rideError]);
+
+    useEffect(() => {
+        if (bookingError) {
+            Alert.alert('Error Booking Ride', bookingError.userMessage || 'We encountered an error while booking the ride. Please try again.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Retry', onPress: retryBooking }
+            ]);
+        }
+    }, [bookingError]);
 
     const handleBookRide = async () => {
         try {
@@ -83,46 +102,6 @@ export default function RideDetails() {
                         <FontAwesome5 name="spinner" size={32} color="#fff" />
                         <Text style={styles.loadingText}>Loading ride details...</Text>
                     </View>
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
-
-    if (rideError) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <ErrorDisplay
-                        error={rideError}
-                        onRetry={retryFetchRide}
-                        title="Error Loading Ride"
-                        message="We couldn't load the ride details at this time."
-                    />
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
-
-    if (bookingError) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <ErrorDisplay
-                        error={bookingError}
-                        onRetry={retryBooking}
-                        title="Booking Failed"
-                        message="We couldn't book your ride at this time."
-                    />
                 </SafeAreaView>
             </LinearGradient>
         );

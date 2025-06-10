@@ -146,7 +146,13 @@ export default function AddPrivateRideScreen() {
             );
         } catch (error) {
             console.error('Error submitting ride:', error);
-            Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'add'} private ride. Please try again.`);
+            const userMessage =
+                error?.userMessage || // Use formatted message if available
+                error?.response?.data?.error || // Fall back to raw backend message
+                `Failed to ${isEditing ? 'update' : 'add'} private ride. Please try again.`;
+
+            Alert.alert('Error', userMessage);
+           
         }
     };
 

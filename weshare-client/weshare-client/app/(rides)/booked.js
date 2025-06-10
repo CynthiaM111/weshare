@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function BookedRidesScreen() {
@@ -33,6 +32,23 @@ export default function BookedRidesScreen() {
             headers: { Authorization: `Bearer ${user.token}` },
         });
         return response.data;
+    }, {
+        onError: (error) => {
+            Alert.alert(
+                'Error Loading Bookings',
+                error.userMessage || 'We encountered an error while loading your booked rides. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => fetchUserBookings()
+                    }
+                ]
+            );
+        }
     });
 
     const {
@@ -45,6 +61,23 @@ export default function BookedRidesScreen() {
             headers: { Authorization: `Bearer ${user.token}` },
         });
         return response.data;
+    }, {
+        onError: (error) => {
+            Alert.alert(
+                'Error Cancelling Booking',
+                error.userMessage || 'We encountered an error while cancelling your booking. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => retryCancel()
+                    }
+                ]
+            );
+        }
     });
 
     useEffect(() => {
@@ -86,9 +119,9 @@ export default function BookedRidesScreen() {
         try {
             await cancelBooking(rideId);
             fetchUserBookings();
-        } catch (error) {
+        } catch (_) {
             // Error is already handled by useApi
-            console.error('Error cancelling booking:', error);
+            
         }
     };
 
@@ -108,18 +141,14 @@ export default function BookedRidesScreen() {
                             // Generate a 6-digit PIN
                             const pin = Math.floor(100000 + Math.random() * 900000).toString();
 
-                            console.log('Generated PIN for ride completion:', { rideId, pin, userId: user.id });
-
                             // Call API to generate PIN for ride completion
-                            const response = await axios.post(
+                            await axios.post(
                                 `${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}/generate-completion-pin`,
                                 { pin },
                                 {
                                     headers: { Authorization: `Bearer ${user.token}` },
                                 }
                             );
-
-                            console.log('PIN generation response:', response.data);
 
                             setGeneratedPin(pin);
                             setSelectedRideId(rideId);
@@ -140,51 +169,11 @@ export default function BookedRidesScreen() {
         );
     };
 
-    if (fetchError) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <ErrorDisplay
-                        error={fetchError}
-                        onRetry={retryFetchBookings}
-                        title="Error Loading Bookings"
-                        message="We couldn't load your booked rides at this time."
-                    />
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
-
-    if (cancelError) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <ErrorDisplay
-                        error={cancelError}
-                        onRetry={retryCancel}
-                        title="Error Cancelling Booking"
-                        message="We couldn't cancel your booking at this time."
-                    />
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
-
     const sortedRides = [...(bookedRides || [])].sort((a, b) => {
         const aCheckedIn = a.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
         const bCheckedIn = b.bookedBy?.find(b => b.userId === user.id)?.checkInStatus === 'checked-in';
 
-        // Prioritize checked-in rides, then non-missed rides, then missed rides
+        // Prioritize checked-in rides, then non-missed/non-no-completion rides, then missed/no-completion rides
         const aStatus = a.checkInStatus;
         const bStatus = b.checkInStatus;
 
@@ -192,9 +181,12 @@ export default function BookedRidesScreen() {
             return aCheckedIn ? -1 : 1;
         }
 
-        // Among non-checked-in rides, show missed rides last
-        if (aStatus === 'missed' && bStatus !== 'missed') return 1;
-        if (bStatus === 'missed' && aStatus !== 'missed') return -1;
+        // Among non-checked-in rides, show missed and no-completion rides last
+        const aIsProblem = aStatus === 'missed' || aStatus === 'no completion';
+        const bIsProblem = bStatus === 'missed' || bStatus === 'no completion';
+
+        if (aIsProblem && !bIsProblem) return 1;
+        if (bIsProblem && !aIsProblem) return -1;
 
         return 0;
     });
@@ -228,6 +220,7 @@ export default function BookedRidesScreen() {
                             const userBooking = item.bookedBy?.find(b => b.userId === user.id);
                             const isCheckedIn = userBooking?.checkInStatus === 'checked-in';
                             const isMissed = item.checkInStatus === 'missed';
+                            const isNoCompletion = item.checkInStatus === 'no completion';
 
                             // Determine status color with consistent color scheme
                             const getStatusColor = (status) => {
@@ -253,7 +246,8 @@ export default function BookedRidesScreen() {
                                 <View key={item._id} style={[
                                     styles.rideCard,
                                     isCheckedIn && styles.checkedInCard,
-                                    isMissed && styles.missedCard
+                                    isMissed && styles.missedCard,
+                                    isNoCompletion && styles.noCompletionCard
                                 ]}>
                                     {isCheckedIn && (
                                         <View style={styles.checkedInBadge}>
@@ -264,6 +258,12 @@ export default function BookedRidesScreen() {
                                         <View style={styles.missedBadge}>
                                             <FontAwesome5 name="exclamation-triangle" size={10} color="#fff" />
                                             <Text style={styles.missedText}>Missed</Text>
+                                        </View>
+                                    )}
+                                    {isNoCompletion && (
+                                        <View style={styles.noCompletionBadge}>
+                                            <FontAwesome5 name="clock" size={10} color="#fff" />
+                                            <Text style={styles.noCompletionText}>No Completion</Text>
                                         </View>
                                     )}
                                     <View style={styles.routeContainer}>
@@ -300,7 +300,12 @@ export default function BookedRidesScreen() {
                                             This ride was missed. The departure time has passed without check-in.
                                         </Text>
                                     )}
-                                    {!isCheckedIn && !isMissed && (
+                                    {isNoCompletion && (
+                                        <Text style={styles.noCompletionMessage}>
+                                            This private ride was not completed within 2 hours of the estimated arrival time.
+                                        </Text>
+                                    )}
+                                    {!isCheckedIn && !isMissed && !isNoCompletion && (
                                         <View style={styles.buttonContainer}>
                                             {item.isPrivate ? (
                                                 <TouchableOpacity
@@ -740,4 +745,36 @@ const styles = StyleSheet.create({
         padding: 8,
         borderRadius: 8,
     },
-});
+    noCompletionCard: {
+        borderLeftColor: '#9CA3AF',
+        backgroundColor: '#fff9f6',
+    },
+    noCompletionBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: '#9CA3AF',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    noCompletionText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    noCompletionMessage: {
+        color: '#9CA3AF',
+        fontSize: 12,
+        marginTop: 8,
+        marginBottom: 4,
+        fontStyle: 'italic',
+        textAlign: 'center',
+        backgroundColor: 'rgba(156, 163, 175, 0.1)',
+        padding: 8,
+        borderRadius: 8,
+    },
+}); 

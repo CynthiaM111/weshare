@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet, Modal, Button, Animated } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet, Modal, Animated } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
 
 export default function EmployeeHomeScreen() {
     const [scannerVisible, setScannerVisible] = useState(false);
@@ -44,6 +43,7 @@ export default function EmployeeHomeScreen() {
         );
         return response.data;
     });
+
 
     // Animate scanning line
     useEffect(() => {
@@ -96,24 +96,31 @@ export default function EmployeeHomeScreen() {
             const { rideId, userId, bookingId } = parsedData;
 
             if (!rideId || !userId || !bookingId) {
-                throw new Error('Invalid QR code: missing rideId, userId, or bookingId');
+                throw Object.assign(new Error('Missing data in QR code'), {
+                    userMessage: 'This QR code is missing required ride or user information.'
+                });
             }
 
             if (rideId !== currentRideId) {
-                throw new Error('QR code does not match the current ride');
+                const err = new Error('QR code does not match the current ride');
+                err.userMessage = 'This QR code is for a different ride. Please scan the correct code.';
+                throw err;
+
             }
 
             const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
             if (!isValidObjectId(rideId) || !isValidObjectId(userId)) {
-                throw new Error('Invalid rideId or userId format');
+                throw Object.assign(new Error('Invalid format'), {
+                    userMessage: 'The QR code contains invalid ride or user IDs.'
+                });
             }
 
             handleCheckIn(rideId, userId, bookingId);
         } catch (error) {
-            console.error('QR scan error:', error.message);
+            // console.error('QR scan error:', error.message);
             setScannedPassenger(null);
             setScannerVisible(false);
-            setScanError(error.message);
+            setScanError(error);
         }
     }, [cameraReady, scannerVisible, currentRideId, isCheckingIn]);
 
@@ -129,64 +136,63 @@ export default function EmployeeHomeScreen() {
     };
 
     // Error handling for scanError
-    if (scanError) {
-        return (
-            <View style={styles.errorContainer}>
-                <ErrorDisplay
-                    error={scanError}
-                    onRetry={() => startCheckIn(currentRideId)} // Retry scanning for the same ride
-                    onDismiss={() => setScanError(null)} // Clear error and return to ride list
-                    title="QR Scan Error"
-                    message="There was an issue scanning the QR code."
-                />
-            </View>
-        );
-    }
+    useEffect(() => {
+        if (scanError) {
+            const userMessage =
+                scanError?.userMessage ||
+                scanError?.response?.data?.error ||
+                "There was an issue scanning the QR code.";
 
-    if (ridesError) {
-        return (
-            <View style={styles.errorContainer}>
-                <ErrorDisplay
-                    error={ridesError}
-                    onRetry={retryFetchRides}
-                    title="Error Loading Rides"
-                    message="We couldn't load the rides at this time."
-                />
-            </View>
-        );
-    }
+            Alert.alert('QR Scan Error', userMessage, [
+                { text: 'Try Again', onPress: () => startCheckIn(currentRideId) },
+                { text: 'Cancel', style: 'cancel' }
+            ]);
+        }
+    }, [scanError]);
 
-    if (checkInError) {
-        return (
-            <View style={styles.errorContainer}>
-                <ErrorDisplay
-                    error={checkInError}
-                    onRetry={retryCheckIn}
-                    title="Error During Check-in"
-                    message="We couldn't process the check-in at this time."
-                />
-            </View>
-        );
+
+
+    useEffect(() => {
+        if (ridesError) {
+        const userMessage =
+            ridesError?.userMessage ||
+            ridesError?.response?.data?.error ||
+            "We couldn't load the rides at this time.";
+
+        Alert.alert('Error Loading Rides', userMessage, [
+            { text: 'Try Again', onPress: retryFetchRides },
+            { text: 'Cancel', style: 'cancel' }
+        ]);
     }
+}, [ridesError]);
+
+
+
+    useEffect(() => {
+        if (checkInError) {
+        const userMessage =
+            checkInError?.userMessage ||
+            checkInError?.response?.data?.error ||
+            "We couldn't process the check-in at this time.";
+
+        Alert.alert('Error During Check-in', userMessage, [
+            { text: 'Try Again', onPress: retryCheckIn },
+            { text: 'Cancel', style: 'cancel' }
+        ]);
+    }
+}, [checkInError]);
 
     // Early return for permission loading
-    if (!permission) {
-        return (
-            <View style={styles.errorContainer}>
-                <Text style={styles.loadingText}>Checking camera permissions...</Text>
-            </View>
-        );
+    useEffect(() => {
+        if (permission && !permission.granted) {
+        Alert.alert('Camera Permission', 'We need your permission to show the camera', [
+            { text: 'Grant Permission', onPress: () => requestPermission() },
+            { text: 'Cancel', style: 'cancel' }
+        ]);
     }
+}, [permission]);
 
-    // Early return for permission denied
-    if (!permission.granted) {
-        return (
-            <View style={styles.errorContainer}>
-                <Text style={styles.message}>We need your permission to show the camera</Text>
-                <Button onPress={requestPermission} title="Grant Permission" />
-            </View>
-        );
-    }
+    
 
     const renderRide = ({ item }) => (
         <View style={styles.rideCard}>

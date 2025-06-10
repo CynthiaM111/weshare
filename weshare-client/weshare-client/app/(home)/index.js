@@ -6,7 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
+// import ErrorDisplay from '../../components/ErrorDisplay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Platform } from 'react-native';
@@ -42,7 +42,8 @@ const rwandaDistricts = [
     "Rutsiro",
     "Gasabo",
     "Kicukiro",
-    "Nyarugenge"
+    "Nyarugenge",
+    "Kigali"
 ];
 
 export default function HomeScreen() {
@@ -245,10 +246,10 @@ export default function HomeScreen() {
                     searchParams: JSON.stringify({ from: prefilledFrom, to: prefilledTo })
                 }
             });
-        } catch (error) {
-            console.error('Search error:', error);
-        }
+        } catch (_) {
+            
     };
+}
 
     const handleAddPrivateRide = () => {
         router.push('/(rides)/add-private-ride');
@@ -275,20 +276,23 @@ export default function HomeScreen() {
         return "Good evening! 🌙";
     };
 
-    if (searchError) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <ErrorDisplay
-                    error={searchError}
-                    onRetry={() => handleSearch()}
-                    title="Oops! Search Failed 😅"
-                    message="We couldn't find rides at the moment. Let's try again!"
-                    retryText="Try Again"
-                />
-            </SafeAreaView>
-        );
-    }
+    useEffect(() => {
+        if (searchError) {
+            const userMessage =
+                searchError?.userMessage ||
+                searchError?.response?.data?.error ||
+                "We couldn't find rides at the moment. Please try again.";
 
+            Alert.alert(
+                'Search Error',
+                userMessage,
+                [
+                    { text: 'Try Again', onPress: () => router.push('/(home)') },
+                    { text: 'Cancel', style: 'cancel' }
+                ]
+            );
+        }
+    }, [searchError]);
     return (
         <LinearGradient
             colors={['#0a2472', '#1E90FF']}

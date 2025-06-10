@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -7,7 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
+// import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -31,7 +31,7 @@ export default function RidesScreen() {
         retry: retryFetchBookings
     } = useApi(async () => {
         if (!user?.id || !user?.token) {
-            throw new Error('User ID or token missing');
+            return;
         }
         const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/booked`, {
             headers: { Authorization: `Bearer ${user.token}` },
@@ -47,10 +47,10 @@ export default function RidesScreen() {
         retry: retryFetchPrivateRides
     } = useApi(async () => {
         if (!user?.id || !user?.token) {
-            throw new Error('User ID or token missing');
+            return;
         }
         const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/private/user/${user.id}`, {
-            headers: { Authorization: `Bearer ${user.token}` },
+            headers: { Authorization: `Bearer ${user?.token}` },
         });
         return response.data;
     });
@@ -69,7 +69,7 @@ export default function RidesScreen() {
     }, [params.rides]);
 
     useEffect(() => {
-        if (user) {
+        if (user?.id && user?.token) {
             fetchUserBookings();
             fetchPrivateRides();
         }
@@ -78,7 +78,7 @@ export default function RidesScreen() {
     // Auto-refresh when screen is focused to show updated data after booking
     useFocusEffect(
         useCallback(() => {
-            if (user && user.id && user.token) {
+            if (user?.id && user?.token) {
                 // Handle each API call separately to avoid crashes if one fails
                 fetchUserBookings().catch(error => {
                     // Only log warnings for actual errors, not NOT_FOUND
@@ -108,7 +108,7 @@ export default function RidesScreen() {
     );
 
     const onRefresh = useCallback(async () => {
-        if (!user || !user.id || !user.token) {
+        if (!user?.id || !user?.token) {
             return;
         }
 
@@ -171,19 +171,43 @@ export default function RidesScreen() {
         }));
     };
 
-    if (bookingsError) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <ErrorDisplay
-                    error={bookingsError}
-                    onRetry={retryFetchBookings}
-                    title="Error Loading Bookings"
-                    message="We couldn't load your booked rides at this time."
-                    retryText="Retry"
-                />
-            </SafeAreaView>
-        );
-    }
+    useEffect(() => {
+        if (bookingsError && bookingsError.statusCode !== 404) {
+            Alert.alert(
+                'Error Loading Bookings',
+                bookingsError.userMessage || 'We encountered an error while loading your booked rides. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => retryFetchBookings()
+                    }
+                ]
+            );
+        }
+    }, [bookingsError]);
+
+    useEffect(() => {
+        if (privateRidesError && privateRidesError.statusCode !== 404) {
+            Alert.alert(
+                'Error Loading Private Rides',
+                privateRidesError.userMessage || 'We encountered an error while loading your private rides. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => retryFetchPrivateRides()
+                    }
+                ]
+            );
+        }
+    }, [privateRidesError]);
 
     // Separate available rides and booked rides
     // Filter out missed rides from active bookings as they should not appear in search results

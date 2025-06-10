@@ -6,7 +6,7 @@ import RideCard from '../../components/RideCard';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
+// import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function PrivateRidesScreen() {
@@ -236,33 +236,43 @@ export default function PrivateRidesScreen() {
         }
     };
 
-    if (privateRidesError) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <ErrorDisplay
-                    error={privateRidesError}
-                    onRetry={retryFetchPrivateRides}
-                    title="Error Loading Private Rides"
-                    message="We couldn't load your private rides at this time."
-                    retryText="Retry"
-                />
-            </SafeAreaView>
-        );
-    }
+    useEffect(() => {
+        if (privateRidesError) {
+            Alert.alert(
+                'Error Loading Private Rides',
+                privateRidesError.userMessage || 'We encountered an error while loading your private rides. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => retryFetchPrivateRides()
+                    }
+                ]
+            );
+        }
+    }, [privateRidesError]);
 
-    if (availableRidesError) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <ErrorDisplay
-                    error={availableRidesError}
-                    onRetry={retryFetchAvailableRides}
-                    title="Error Loading Available Rides"
-                    message="We couldn't load available private rides at this time."
-                    retryText="Retry"
-                />
-            </SafeAreaView>
-        );
-    }
+    useEffect(() => {
+        if (availableRidesError) {
+            Alert.alert(
+                'Error Loading Available Rides',
+                availableRidesError.userMessage || 'We encountered an error while loading available private rides. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => retryFetchAvailableRides()
+                    }
+                ]
+            );
+        }
+    }, [availableRidesError]);
 
     const rides = Array.isArray(privateRides) ? privateRides : [];
     const availableRides = Array.isArray(availablePrivateRides) ? availablePrivateRides : [];

@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Button, Input, Text, Layout, Select, SelectItem } from '@ui-kitten/components';
 import axios from 'axios';
-import ErrorDisplay from '../../components/ErrorDisplay';
+
 
 export default function Signup() {
     const [name, setName] = useState('');
@@ -16,12 +16,8 @@ export default function Signup() {
     const [destinationCategoryId, setDestinationCategoryId] = useState('');
     const [agencies, setAgencies] = useState([]);
     const [categories, setCategories] = useState([]);
-    const {
-        signup,
-        signupError,
-        setSignupError,
-        signupRetry
-    } = useAuth();
+    const { signup, signupError } = useAuth();
+    const router = useRouter();
 
 
     const fetchAgencies = async () => {
@@ -81,30 +77,28 @@ export default function Signup() {
             };
           
             await signup(userData, role);
-        } catch (error) {
-            console.error('Signup error:', error.message);
+        } catch (_) {
+            // console.error('Signup error:', error.message);
             
         }
     };
-    const handleRetry = () => {
-        setSignupError(null);
-        signupRetry();
-        
-    };
 
-    if (signupError) {
-        return (
-            <Layout style={styles.container}>
-                <ErrorDisplay
-                    error={signupError}
-                    onRetry={handleRetry}
-                    title="Signup Failed"
-                    message="We couldn't sign you up at this time. Check your credentials and try again."
-                    retryText="Try Again"
-                />
-            </Layout>
-        );
-    }
+
+    useEffect(() => {
+        if (signupError) {
+            const userMessage =
+                signupError?.userMessage ||
+                signupError?.response?.data?.error ||
+                "We couldn't sign you up at this time. Check your credentials and try again.";
+
+            Alert.alert('Signup Failed', userMessage, [
+                { text: 'Try Again', onPress: () => router.push('/(auth)/signup') },
+                { text: 'Cancel', style: 'cancel' }
+            ]);
+        }
+    }, [signupError]);
+
+
 
 
     return (

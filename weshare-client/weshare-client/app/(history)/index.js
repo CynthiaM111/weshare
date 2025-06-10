@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import axios from 'axios';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, SafeAreaView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, SafeAreaView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ErrorDisplay from '../../components/ErrorDisplay';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useApi } from '../../hooks/useApi';
 
 const fetchRideHistory = async ({ pageParam = 1 }) => {
     const token = await AsyncStorage.getItem('token');
@@ -23,49 +23,66 @@ const fetchRideHistory = async ({ pageParam = 1 }) => {
 export default function RideHistory() {
     const [rides, setRides] = useState([]);
     const [page, setPage] = useState(1);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [hasMore, setHasMore] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const router = useRouter();
     const limit = 10;
 
-    // Fetch initial data and subsequent pages
-    const loadRides = async (pageToFetch, isRefresh = false) => {
-        if (!hasMore || isLoading) return;
-
+    // Use useApi hook for fetching ride history
+    const {
+        data: rideHistoryData,
+        error,
+        isLoading,
+        execute: fetchRides,
+        retry: retryFetch
+    } = useApi(async (pageToFetch = 1, isRefresh = false) => {
+        const data = await fetchRideHistory({ pageParam: pageToFetch });
+        
         if (isRefresh) {
-            setRefreshing(true);
-            setRides([]);
+            setRides(data.history);
             setPage(1);
-            setHasMore(true);
         } else {
-            setIsLoading(true);
-        }
-
-        try {
-            const data = await fetchRideHistory({ pageParam: pageToFetch });
-            if (isRefresh) {
-                setRides(data.history);
-            } else {
-                setRides((prev) => [...prev, ...data.history]);
-            }
-            setHasMore(data.pagination.currentPage < data.pagination.totalPages);
+            setRides((prev) => [...prev, ...data.history]);
             setPage(pageToFetch);
-            setError(null);
-        } catch (err) {
-            console.log(err);
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
-            setRefreshing(false);
         }
-    };
+        
+        setHasMore(data.pagination.currentPage < data.pagination.totalPages);
+        return data;
+    }, {
+        onError: (error) => {
+            // Alert user with the error message
+            Alert.alert(
+                'Error Loading Ride History',
+                error.userMessage || 'We encountered an error while loading your ride history. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => handleRefresh()
+                    }
+                ]
+            );
+        }
+    });
 
     // Load first page on mount
     useEffect(() => {
         loadRides(1);
     }, []);
+
+    // Load rides function
+    const loadRides = async (pageToFetch, isRefresh = false) => {
+        if (!hasMore && !isRefresh) return;
+        
+        try {
+            await fetchRides(pageToFetch, isRefresh);
+        } catch (err) {
+            // Error handling is done in useApi onError callback
+            console.log('Error loading rides:', err);
+        }
+    };
 
     // Handle infinite scroll
     const handleLoadMore = () => {
@@ -76,6 +93,7 @@ export default function RideHistory() {
 
     // Handle refresh
     const handleRefresh = () => {
+        setHasMore(true);
         loadRides(1, true);
     };
 
@@ -89,6 +107,8 @@ export default function RideHistory() {
                 return '#ff8c00'; // Orange
             case 'missed':
                 return '#e53e3e'; // Red
+            case 'no completion':
+                return '#9CA3AF'; // Gray
             default:
                 return '#38a169'; // Green
         }
@@ -143,40 +163,13 @@ export default function RideHistory() {
                         {item.status === 'completed' ? 'Completed' :
                             item.status === 'checked-in' ? 'Checked In' :
                                 item.status === 'pending' ? 'Pending' :
-                                    item.status === 'missed' ? 'Missed' : item.status}
+                                    item.status === 'missed' ? 'Missed' :
+                                        item.status === 'no completion' ? 'No Completion' : item.status}
                     </Text>
                 </View>
             </View>
         </View>
     );
-
-    if (error) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Ride History</Text>
-                        <View style={styles.headerPlaceholder} />
-                    </View>
-                    <ErrorDisplay
-                        error={error}
-                        onRetry={handleRefresh}
-                        title="Error Loading Ride History"
-                        message="We encountered an error while loading your ride history."
-                        retryText="Retry"
-                    />
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
 
     return (
         <LinearGradient
@@ -203,14 +196,14 @@ export default function RideHistory() {
                     contentContainerStyle={styles.scrollContent}
                     refreshControl={
                         <RefreshControl
-                            refreshing={refreshing}
+                            refreshing={isLoading && page === 1}
                             onRefresh={handleRefresh}
                             colors={['#4CAF50']}
                             tintColor='#4CAF50'
                         />
                     }
                     ListFooterComponent={() =>
-                        isLoading ? (
+                        isLoading && page > 1 ? (
                             <View style={styles.footer}>
                                 <ActivityIndicator size="small" color="#fff" />
                                 <Text style={styles.footerText}>Loading more...</Text>
@@ -223,13 +216,18 @@ export default function RideHistory() {
                         ) : null
                     }
                     ListEmptyComponent={() =>
-                        !isLoading && !refreshing ? (
+                        !isLoading ? (
                             <View style={styles.emptyContainer}>
                                 <FontAwesome5 name="history" size={64} color="rgba(255, 255, 255, 0.6)" />
                                 <Text style={styles.emptyText}>No ride history found</Text>
                                 <Text style={styles.emptySubText}>Your completed rides will appear here</Text>
                             </View>
-                        ) : null
+                        ) : (
+                            <View style={styles.emptyContainer}>
+                                <ActivityIndicator size="large" color="#fff" />
+                                <Text style={[styles.emptyText, { marginTop: 16 }]}>Loading ride history...</Text>
+                            </View>
+                        )
                     }
                 />
             </SafeAreaView>
@@ -384,4 +382,4 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 8,
     },
-});
+}); 

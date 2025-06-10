@@ -6,7 +6,8 @@ import axios from 'axios';
 import { Alert } from 'react-native';
 import { useApi } from '../../hooks/useApi';
 import ErrorDisplay from '../../components/ErrorDisplay';
-import { handleApiError } from '../../utils/apiErrorHandler';
+import { handleApiError, ERROR_CODES } from '../../utils/apiErrorHandler';
+import { useError } from './ErrorContext';
 
 const AuthContext = createContext();
 
@@ -14,6 +15,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+    const { handleAuthError, handleGlobalError } = useError();
 
     const loginApi = useApi(async (email, password) => {
         try {
@@ -51,8 +53,17 @@ export const AuthProvider = ({ children }) => {
                     '/(home)';
             router.replace(route);
         } catch (error) {
-            const formattedError = handleApiError(error);
+            const formattedError = handleAuthError(error);
             throw formattedError;
+        }
+    }, {
+        onError: (error) => {
+            // Handle specific authentication errors
+            if (error.code === ERROR_CODES.INVALID_CREDENTIALS) {
+                // Don't show additional alerts, the login screen will handle this
+                return;
+            }
+            // For other errors, the global error handler will manage them
         }
     });
 
@@ -68,6 +79,16 @@ export const AuthProvider = ({ children }) => {
 
         Alert.alert('Success', response.data.message);
         await loginApi.execute(userData.email, userData.password);
+    }, {
+        onError: (error) => {
+            // Handle specific signup errors
+            if (error.code === ERROR_CODES.EMAIL_ALREADY_EXISTS) {
+                // The signup screen will display this error
+                return;
+            }
+            // For other errors, handle globally
+            handleAuthError(error);
+        }
     });
 
     const checkAuthApi = useApi(async () => {
@@ -99,6 +120,9 @@ export const AuthProvider = ({ children }) => {
                     // Only logout if it's an authentication error
                     if (error.response?.status === 401) {
                         await logout();
+                    } else {
+                        // Handle other errors globally
+                        handleGlobalError(error, { context: 'token_verification' });
                     }
                 }
                 return;
@@ -138,9 +162,22 @@ export const AuthProvider = ({ children }) => {
             // Only logout if it's an authentication error
             if (error.response?.status === 401) {
                 await logout();
+            } else {
+                // Handle other errors globally but don't crash the auth check
+                handleGlobalError(error, { context: 'auth_check' });
             }
         } finally {
             setIsLoading(false);
+        }
+    }, {
+        onError: (error) => {
+            // For auth check errors, handle them gracefully
+            if (error.code === ERROR_CODES.SESSION_EXPIRED || error.code === ERROR_CODES.UNAUTHORIZED) {
+                logout();
+            } else {
+                // Log other errors but don't show them to user during auth check
+                console.error('Auth check failed:', error);
+            }
         }
     });
 
@@ -155,14 +192,27 @@ export const AuthProvider = ({ children }) => {
             router.replace('/(auth)/login');
         } catch (error) {
             console.error('Logout error:', error);
+            // Even if logout fails, still redirect to login
+            router.replace('/(auth)/login');
         }
     };
 
+    // Auto-logout on session expiry
+    const handleSessionExpiry = () => {
+        logout();
+        Alert.alert(
+            'Session Expired',
+            'Your session has expired. Please log in again.',
+            [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
+        );
+    };
+
     if (isLoading) {
-        return null; // Or a loading spinner
+        return null; // Loading is handled by RootLayoutNav
     }
 
-    if (checkAuthApi.error) {
+    // Only show error for critical auth errors that prevent the app from working
+    if (checkAuthApi.error && checkAuthApi.error.code === ERROR_CODES.UNEXPECTED_CRASH) {
         return <ErrorDisplay error={checkAuthApi.error} onRetry={checkAuthApi.retry} />;
     }
 
@@ -173,6 +223,7 @@ export const AuthProvider = ({ children }) => {
             login: loginApi.execute,
             signup: signupApi.execute,
             logout,
+            handleSessionExpiry,
             checkAuth: checkAuthApi.execute,
             loginError: loginApi.error,
             signupError: signupApi.error,

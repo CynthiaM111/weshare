@@ -1,26 +1,69 @@
 import { Tabs, useRouter, useNavigation } from 'expo-router';
 import SplashScreen from '../components/SplashScreen';
+import GlobalErrorBoundary from '../components/GlobalErrorBoundary';
+import MaintenanceMode from '../components/MaintenanceMode';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as eva from '@eva-design/eva';
 import { ApplicationProvider } from '@ui-kitten/components';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ErrorProvider, useError } from './context/ErrorContext';
 
-// Wrap your app with AuthProvider
+// Wrap your app with providers and error boundary
 export default function RootLayout() {
   return (
     <ApplicationProvider {...eva} theme={eva.light}>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
+      <ErrorProvider>
+        <AuthProvider>
+          <ErrorBoundaryWrapper>
+            <RootLayoutNav />
+          </ErrorBoundaryWrapper>
+        </AuthProvider>
+      </ErrorProvider>
     </ApplicationProvider>
+  );
+}
+
+// Wrapper component to access router context for error boundary
+function ErrorBoundaryWrapper({ children }) {
+  const router = useRouter();
+
+  const handleErrorRetry = () => {
+    // Force a complete app refresh
+    try {
+      router.replace('/(home)');
+    } catch (error) {
+      console.error('Router refresh failed:', error);
+      // Last resort
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.reload();
+      }
+    }
+  };
+
+  const handleNavigateHome = () => {
+    try {
+      router.replace('/(home)');
+    } catch (error) {
+      console.error('Navigation to home failed:', error);
+    }
+  };
+
+  return (
+    <GlobalErrorBoundary
+      onRetry={handleErrorRetry}
+      onNavigateHome={handleNavigateHome}
+    >
+      {children}
+    </GlobalErrorBoundary>
   );
 }
 
 function RootLayoutNav() {
   const [showSplash, setShowSplash] = useState(true);
   const { user, loading } = useAuth();
+  const { isMaintenanceMode, clearMaintenanceMode, handleGlobalError } = useError();
   const router = useRouter();
   const navigation = useNavigation();
   const [isNavigationReady, setIsNavigationReady] = useState(false);
@@ -66,6 +109,71 @@ function RootLayoutNav() {
     }
   }, [user, loading, isNavigationReady, router]);
 
+  // Handle maintenance mode check
+  const handleMaintenanceRetry = async () => {
+    try {
+      // Try to make a health check request
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/health`, {
+        method: 'GET',
+        timeout: 10000
+      });
+
+      if (response.ok) {
+        // Service is back up, clear maintenance mode
+        clearMaintenanceMode();
+
+        // Navigate to appropriate screen based on user state
+        if (user) {
+          const homeRoute = user.role === 'agency_employee' ? '/(employee)' : '/(home)';
+          router.replace(homeRoute);
+        } else {
+          router.replace('/(auth)/login');
+        }
+      } else {
+        throw new Error('Service still unavailable');
+      }
+    } catch (error) {
+      // Handle the error but don't clear maintenance mode
+      handleGlobalError(error, { context: 'maintenance_check' });
+      console.log('Service still in maintenance mode');
+    }
+  };
+
+  const handleMaintenanceCheckStatus = async () => {
+    // Alternative maintenance check method
+    try {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/status`, {
+        method: 'GET',
+        timeout: 5000
+      });
+
+      const data = await response.json();
+
+      if (data.maintenance === false) {
+        clearMaintenanceMode();
+        // Navigate based on current user state
+        if (user) {
+          const homeRoute = user.role === 'agency_employee' ? '/(employee)' : '/(home)';
+          router.replace(homeRoute);
+        } else {
+          router.replace('/(home)');
+        }
+      }
+    } catch (error) {
+      throw new Error('Unable to check service status');
+    }
+  };
+
+  // Show maintenance mode if active
+  if (isMaintenanceMode && !showSplash && !loading) {
+    return (
+      <MaintenanceMode
+        onRetry={handleMaintenanceRetry}
+        onCheckStatus={handleMaintenanceCheckStatus}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -110,7 +218,7 @@ function RootLayoutNav() {
                     const isOnBookedScreen = currentRouteName === 'booked';
                     const isOnPrivateScreen = currentRouteName === 'private';
 
-                    
+
 
                     // Only allow navigation if we're NOT on these specific screens
                     if (!isOnBookedScreen && !isOnPrivateScreen) {

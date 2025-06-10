@@ -5,7 +5,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi';
-import ErrorDisplay from '../../components/ErrorDisplay';
+// import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Profile() {
@@ -71,32 +71,16 @@ export default function Profile() {
         return user?.email?.[0]?.toUpperCase() || '?';
     };
 
-    if (agencyError) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Profile</Text>
-                        <View style={styles.headerPlaceholder} />
-                    </View>
-                    <ErrorDisplay
-                        error={agencyError}
-                        onRetry={retryFetchAgency}
-                        title="Error Loading Profile Details"
-                        message="We couldn't load your agency details at this time."
-                    />
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
+    useEffect(() => {
+        if (agencyError) {
+            Alert.alert('Error Loading Profile Details', agencyError.userMessage || 'We encountered an error while loading your profile details. Please try again.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Retry', onPress: retryFetchAgency }
+            ]);
+        }
+    }, [agencyError]);
+
+
 
     if (!user) {
         return (

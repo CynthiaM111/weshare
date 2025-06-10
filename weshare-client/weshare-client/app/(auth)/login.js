@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Button, Input, Text, Layout } from '@ui-kitten/components';
-import ErrorDisplay from '../../components/ErrorDisplay';
+
 
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login, loginError, setLoginError, loginRetry } = useAuth();
+    const { login, loginError } = useAuth();
+    const router = useRouter();
 
     const handleLogin = async () => {
         try {
@@ -20,26 +21,21 @@ export default function Login() {
         }
     };
 
-    const handleRetry = () => {
-        setEmail('');
-        setPassword('');
-        setLoginError(null);
-        loginRetry();
-    };
 
-    if (loginError) {
-        return (
-            <Layout style={styles.container}>
-                <ErrorDisplay
-                    error={loginError}
-                    onRetry={handleRetry}
-                    title="Login Failed"
-                    message="We couldn't log you in at this time. Check your credentials and try again."
-                    retryText="Try Again"
-                />
-            </Layout>
-        );
-    }
+
+    useEffect(() => {
+        if (loginError) {
+            const userMessage =
+                loginError?.userMessage ||
+                loginError?.response?.data?.error ||
+                "We couldn't log you in at this time. Check your credentials and try again.";
+
+            Alert.alert('Login Failed', userMessage, [
+                { text: 'Try Again', onPress: () => router.push('/(auth)/login') },
+                { text: 'Cancel', style: 'cancel' }
+            ]);
+        }
+    }, [loginError]);
 
     return (
         <Layout style={styles.container}>
