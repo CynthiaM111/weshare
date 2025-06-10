@@ -41,6 +41,15 @@ const rideSchema = new mongoose.Schema({
     licensePlate: {
         type: String,
         required: true,
+        trim: true,
+        validate: {
+            validator: function (plate) {
+                const trimmed = plate.trim().toUpperCase();
+                const regex = /^[A-Z0-9]{2,7}$/;
+                return regex.test(trimmed);
+            },
+            message: 'Invalid license plate format'
+        }
     },
     status: {
         type: String,

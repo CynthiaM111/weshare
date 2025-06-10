@@ -40,6 +40,9 @@ const createRide = async (req, res) => {
         } = req.body;
 
         const currentTime = new Date();
+        const twoHoursFromNow = new Date(currentTime.getTime() + (2 * 60 * 60 * 1000));
+        const thirtyDaysFromNow = new Date(currentTime.getTime() + (30 * 24 * 60 * 60 * 1000));
+
         let rideData = {
             licensePlate,
             description,
@@ -49,14 +52,82 @@ const createRide = async (req, res) => {
         };
 
         if (isPrivate) {
-            // Validate required private ride fields
-            if (!from || !to || !date || !time || !description || !estimatedArrivalTime || !licensePlate || !seats || !price) {
-                return res.status(400).json({ error: 'All private ride fields are required' });
+            // Validate required private ride fields with specific messages
+            if (!from) {
+                return res.status(400).json({ error: 'Please enter a pickup location (from)' });
+            }
+            if (!to) {
+                return res.status(400).json({ error: 'Please enter a destination (to)' });
+            }
+            if (!date) {
+                return res.status(400).json({ error: 'Please select a date for your ride' });
+            }
+            if (!time) {
+                return res.status(400).json({ error: 'Please select a time for your ride' });
+            }
+            if (!description) {
+                return res.status(400).json({ error: 'Please provide a description for your ride' });
+            }
+            if (!estimatedArrivalTime) {
+                return res.status(400).json({ error: 'Please specify the estimated travel time in hours' });
+            }
+            if (!licensePlate) {
+                return res.status(400).json({ error: 'Please enter your vehicle license plate number' });
+            }
+            if (!seats) {
+                return res.status(400).json({ error: 'Please specify the number of available seats' });
+            }
+            if (!price) {
+                return res.status(400).json({ error: 'Please enter the price per seat' });
+            }
+
+            // Validate license plate format
+            const plateRegex = /^[A-Z0-9]{2,7}$/;
+            if (!plateRegex.test(licensePlate.trim().toUpperCase())) {
+                return res.status(400).json({ error: 'Please enter a valid license plate number (2-7 characters, letters and numbers only)' });
+            }
+
+            // Validate seat count
+            const seatCount = parseInt(seats);
+            if (isNaN(seatCount) || seatCount < 1 || seatCount > 8) {
+                return res.status(400).json({ error: 'Please enter a valid number of seats (1-8 passengers)' });
+            }
+
+            // Validate price
+            const ridePrice = parseFloat(price);
+            if (isNaN(ridePrice) || ridePrice < 1 || ridePrice > 100) {
+                return res.status(400).json({ error: 'Please enter a valid price (minimum $1, maximum $100)' });
             }
 
             const departureTime = new Date(`${date}T${time}`);
+
+            // Enhanced date/time validation
+            if (isNaN(departureTime.getTime())) {
+                return res.status(400).json({ error: 'Please select a valid date and time' });
+            }
+
             if (departureTime < currentTime) {
-                return res.status(400).json({ error: 'Cannot create a ride with a past departure time' });
+                return res.status(400).json({ error: 'You cannot create a ride for a date and time in the past' });
+            }
+
+            if (departureTime < twoHoursFromNow) {
+                return res.status(400).json({ error: 'Rides must be scheduled at least 2 hours in advance' });
+            }
+
+            if (departureTime > thirtyDaysFromNow) {
+                return res.status(400).json({ error: 'You cannot create a ride more than 30 days in advance' });
+            }
+
+            // Check if it's a weekend (Saturday = 6, Sunday = 0)
+            const dayOfWeek = departureTime.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                return res.status(400).json({ error: 'Rides cannot be scheduled on weekends' });
+            }
+
+            // Check time range (6 AM to 10 PM)
+            const hours = departureTime.getHours();
+            if (hours < 6 || hours > 22) {
+                return res.status(400).json({ error: 'Rides are only available from 6:00 AM to 10:00 PM' });
             }
 
             rideData = {
@@ -65,21 +136,68 @@ const createRide = async (req, res) => {
                 to,
                 departure_time: departureTime,
                 estimatedArrivalTime: new Date(departureTime.getTime() + (parseInt(estimatedArrivalTime) * 60 * 60 * 1000)),
-                seats: parseInt(seats),
-                price: parseInt(price),
+                seats: seatCount,
+                price: ridePrice,
                 userId: req.user.id,
                 categoryId: null,
                 agencyId: null
             };
         } else {
-            // Validate required public ride fields
-            if (!categoryId || !departure_time || !seats || !licensePlate) {
-                return res.status(400).json({ error: 'All public ride fields are required' });
+            // Validate required public ride fields with specific messages
+            if (!categoryId) {
+                return res.status(400).json({ error: 'Please select a destination category' });
+            }
+            if (!departure_time) {
+                return res.status(400).json({ error: 'Please select a departure time' });
+            }
+            if (!seats) {
+                return res.status(400).json({ error: 'Please specify the number of available seats' });
+            }
+            if (!licensePlate) {
+                return res.status(400).json({ error: 'Please enter your vehicle license plate number' });
+            }
+
+            // Validate license plate format
+            const plateRegex = /^[A-Z0-9]{2,7}$/;
+            if (!plateRegex.test(licensePlate.trim().toUpperCase())) {
+                return res.status(400).json({ error: 'Please enter a valid license plate number (2-7 characters, letters and numbers only)' });
+            }
+
+            // Validate seat count
+            const seatCount = parseInt(seats);
+            if (isNaN(seatCount) || seatCount < 1 || seatCount > 8) {
+                return res.status(400).json({ error: 'Please enter a valid number of seats (1-8 passengers)' });
             }
 
             const departureTime = new Date(departure_time);
+
+            // Enhanced date/time validation
+            if (isNaN(departureTime.getTime())) {
+                return res.status(400).json({ error: 'Please select a valid departure time' });
+            }
+
             if (departureTime < currentTime) {
-                return res.status(400).json({ error: 'Cannot create a ride with a past departure time' });
+                return res.status(400).json({ error: 'You cannot create a ride for a date and time in the past' });
+            }
+
+            if (departureTime < twoHoursFromNow) {
+                return res.status(400).json({ error: 'Rides must be scheduled at least 2 hours in advance' });
+            }
+
+            if (departureTime > thirtyDaysFromNow) {
+                return res.status(400).json({ error: 'You cannot create a ride more than 30 days in advance' });
+            }
+
+            // Check if it's a weekend (Saturday = 6, Sunday = 0)
+            const dayOfWeek = departureTime.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                return res.status(400).json({ error: 'Rides cannot be scheduled on weekends' });
+            }
+
+            // Check time range (6 AM to 10 PM)
+            const hours = departureTime.getHours();
+            if (hours < 6 || hours > 22) {
+                return res.status(400).json({ error: 'Rides are only available from 6:00 AM to 10:00 PM' });
             }
 
             const category = await DestinationCategory.findOne({
@@ -89,7 +207,7 @@ const createRide = async (req, res) => {
             });
 
             if (!category) {
-                return res.status(404).json({ error: 'Destination category not found' });
+                return res.status(404).json({ error: 'Destination category not found or is no longer active' });
             }
 
             const arrivalTime = new Date(departureTime);
@@ -103,7 +221,7 @@ const createRide = async (req, res) => {
                 to: category.to,
                 departure_time: departureTime,
                 estimatedArrivalTime: arrivalTime,
-                seats: parseInt(seats),
+                seats: seatCount,
                 price: price || 0
             };
         }
@@ -123,8 +241,24 @@ const createRide = async (req, res) => {
         });
     } catch (error) {
         console.error('Error in createRide:', error);
+
+        // Handle Mongoose validation errors
+        if (error.name === 'ValidationError') {
+            const validationErrors = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({
+                error: validationErrors.join('. ')
+            });
+        }
+
+        // Handle duplicate key errors
+        if (error.code === 11000) {
+            return res.status(400).json({
+                error: 'A ride with these details already exists'
+            });
+        }
+
         res.status(500).json({
-            error: 'Failed to create ride',
+            error: 'Failed to create ride. Please try again later.',
             details: error.message
         });
     }
@@ -448,6 +582,20 @@ const getUserRides = async (req, res) => {
                     return null;
                 }
 
+                // For public rides, check if departure time has passed and status is still pending
+                let effectiveCheckInStatus = booking ? booking.checkInStatus : 'unknown';
+                if (!ride.isPrivate && booking && booking.checkInStatus === 'pending' && ride.departure_time < currentDate) {
+                    effectiveCheckInStatus = 'missed';
+                }
+
+                // For private rides, check if ETA + 2 hours has passed and status is not completed
+                if (ride.isPrivate && booking && booking.checkInStatus !== 'completed') {
+                    const etaPlus2Hours = new Date(ride.estimatedArrivalTime.getTime() + (2 * 60 * 60 * 1000)); // ETA + 2 hours
+                    if (currentDate > etaPlus2Hours) {
+                        effectiveCheckInStatus = 'no completion';
+                    }
+                }
+
                 return {
                     _id: ride._id,
                     from: ride.from,
@@ -463,7 +611,7 @@ const getUserRides = async (req, res) => {
                     licensePlate: ride.licensePlate,
                     isPrivate: ride.isPrivate,
                     statusDisplay: getRideStatus(ride),
-                    checkInStatus: booking ? booking.checkInStatus : 'unknown',
+                    checkInStatus: effectiveCheckInStatus,
                 };
             })
             .filter(ride => ride !== null); // Remove null entries
@@ -631,6 +779,21 @@ const getRideHistory = async (req, res) => {
         // Transform the data to include only necessary information
         const history = rides.map(ride => {
             const booking = ride.bookedBy.find(b => b.userId.toString() === req.user.id.toString());
+            let effectiveStatus = booking ? booking.checkInStatus : 'unknown';
+
+            // For public rides, check if departure time has passed and status is still pending -> mark as missed
+            if (!ride.isPrivate && booking && booking.checkInStatus === 'pending' && ride.departure_time < currentDate) {
+                effectiveStatus = 'missed';
+            }
+
+            // For private rides, check if ETA + 2 hours has passed and status is not completed -> mark as no completion
+            if (ride.isPrivate && booking && booking.checkInStatus !== 'completed') {
+                const etaPlus2Hours = new Date(ride.estimatedArrivalTime.getTime() + (2 * 60 * 60 * 1000)); // ETA + 2 hours
+                if (currentDate > etaPlus2Hours) {
+                    effectiveStatus = 'no completion';
+                }
+            }
+
             return {
                 _id: ride._id,
                 from: ride.from,
@@ -642,7 +805,7 @@ const getRideHistory = async (req, res) => {
                 licensePlate: ride.licensePlate,
                 agencyId: ride.agencyId,
                 categoryId: ride.categoryId,
-                status: booking ? booking.checkInStatus : 'unknown',
+                status: effectiveStatus,
                 rideStatus: ride.status, // Overall ride status
             };
         });
@@ -708,11 +871,20 @@ const getUserPrivateRides = async (req, res) => {
                 computedStatus = 'completed'; // Should be marked as completed if all passengers are done
             }
 
+            // Check if ETA + 2 hours has passed and ride is not completed -> mark as no completion
+            let effectiveStatus = computedStatus;
+            if (ride.status !== 'completed' && !allPassengersCompleted) {
+                const etaPlus2Hours = new Date(ride.estimatedArrivalTime.getTime() + (2 * 60 * 60 * 1000)); // ETA + 2 hours
+                if (currentDate > etaPlus2Hours) {
+                    effectiveStatus = 'no completion';
+                }
+            }
+
             return {
                 ...ride,
                 allPassengersCompleted,
                 somePassengersCompleted,
-                computedStatus,
+                computedStatus: effectiveStatus,
                 pendingPassengers: ride.bookedBy.filter(booking => booking.checkInStatus !== 'completed').length,
                 completedPassengers: ride.bookedBy.filter(booking => booking.checkInStatus === 'completed').length
             };
@@ -989,10 +1161,20 @@ const getUserPrivateRideHistory = async (req, res) => {
 
             const somePassengersCompleted = ride.bookedBy.some(booking => booking.checkInStatus === 'completed');
 
+            // Check if ETA + 2 hours has passed and ride is not completed -> mark as no completion
+            let effectiveStatus = ride.status;
+            if (ride.status !== 'completed' && !allPassengersCompleted) {
+                const etaPlus2Hours = new Date(ride.estimatedArrivalTime.getTime() + (2 * 60 * 60 * 1000)); // ETA + 2 hours
+                if (currentDate > etaPlus2Hours) {
+                    effectiveStatus = 'no completion';
+                }
+            }
+
             return {
                 ...ride,
                 allPassengersCompleted,
                 somePassengersCompleted,
+                computedStatus: effectiveStatus,
                 completedPassengers: ride.bookedBy.filter(booking => booking.checkInStatus === 'completed').length,
                 totalPassengers: ride.bookedBy.length
             };
