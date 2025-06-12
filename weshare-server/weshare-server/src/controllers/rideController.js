@@ -165,8 +165,8 @@ const createRide = async (req, res) => {
 
             // Validate seat count
             const seatCount = parseInt(seats);
-            if (isNaN(seatCount) || seatCount < 1 || seatCount > 8) {
-                return res.status(400).json({ error: 'Please enter a valid number of seats (1-8 passengers)' });
+            if (isNaN(seatCount) || seatCount < 1 || seatCount > 50) {
+                return res.status(400).json({ error: 'Please enter a valid number of seats (1-50 passengers)' });
             }
 
             const departureTime = new Date(departure_time);
@@ -188,11 +188,7 @@ const createRide = async (req, res) => {
                 return res.status(400).json({ error: 'You cannot create a ride more than 30 days in advance' });
             }
 
-            // Check if it's a weekend (Saturday = 6, Sunday = 0)
-            const dayOfWeek = departureTime.getDay();
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-                return res.status(400).json({ error: 'Rides cannot be scheduled on weekends' });
-            }
+            
 
             // Check time range (6 AM to 10 PM)
             const hours = departureTime.getHours();

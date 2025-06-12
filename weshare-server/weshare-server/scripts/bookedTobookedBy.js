@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
+const Ride = require('../src/models/ride');
 
 async function main() {
     try {
@@ -45,6 +46,11 @@ async function main() {
             { $set: { isPrivate: false } }
         );
         console.log(`Updated ${updateResult.modifiedCount} rides with isPrivate field`);
+
+        // 🔄 Sync indexes to remove outdated unique constraint
+        console.log('🔄 Syncing Ride model indexes...');
+        const indexResult = await Ride.syncIndexes();
+        console.log('✅ Index sync result:', indexResult);
 
         console.log('Script completed successfully');
     } catch (error) {

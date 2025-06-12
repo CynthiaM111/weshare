@@ -9,11 +9,16 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Signup
 const signup = async (req, res) => {
     try {
-        const { email, password, role, name, contact_number, agencyId, destinationCategoryId } = req.body;
+        const { email, password, role, name, contact_number, agencyId, destinationCategoryId, address } = req.body;
 
         // Validate required fields
-        if (!email || !password || !name) {
-            return res.status(400).json({ error: 'Email, password, and name are required' });
+        if (!contact_number || !password || !name) {
+            return res.status(400).json({ error: 'Contact number, password, and name are required' });
+        }
+        // Validate Rwandan phone number
+        const rwPhoneRegex = /^\+2507[2389]\d{7}$/
+        if (!rwPhoneRegex.test(contact_number)) {
+            return res.status(400).json({ error: 'Invalid Rwandan phone number' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -24,9 +29,10 @@ const signup = async (req, res) => {
                 email,
                 password: hashedPassword,
                 contact_number,
-                address,
+                address: address || '',
                 role: 'agency',
             });
+            
             await agency.save();
             return res.status(201).json({ message: 'Agency created successfully' });
         } else if (role === 'agency_employee') {
@@ -60,7 +66,7 @@ const signup = async (req, res) => {
         }
     } catch (error) {
         if (error.code === 11000) {
-            return res.status(400).json({ error: 'Email already exists' });
+            return res.status(400).json({ error: 'Contact number already exists' });
         }
         res.status(500).json({ error: 'Signup failed', details: error.message });
     }
@@ -69,10 +75,10 @@ const signup = async (req, res) => {
 // Login
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { contact_number, password, email } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email and password are required' });
+        if (!contact_number || !password) {
+            return res.status(400).json({ error: 'Contact number and password are required' });
         }
 
         // Check Agency first
@@ -80,7 +86,7 @@ const login = async (req, res) => {
         let role = 'agency';
         if (!user) {
             // If not agency, check User
-            user = await User.findOne({ email });
+            user = await User.findOne({ contact_number });
             role = user ? user.role : null;
         }
 
@@ -111,6 +117,7 @@ const login = async (req, res) => {
             userId: user._id, 
             email: user.email, 
             name: user.name,
+            contact_number: user.contact_number,
             agencyId: role === 'agency_employee' ? user.agencyId : null,
             destinationCategoryId: role === 'agency_employee' ? user.destinationCategoryId : null });
     } catch (error) {
@@ -150,6 +157,7 @@ const status = async (req, res) => {
             userId: user._id,
             email: user.email,
             name: user.name,
+            contact_number: user.contact_number,
             agencyId: decoded.role === 'agency_employee' ? user.agencyId : null,
             destinationCategoryId: decoded.role === 'agency_employee' ? user.destinationCategoryId : null
         });

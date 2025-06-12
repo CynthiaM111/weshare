@@ -1,6 +1,6 @@
 import express from 'express';
 const app = express();
-const port = 5002;
+const port = 5005;
 import cors from 'cors';
 import mongoose from 'mongoose';
 import rideRoutes from './src/routes/rideRoutes.js';

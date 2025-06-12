@@ -95,7 +95,7 @@ const rideSchema = new mongoose.Schema({
     bookedBy: [{
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         checkInStatus: { type: String, enum: ['pending', 'checked-in', 'completed'], default: 'pending' },
-        bookingId: { type: String, unique: true, required: true }, // Unique ID for QR code
+        bookingId: { type: String,required: true }, // Unique ID for QR code
         completionPin: { type: String }, // PIN for ride completion
         pinGeneratedAt: { type: Date }, // When the PIN was generated
         completedAt: { type: Date } // When the ride was completed

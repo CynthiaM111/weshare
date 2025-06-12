@@ -23,7 +23,9 @@ const agencySchema = new mongoose.Schema({
     contact_number: {
         type: String,
         trim: true,
-        match: [/^\+?[1-9]\d{1,14}$/, 'Please enter a valid phone number'],
+        required: true,
+        unique: true,
+        match: [/^\+2507[2389]\d{7}$/, 'Please enter a valid Rwandan phone number'],
     },
     address: {
         type: String,
