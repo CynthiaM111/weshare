@@ -20,7 +20,7 @@ export const useError = () => {
     return context;
 };
 
-export const ErrorProvider = ({ children }) => {
+const ErrorProvider = ({ children }) => {
     const [globalError, setGlobalError] = useState(null);
     const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
@@ -233,4 +233,6 @@ export const ErrorProvider = ({ children }) => {
             {children}
         </ErrorContext.Provider>
     );
-}; 
+};
+
+export { ErrorProvider }; 

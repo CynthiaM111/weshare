@@ -17,10 +17,13 @@ export const AuthProvider = ({ children }) => {
     const router = useRouter();
     const { handleAuthError, handleGlobalError } = useError();
 
-    const loginApi = useApi(async (email, password) => {
+    const loginApi = useApi(async (contact_number, password) => {
         try {
+            // Clear any existing auth data before login
+            await AsyncStorage.multiRemove(['token', 'role', 'userData', 'contact_number']);
+
             const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/auth/login`, {
-                email,
+                contact_number,
                 password,
             });
 
@@ -31,7 +34,7 @@ export const AuthProvider = ({ children }) => {
             const data = response.data;
             const userData = {
                 id: data.userId,
-                email,
+                contact_number: data.contact_number,
                 name: data.name || '',
                 role: data.role,
                 token: data.token,
@@ -43,6 +46,7 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.multiSet([
                 ['token', data.token],
                 ['role', data.role],
+                ['contact_number', data.contact_number],
                 ['userData', JSON.stringify(userData)]
             ]);
 
@@ -53,6 +57,8 @@ export const AuthProvider = ({ children }) => {
                     '/(home)';
             router.replace(route);
         } catch (error) {
+            // Clear any partial data on error
+            await AsyncStorage.multiRemove(['token', 'role', 'userData', 'contact_number']);
             const formattedError = handleAuthError(error);
             throw formattedError;
         }
@@ -78,11 +84,11 @@ export const AuthProvider = ({ children }) => {
         }
 
         Alert.alert('Success', response.data.message);
-        await loginApi.execute(userData.email, userData.password);
+        await loginApi.execute(userData.contact_number, userData.password);
     }, {
         onError: (error) => {
             // Handle specific signup errors
-            if (error.code === ERROR_CODES.EMAIL_ALREADY_EXISTS) {
+            if (error.code === ERROR_CODES.PHONE_ALREADY_EXISTS) {
                 // The signup screen will display this error
                 return;
             }
@@ -136,7 +142,7 @@ export const AuthProvider = ({ children }) => {
             if (response.data.isAuthenticated) {
                 const userData = {
                     id: response.data.userId,
-                    email: response.data.email,
+                    contact_number: response.data.contact_number,
                     name: response.data.name,
                     role: response.data.role,
                     token: token[1],
@@ -235,6 +241,6 @@ export const AuthProvider = ({ children }) => {
             {children}
         </AuthContext.Provider>
     );
-};
+}
 
 export const useAuth = () => useContext(AuthContext);

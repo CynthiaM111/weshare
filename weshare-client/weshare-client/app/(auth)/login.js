@@ -4,24 +4,22 @@ import { useAuth } from '../context/AuthContext';
 import { Link, useRouter } from 'expo-router';
 import { Button, Input, Text, Layout } from '@ui-kitten/components';
 
-
-
 export default function Login() {
-    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login, loginError } = useAuth();
+    const [contact_number, setContact_number] = useState('');
+
+    const { login, loginError, logout } = useAuth();
     const router = useRouter();
 
     const handleLogin = async () => {
         try {
-            await login(email, password);
+            // Format phone number to match server validation
+            const formattedPhoneNumber = `+250${contact_number}`;
+            await login(formattedPhoneNumber, password);
         } catch (error) {
-            // Error is handled by useApi and displayed through ErrorDisplay
             console.error('Login error:', error);
         }
     };
-
-
 
     useEffect(() => {
         if (loginError) {
@@ -31,7 +29,14 @@ export default function Login() {
                 "We couldn't log you in at this time. Check your credentials and try again.";
 
             Alert.alert('Login Failed', userMessage, [
-                { text: 'Try Again', onPress: () => router.push('/(auth)/login') },
+                {
+                    text: 'Try Again',
+                    onPress: () => {
+                        // Clear any stored data on failed login attempt
+                        logout();
+                        router.push('/(auth)/login');
+                    }
+                },
                 { text: 'Cancel', style: 'cancel' }
             ]);
         }
@@ -45,12 +50,15 @@ export default function Login() {
 
                 <Input
                     style={styles.input}
-                    placeholder="Email"
-                    value={email}
-                    onChangeText={setEmail}
+                    placeholder="Phone Number"
+                    value={contact_number}
+                    onChangeText={setContact_number}
                     autoCapitalize="none"
-                    keyboardType="email-address"
+                    keyboardType="phone-pad"
+                    maxLength={9}
                 />
+                <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
+
                 <Input
                     style={styles.input}
                     placeholder="Password"
@@ -62,6 +70,7 @@ export default function Login() {
                 <Button
                     style={styles.button}
                     onPress={handleLogin}
+                    disabled={!contact_number || !password}
                 >
                     LOGIN
                 </Button>
@@ -107,4 +116,10 @@ const styles = StyleSheet.create({
     link: {
         alignSelf: 'center',
     },
+    phoneHint: {
+        fontSize: 12,
+        color: '#8F9BB3',
+        marginBottom: 10,
+        marginLeft: 5,
+    }
 });

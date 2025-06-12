@@ -11,9 +11,9 @@ export const ERROR_CODES = {
     // Authentication
     INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
     SESSION_EXPIRED: 'SESSION_EXPIRED',
-    EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
+    PHONE_NOT_VERIFIED: 'PHONE_NOT_VERIFIED',
     MISSING_FIELDS: 'MISSING_FIELDS',
-    EMAIL_ALREADY_EXISTS: 'EMAIL_ALREADY_EXISTS',
+    PHONE_ALREADY_EXISTS: 'PHONE_ALREADY_EXISTS',
 
     // Authorization
     UNAUTHORIZED: 'UNAUTHORIZED',
@@ -111,8 +111,8 @@ const getSpecificErrorMessage = (error, errorCode) => {
             }
             return "Incorrect email or password. Please check your credentials and try again.";
 
-        case ERROR_CODES.EMAIL_ALREADY_EXISTS:
-            return "An account with this email address already exists. Please use a different email or try logging in.";
+        case ERROR_CODES.PHONE_ALREADY_EXISTS:
+            return "An account with this phone number already exists. Please use a different phone number or try logging in.";
 
         case ERROR_CODES.RIDE_FULLY_BOOKED:
             if (serverMessage.toLowerCase().includes('seat')) {
@@ -204,9 +204,9 @@ export const ERROR_MESSAGES = {
     // Authentication
     [ERROR_CODES.INVALID_CREDENTIALS]: "Incorrect email or password.",
     [ERROR_CODES.SESSION_EXPIRED]: "Session expired. Please log in again.",
-    [ERROR_CODES.EMAIL_NOT_VERIFIED]: "Please verify your email to continue.",
+    [ERROR_CODES.PHONE_NOT_VERIFIED]: "Please verify your phone number to continue.",
     [ERROR_CODES.MISSING_FIELDS]: "Please fill in all required fields.",
-    [ERROR_CODES.EMAIL_ALREADY_EXISTS]: "An account with this email already exists.",
+    [ERROR_CODES.PHONE_ALREADY_EXISTS]: "An account with this phone number already exists.",
 
     // Authorization
     [ERROR_CODES.UNAUTHORIZED]: "You're not authorized to perform this action.",
@@ -323,7 +323,7 @@ const getSpecificErrorCode = (error) => {
 
         case 403:
             if (message.includes('verify') || message.includes('verification')) {
-                return ERROR_CODES.EMAIL_NOT_VERIFIED;
+                return ERROR_CODES.PHONE_NOT_VERIFIED;
             }
             return ERROR_CODES.FORBIDDEN;
 
@@ -342,7 +342,7 @@ const getSpecificErrorCode = (error) => {
 
         case 409:
             if (message.includes('email') && message.includes('exists')) {
-                return ERROR_CODES.EMAIL_ALREADY_EXISTS;
+                return ERROR_CODES.PHONE_ALREADY_EXISTS;
             }
             if (message.includes('full') || message.includes('booked')) {
                 return ERROR_CODES.RIDE_FULLY_BOOKED;

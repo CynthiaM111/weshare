@@ -148,7 +148,7 @@ export default function Profile() {
                             </View>
                             <View style={styles.userInfo}>
                                 <Text style={styles.userName}>{user.name}</Text>
-                                <Text style={styles.userEmail}>{user.email}</Text>
+                                <Text style={styles.userEmail}> {user.contact_number}</Text>
                                 <View style={styles.roleContainer}>
                                     <FontAwesome5
                                         name={user.role === 'agency_employee' ? 'building' : 'user'}
