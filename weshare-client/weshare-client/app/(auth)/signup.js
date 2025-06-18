@@ -5,6 +5,9 @@ import { Link, useRouter } from 'expo-router';
 import { Button, Input, Text, Layout, Select, SelectItem } from '@ui-kitten/components';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+import { useRef } from 'react';
 
 
 export default function Signup() {
@@ -18,7 +21,7 @@ export default function Signup() {
     const [categories, setCategories] = useState([]);
     const { signup, signupError } = useAuth();
     const router = useRouter();
-
+    const hasShownAlert = useRef(false);
 
     const fetchAgencies = async () => {
         try {
@@ -86,20 +89,28 @@ export default function Signup() {
         }
     };
 
+    useFocusEffect(
+        useCallback(() => {
+            if (signupError && !hasShownAlert.current) {
+                hasShownAlert.current = true;
+                const userMessage =
+                    signupError?.userMessage ||
+                    signupError?.response?.data?.error ||
+                    "We couldn't sign you up at this time. Check your credentials and try again.";
 
-    useEffect(() => {
-        if (signupError) {
-            const userMessage =
-                signupError?.userMessage ||
-                signupError?.response?.data?.error ||
-                "We couldn't sign you up at this time. Check your credentials and try again.";
+                Alert.alert('Signup Failed', userMessage, [
+                    { text: 'Try Again', onPress: () => router.push('/(auth)/signup') },
+                    { text: 'Cancel', style: 'cancel' },
+                ]);
+            }
+            return () => {
+                hasShownAlert.current = false; // Reset on focus change or unmount
+            };
+        }, [signupError, router])
+    );
 
-            Alert.alert('Signup Failed', userMessage, [
-                { text: 'Try Again', onPress: () => { setTimeout(() => { router.push('/(auth)/signup') }, 0) } },
-                { text: 'Cancel', style: 'cancel' }
-            ]);
-        }
-    }, [signupError]);
+
+    
 
 
 

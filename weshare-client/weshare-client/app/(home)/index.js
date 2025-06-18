@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef } from 'react';
 // import { styles } from '../../styles/HomeScreenStyles';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { useApi } from '../../hooks/useApi';
 // import ErrorDisplay from '../../components/ErrorDisplay';
@@ -62,22 +62,31 @@ export default function HomeScreen() {
     // Add refs for the inputs and animations
     const fromInputRef = useRef(null);
     const toInputRef = useRef(null);
-    const bounceAnim = useRef(new Animated.Value(1)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    // Use focus effect to refresh unread count when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            if (user) {
+                loadUnreadCount();
+            }
+        }, [user])
+    );
 
     useEffect(() => {
         loadFrequentSearches();
         loadUnreadCount();
-        // Add subtle bounce animation
+        // Pulse animation for notification badge
         Animated.loop(
             Animated.sequence([
-                Animated.timing(bounceAnim, {
-                    toValue: 1.05,
-                    duration: 2000,
+                Animated.timing(pulseAnim, {
+                    toValue: 1.2,
+                    duration: 1500,
                     useNativeDriver: true,
                 }),
-                Animated.timing(bounceAnim, {
+                Animated.timing(pulseAnim, {
                     toValue: 1,
-                    duration: 2000,
+                    duration: 1500,
                     useNativeDriver: true,
                 }),
             ])
@@ -126,7 +135,6 @@ export default function HomeScreen() {
         setIsSelectingSuggestion(true);
         setFrom(selected);
         setShowFromSuggestions(false);
-        // Focus the "To" input after selection
         setTimeout(() => {
             if (toInputRef.current) {
                 toInputRef.current.focus();
@@ -249,7 +257,7 @@ export default function HomeScreen() {
                 }
             });
         } catch (_) {
-
+            // Handle error silently
         };
     }
 
@@ -319,598 +327,598 @@ export default function HomeScreen() {
     };
 
     return (
-        <LinearGradient
-            colors={['#0a2472', '#1E90FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.backgroundGradient}
-        >
-            <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor="#0a2472" />
+        <View style={styles.container}>
+            <StatusBar barStyle="light-content" backgroundColor="#0a2472" />
 
-                {/* Header Section */}
+            {/* Header with Gradient */}
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerGradient}
+            >
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greetingText}>{getGreeting()}</Text>
-                        <Text style={styles.headerTitle}>Where are you heading? 🚗</Text>
+                    <View style={styles.headerContent}>
+                        <View>
+                            <Text style={styles.greeting}>{getGreeting()},</Text>
+                            <Text style={styles.userName}>{user?.name || 'Traveler'}</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.notificationButton}
+                            onPress={handleNotificationPress}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="notifications-outline" size={24} color="#ffffff" />
+                            {unreadCount > 0 && (
+                                <Animated.View
+                                    style={[
+                                        styles.notificationBadge,
+                                        { transform: [{ scale: pulseAnim }] }
+                                    ]}
+                                >
+                                    <Text style={styles.badgeText}>
+                                        {unreadCount > 99 ? '99+' : unreadCount}
+                                    </Text>
+                                </Animated.View>
+                            )}
+                        </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.notificationIcon} onPress={handleNotificationPress}>
-                        <Text style={styles.notificationEmoji}>🔔</Text>
-                        {unreadCount > 0 && (
-                            <View style={styles.notificationBadge}>
-                                <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                </View>
+            </LinearGradient>
+
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
+                {/* Search Section with Gradient Card */}
+                <View style={styles.searchSection}>
+                    <Text style={styles.sectionTitle}>Find Your Ride</Text>
+                    <Text style={styles.sectionSubtitle}>Where would you like to go today?</Text>
+
+                    <LinearGradient
+                        colors={['rgba(10, 36, 114, 0.05)', 'rgba(30, 144, 255, 0.05)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.searchCardGradient}
+                    >
+                        <View style={styles.searchCard}>
+                            <View style={styles.inputGroup}>
+                                <View style={styles.inputContainer}>
+                                    <Ionicons name="location" size={20} color="#3b82f6" />
+                                    <TextInput
+                                        ref={fromInputRef}
+                                        style={styles.input}
+                                        placeholder="From"
+                                        value={from}
+                                        onChangeText={handleFromChange}
+                                        placeholderTextColor="#94a3b8"
+                                        onFocus={() => setShowFromSuggestions(true)}
+                                        onBlur={handleFromBlur}
+                                        autoCapitalize="words"
+                                        autoCorrect={false}
+                                    />
+                                </View>
+
+                                {showFromSuggestions && fromSuggestions.length > 0 && (
+                                    <View style={styles.suggestionsContainer}>
+                                        {fromSuggestions.map((item) => (
+                                            <TouchableOpacity
+                                                key={item}
+                                                style={styles.suggestionItem}
+                                                onPress={() => handleFromSelect(item)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Ionicons name="location-outline" size={16} color="#64748b" />
+                                                <Text style={styles.suggestionText}>{item}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+
+                                <View style={styles.inputDivider}>
+                                    <View style={styles.dividerLine} />
+                                    <Ionicons name="arrow-down" size={16} color="#94a3b8" />
+                                    <View style={styles.dividerLine} />
+                                </View>
+
+                                <View style={styles.inputContainer}>
+                                    <Ionicons name="location" size={20} color="#ef4444" />
+                                    <TextInput
+                                        ref={toInputRef}
+                                        style={styles.input}
+                                        placeholder="To"
+                                        value={to}
+                                        onChangeText={handleToChange}
+                                        placeholderTextColor="#94a3b8"
+                                        onFocus={() => setShowToSuggestions(true)}
+                                        onBlur={handleToBlur}
+                                        autoCapitalize="words"
+                                        autoCorrect={false}
+                                    />
+                                </View>
+
+                                {showToSuggestions && toSuggestions.length > 0 && (
+                                    <View style={styles.suggestionsContainer}>
+                                        {toSuggestions.map((item) => (
+                                            <TouchableOpacity
+                                                key={item}
+                                                style={styles.suggestionItem}
+                                                onPress={() => handleToSelect(item)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Ionicons name="location-outline" size={16} color="#64748b" />
+                                                <Text style={styles.suggestionText}>{item}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
                             </View>
-                        )}
-                    </TouchableOpacity>
+
+                            <LinearGradient
+                                colors={['#0a2472', '#1E90FF']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.searchButtonGradient}
+                            >
+                                <TouchableOpacity
+                                    style={[
+                                        styles.searchButton,
+                                        (!from || !to || isSearching) && styles.searchButtonDisabled
+                                    ]}
+                                    onPress={() => handleSearch()}
+                                    disabled={!from || !to || isSearching}
+                                    activeOpacity={0.8}
+                                >
+                                    {isSearching ? (
+                                        <View style={styles.loadingContainer}>
+                                            <View style={styles.loadingSpinner} />
+                                            <Text style={styles.searchButtonText}>Searching...</Text>
+                                        </View>
+                                    ) : (
+                                        <>
+                                            <Ionicons name="search" size={20} color="#fff" />
+                                            <Text style={styles.searchButtonText}>Search Rides</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </LinearGradient>
+                        </View>
+                    </LinearGradient>
                 </View>
 
-                {/* Scrollable Content */}
-                <ScrollView
-                    style={styles.searchContainer}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                >
-                    {/* Fun Search Card */}
-                    <Animated.View style={[styles.inputContainer, { transform: [{ scale: bounceAnim }] }]}>
-                        <Text style={styles.searchCardTitle}>Let's find your perfect ride! 🎯</Text>
-
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.inputEmoji}>🏠</Text>
-                            <TextInput
-                                ref={fromInputRef}
-                                style={styles.input}
-                                placeholder="Where are you now?"
-                                value={from}
-                                onChangeText={handleFromChange}
-                                placeholderTextColor="#999"
-                                onFocus={() => setShowFromSuggestions(true)}
-                                onBlur={handleFromBlur}
-                            />
-                        </View>
-                        {showFromSuggestions && fromSuggestions.length > 0 && (
-                            <View style={styles.suggestionsContainer}>
-                                {fromSuggestions.map((item) => (
-                                    <TouchableOpacity
-                                        key={item}
-                                        style={styles.suggestionItem}
-                                        onPressIn={() => setIsSelectingSuggestion(true)}
-                                        onPress={() => handleFromSelect(item)}
-                                        onPressOut={() => setTimeout(() => setIsSelectingSuggestion(false), 200)}
-                                        activeOpacity={0.7}
-                                        delayPressIn={0}
-                                    >
-                                        <Text style={styles.suggestionEmoji}>📍</Text>
-                                        <Text style={styles.suggestionText}>{item}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-
-                        <View style={styles.inputDivider}>
-                            <Text style={styles.dividerEmoji}>⬇️</Text>
-                        </View>
-
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.inputEmoji}>🎯</Text>
-                            <TextInput
-                                ref={toInputRef}
-                                style={styles.input}
-                                placeholder="Where do you want to go?"
-                                value={to}
-                                onChangeText={handleToChange}
-                                placeholderTextColor="#999"
-                                onFocus={() => setShowToSuggestions(true)}
-                                onBlur={handleToBlur}
-                            />
-                        </View>
-                        {showToSuggestions && toSuggestions.length > 0 && (
-                            <View style={styles.suggestionsContainer}>
-                                {toSuggestions.map((item) => (
-                                    <TouchableOpacity
-                                        key={item}
-                                        style={styles.suggestionItem}
-                                        onPressIn={() => setIsSelectingSuggestion(true)}
-                                        onPress={() => handleToSelect(item)}
-                                        onPressOut={() => setTimeout(() => setIsSelectingSuggestion(false), 200)}
-                                        activeOpacity={0.7}
-                                        delayPressIn={0}
-                                    >
-                                        <Text style={styles.suggestionEmoji}>📍</Text>
-                                        <Text style={styles.suggestionText}>{item}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                    </Animated.View>
-
-                    {/* Fun Find Button */}
-                    <TouchableOpacity
-                        style={[styles.findButton, isSearching && styles.findButtonDisabled]}
-                        onPress={() => handleSearch()}
-                        disabled={isSearching}
-                    >
-                        <Text style={styles.findButtonText}>
-                            {isSearching ? '🔍 Searching for awesome rides...' : '🚀 Find My Ride!'}
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* Fun Frequent Searches */}
-                    {frequentSearches.length > 0 && (
-                        <View style={styles.frequentSearchesContainer}>
-                            <View style={styles.frequentSearchesTitleContainer}>
-                                <Text style={styles.frequentSearchesEmoji}>⭐</Text>
-                                <Text style={styles.frequentSearchesTitle}>Your favorite routes!</Text>
-                            </View>
-                            <View style={styles.frequentSearchesGrid}>
-                                {frequentSearches.map((search, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        style={styles.frequentSearchItem}
-                                        onPress={() => handleSearch(search.from, search.to)}
-                                    >
-                                        <View style={styles.frequentSearchContent}>
-                                            <View style={styles.frequentSearchLocation}>
-                                                <Text style={styles.frequentSearchEmoji}>📍</Text>
-                                                <Text style={styles.frequentSearchFrom}>{search.from}</Text>
-                                            </View>
-                                            <Text style={styles.arrowEmoji}>➡️</Text>
-                                            <Text style={styles.frequentSearchTo}>{search.to}</Text>
-                                        </View>
-                                        <Text style={styles.frequentSearchBadge}>Used {search.count} times</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-                    )}
-
-                    {/* Fun Private Rides Section */}
-                    <View style={styles.privateRidesContainer}>
-                        <View style={styles.privateRidesHeader}>
-                            <Text style={styles.privateRidesEmoji}>✨</Text>
-                            <Text style={styles.privateRidesTitle}>Want VIP treatment?</Text>
-                        </View>
-                        <Text style={styles.privateRidesDescription}>
-                            Get your own private ride! More comfort, more privacy, more awesome! 🎉
-                        </Text>
-                        <View style={styles.privateRidesButtonsContainer}>
+                {/* Quick Actions */}
+                <View style={styles.quickActionsSection}>
+                    <Text style={styles.sectionTitle}>Quick Actions</Text>
+                    <View style={styles.quickActionsGrid}>
+                        <LinearGradient
+                            colors={['rgba(217, 119, 6, 0.1)', 'rgba(245, 158, 11, 0.1)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.quickActionGradient}
+                        >
                             <TouchableOpacity
-                                style={[styles.privateRidesButton, styles.privateRidesButtonPrimary]}
+                                style={styles.quickActionCard}
                                 onPress={handleBookPrivateRide}
+                                activeOpacity={0.8}
                             >
-                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextPrimary]}>🔥 Book VIP Ride</Text>
+                                <View style={[styles.actionIcon, { backgroundColor: '#fef3c7' }]}>
+                                    <Ionicons name="car-sport" size={24} color="#d97706" />
+                                </View>
+                                <Text style={styles.actionTitle}>Book Private</Text>
+                                <Text style={styles.actionSubtitle}>VIP experience</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.privateRidesButton, styles.privateRidesButtonSecondary]}
-                                onPress={handleAddPrivateRide}
-                            >
-                                <Text style={[styles.privateRidesButtonText, styles.privateRidesButtonTextSecondary]}>🚗 Offer a Ride</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+                        </LinearGradient>
 
-                    {/* Fun Tips Section */}
-                    <View style={styles.tipsContainer}>
-                        <Text style={styles.tipsTitle}>💡 Pro Tips</Text>
-                        <View style={styles.tipItem}>
-                            <Text style={styles.tipEmoji}>🕐</Text>
-                            <Text style={styles.tipText}>Book early for better prices!</Text>
-                        </View>
-                        <View style={styles.tipItem}>
-                            <Text style={styles.tipEmoji}>👥</Text>
-                            <Text style={styles.tipText}>Share rides to meet new friends!</Text>
-                        </View>
-                        <View style={styles.tipItem}>
-                            <Text style={styles.tipEmoji}>🌟</Text>
-                            <Text style={styles.tipText}>Rate your driver to help the community!</Text>
+                        <LinearGradient
+                            colors={['rgba(37, 99, 235, 0.1)', 'rgba(59, 130, 246, 0.1)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.quickActionGradient}
+                        >
+                            <TouchableOpacity
+                                style={styles.quickActionCard}
+                                onPress={handleAddPrivateRide}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[styles.actionIcon, { backgroundColor: '#dbeafe' }]}>
+                                    <Ionicons name="add-circle" size={24} color="#2563eb" />
+                                </View>
+                                <Text style={styles.actionTitle}>Offer Ride</Text>
+                                <Text style={styles.actionSubtitle}>Share your car</Text>
+                            </TouchableOpacity>
+                        </LinearGradient>
+                    </View>
+                </View>
+
+                {/* Recent Searches */}
+                {frequentSearches.length > 0 && (
+                    <View style={styles.recentSearchesSection}>
+                        <Text style={styles.sectionTitle}>Recent Searches</Text>
+                        <View style={styles.recentSearchesList}>
+                            {frequentSearches.map((search, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.recentSearchItem}
+                                    onPress={() => handleSearch(search.from, search.to)}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={styles.recentSearchContent}>
+                                        <View style={styles.routeInfo}>
+                                            <Text style={styles.routeFrom}>{search.from}</Text>
+                                            <Ionicons name="arrow-forward" size={16} color="#94a3b8" />
+                                            <Text style={styles.routeTo}>{search.to}</Text>
+                                        </View>
+                                        <View style={styles.searchCount}>
+                                            <Ionicons name="time-outline" size={14} color="#64748b" />
+                                            <Text style={styles.countText}>{search.count} times</Text>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
                         </View>
                     </View>
-                </ScrollView>
-            </SafeAreaView>
-        </LinearGradient>
+                )}
+
+                {/* Tips Section */}
+                <View style={styles.tipsSection}>
+                    <Text style={styles.sectionTitle}>Travel Tips</Text>
+                    <View style={styles.tipsList}>
+                        <View style={styles.tipItem}>
+                            <View style={[styles.tipIcon, { backgroundColor: '#f0f9ff' }]}>
+                                <Ionicons name="time" size={16} color="#0284c7" />
+                            </View>
+                            <Text style={styles.tipText}>Book early for better prices</Text>
+                        </View>
+                        <View style={styles.tipItem}>
+                            <View style={[styles.tipIcon, { backgroundColor: '#f0fdf4' }]}>
+                                <Ionicons name="people" size={16} color="#16a34a" />
+                            </View>
+                            <Text style={styles.tipText}>Share rides to meet new people</Text>
+                        </View>
+                        <View style={styles.tipItem}>
+                            <View style={[styles.tipIcon, { backgroundColor: '#fef7ff' }]}>
+                                <Ionicons name="star" size={16} color="#9333ea" />
+                            </View>
+                            <Text style={styles.tipText}>Rate your driver to help others</Text>
+                        </View>
+                    </View>
+                </View>
+            </ScrollView>
+        </View>
     );
 }
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#f8fafc',
     },
-    backgroundGradient: {
-        flex: 1,
-        width: '100%',
-        height: '100%',
+    headerGradient: {
+        paddingTop: 60,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        backgroundColor: 'rgba(10, 36, 114, 0.8)',
     },
-    greetingText: {
+    headerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+    },
+    greeting: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#fff',
-        marginBottom: 2,
+        color: 'rgba(255, 255, 255, 0.9)',
+        marginBottom: 4,
     },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    notificationIcon: {
-        padding: 8,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        borderRadius: 20,
-    },
-    notificationEmoji: {
+    userName: {
         fontSize: 24,
+        fontWeight: '700',
+        color: '#ffffff',
+    },
+    notificationButton: {
+        padding: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 12,
+        position: 'relative',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     notificationBadge: {
         position: 'absolute',
-        top: -5,
-        right: -5,
-        backgroundColor: '#FF0000',
-        borderRadius: 12,
-        padding: 2,
+        top: -6,
+        right: -6,
+        backgroundColor: '#ef4444',
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+        borderWidth: 2,
+        borderColor: '#ffffff',
     },
-    notificationBadgeText: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#fff',
+    badgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#ffffff',
     },
-    searchContainer: {
+    scrollView: {
         flex: 1,
     },
     scrollContent: {
         padding: 20,
         paddingBottom: 100,
     },
-    inputContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 15,
+    searchSection: {
+        marginBottom: 30,
+    },
+    sectionTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#1e293b',
+        marginBottom: 8,
+    },
+    sectionSubtitle: {
+        fontSize: 16,
+        color: '#64748b',
+        marginBottom: 20,
+        lineHeight: 22,
+    },
+    searchCardGradient: {
+        borderRadius: 16,
+        padding: 2,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.15,
-        shadowRadius: 10,
-        elevation: 8,
-        borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
     },
-    searchCardTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#0a2472',
-        marginBottom: 15,
-        textAlign: 'center',
+    searchCard: {
+        backgroundColor: '#ffffff',
+        borderRadius: 14,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(10, 36, 114, 0.1)',
     },
-    inputWrapper: {
+    inputGroup: {
+        marginBottom: 20,
+    },
+    inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 15,
-        backgroundColor: '#f8f9ff',
-        borderRadius: 15,
-        marginVertical: 5,
-    },
-    inputEmoji: {
-        fontSize: 20,
-        marginRight: 10,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
     },
     input: {
         flex: 1,
         fontSize: 16,
-        color: '#333',
-        paddingVertical: 5,
+        color: '#1e293b',
+        marginLeft: 12,
+        fontWeight: '500',
     },
     inputDivider: {
+        flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 10,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
     },
-    dividerEmoji: {
-        fontSize: 16,
-        color: '#1E90FF',
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#e2e8f0',
     },
     suggestionsContainer: {
-        backgroundColor: 'white',
-        borderRadius: 15,
-        marginTop: 8,
-        maxHeight: 200,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        marginTop: 4,
+        marginBottom: 12,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 5,
+        shadowRadius: 8,
+        elevation: 4,
         borderWidth: 1,
-        borderColor: '#f0f0f0',
+        borderColor: '#e2e8f0',
     },
     suggestionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 15,
+        padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f5f5f5',
+        borderBottomColor: '#f1f5f9',
     },
     suggestionEmoji: {
         fontSize: 16,
-        marginRight: 10,
+        marginRight: 12,
     },
     suggestionText: {
         fontSize: 16,
-        color: '#333',
+        color: '#1e293b',
+        marginLeft: 12,
         fontWeight: '500',
     },
-    findButton: {
-        backgroundColor: '#0a2472',
-        paddingVertical: 18,
-        borderRadius: 25,
-        alignItems: 'center',
+    searchButtonGradient: {
+        borderRadius: 12,
+        padding: 2,
         shadowColor: '#0a2472',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.2,
         shadowRadius: 8,
-        elevation: 6,
-        marginBottom: 20,
-        borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        elevation: 4,
     },
-    findButtonDisabled: {
-        backgroundColor: 'rgba(10, 36, 114, 0.7)',
-    },
-    findButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    frequentSearchesContainer: {
-        marginTop: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        borderRadius: 20,
-        padding: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
-        marginBottom: 20,
-        borderWidth: 2,
-        borderColor: 'rgba(30, 144, 255, 0.3)',
-    },
-    frequentSearchesTitleContainer: {
+    searchButton: {
+        backgroundColor: 'transparent',
+        paddingVertical: 16,
+        borderRadius: 10,
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 15,
+        justifyContent: 'center',
     },
-    frequentSearchesEmoji: {
-        fontSize: 20,
+    searchButtonDisabled: {
+        backgroundColor: 'rgba(148, 163, 184, 0.3)',
+        shadowOpacity: 0,
+        elevation: 0,
+    },
+    loadingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadingSpinner: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
         marginRight: 8,
     },
-    frequentSearchesTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1E90FF',
+    searchButtonText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '600',
+        marginLeft: 8,
     },
-    frequentSearchesGrid: {
-        flexDirection: 'column',
+    quickActionsSection: {
+        marginBottom: 30,
+    },
+    quickActionsGrid: {
+        flexDirection: 'row',
         gap: 12,
     },
-    frequentSearchItem: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 15,
-        padding: 15,
-        width: '100%',
-        shadowColor: '#1E90FF',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        elevation: 4,
-        borderWidth: 2,
-        borderColor: 'rgba(30, 144, 255, 0.2)',
-    },
-    frequentSearchContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 5,
-    },
-    frequentSearchLocation: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    quickActionGradient: {
         flex: 1,
-    },
-    frequentSearchEmoji: {
-        fontSize: 16,
-        marginRight: 6,
-    },
-    frequentSearchFrom: {
-        fontSize: 15,
-        color: '#0a2472',
-        flex: 1,
-        fontWeight: '600',
-    },
-    frequentSearchTo: {
-        fontSize: 15,
-        color: '#0a2472',
-        flex: 1,
-        fontWeight: '600',
-    },
-    arrowEmoji: {
-        fontSize: 16,
-        marginHorizontal: 8,
-    },
-    frequentSearchBadge: {
-        fontSize: 11,
-        color: '#999',
-        fontWeight: 'bold',
-        fontStyle: 'italic',
-    },
-    privateRidesContainer: {
-        marginTop: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        borderRadius: 20,
-        padding: 20,
+        borderRadius: 16,
+        padding: 2,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
-        marginBottom: 20,
-        borderWidth: 2,
-        borderColor: 'rgba(10, 36, 114, 0.3)',
-    },
-    privateRidesHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    privateRidesEmoji: {
-        fontSize: 20,
-        marginRight: 10,
-    },
-    privateRidesTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#0a2472',
-    },
-    privateRidesDescription: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 15,
-        lineHeight: 20,
-        fontWeight: '500',
-    },
-    privateRidesButtonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    privateRidesButton: {
-        flex: 1,
-        paddingVertical: 15,
-        paddingHorizontal: 12,
-        borderRadius: 15,
-        alignItems: 'center',
-    },
-    privateRidesButtonPrimary: {
-        backgroundColor: '#0a2472',
-        shadowColor: '#0a2472',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 4,
-    },
-    privateRidesButtonSecondary: {
-        backgroundColor: '#ffffff',
-        borderWidth: 2,
-        borderColor: '#0a2472',
-        shadowColor: '#0a2472',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
         elevation: 2,
     },
-    privateRidesButtonText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    privateRidesButtonTextPrimary: {
-        color: '#ffffff',
-    },
-    privateRidesButtonTextSecondary: {
-        color: '#0a2472',
-    },
-    tipsContainer: {
-        marginTop: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        borderRadius: 20,
+    quickActionCard: {
+        backgroundColor: '#ffffff',
         padding: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
-        marginBottom: 30,
-        borderWidth: 2,
-        borderColor: 'rgba(255, 193, 7, 0.3)',
+        borderRadius: 14,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.05)',
     },
-    tipsTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#FFC107',
-        marginBottom: 15,
+    actionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    actionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1e293b',
+        marginBottom: 4,
         textAlign: 'center',
+    },
+    actionSubtitle: {
+        fontSize: 14,
+        color: '#64748b',
+        textAlign: 'center',
+    },
+    recentSearchesSection: {
+        marginBottom: 30,
+    },
+    recentSearchesList: {
+        gap: 12,
+    },
+    recentSearchItem: {
+        backgroundColor: '#ffffff',
+        padding: 16,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    recentSearchContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    routeInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    routeFrom: {
+        fontSize: 16,
+        color: '#1e293b',
+        fontWeight: '600',
+    },
+    routeTo: {
+        fontSize: 16,
+        color: '#1e293b',
+        fontWeight: '600',
+        marginLeft: 8,
+    },
+    searchCount: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    countText: {
+        fontSize: 12,
+        color: '#64748b',
+        marginLeft: 4,
+        fontWeight: '500',
+    },
+    tipsSection: {
+        marginBottom: 30,
+    },
+    tipsList: {
+        gap: 12,
     },
     tipItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
-        backgroundColor: '#fff9e6',
-        padding: 12,
+        backgroundColor: '#ffffff',
+        padding: 16,
         borderRadius: 12,
-        borderLeftWidth: 4,
-        borderLeftColor: '#FFC107',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
     },
-    tipEmoji: {
-        fontSize: 18,
+    tipIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
         marginRight: 12,
     },
     tipText: {
-        fontSize: 14,
-        color: '#333',
+        fontSize: 15,
+        color: '#1e293b',
         fontWeight: '500',
         flex: 1,
-    },
-    // Legacy styles kept for compatibility
-    bottomNav: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: 12,
-        backgroundColor: '#fff',
-        borderTopWidth: 1,
-        borderTopColor: '#eee',
-    },
-    navItem: {
-        alignItems: 'center',
-        paddingHorizontal: 10,
-    },
-    navText: {
-        fontSize: 12,
-        marginTop: 4,
-    },
-    iosButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    iosButton: {
-        backgroundColor: '#0a2472',
-        padding: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 10,
-        marginBottom: 20,
-    },
-    pickerContainer: {
-        backgroundColor: '#333',
-        borderRadius: Platform.OS === 'ios' ? 10 : 0,
-        padding: Platform.OS === 'ios' ? 10 : 0,
-        margin: 10,
-        height: Platform.OS === 'ios' ? 200 : 'auto',
-    },
-    buttonContainer: {
-        margin: 10,
-    },
-    dateTimeInput: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingRight: 12,
-    },
-    dateTimeText: {
-        fontSize: 16,
-        color: '#000',
+        lineHeight: 20,
     },
 });

@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
+import { useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import { format } from 'date-fns';
 
@@ -66,6 +67,16 @@ export default function MessagesScreen() {
         );
         return response.data;
     });
+
+    // Use focus effect to refresh data when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            if (user) {
+                loadMessages(1);
+                loadUnreadCount();
+            }
+        }, [user])
+    );
 
     useEffect(() => {
         loadMessages();
@@ -171,6 +182,10 @@ export default function MessagesScreen() {
                 return { name: 'bell', color: '#9C27B0' };
             case 'completion':
                 return { name: 'flag-checkered', color: '#607D8B' };
+            case 'private_ride_booked':
+                return { name: 'user-plus', color: '#4CAF50' };
+            case 'private_ride_completed':
+                return { name: 'star', color: '#FFC107' };
             default:
                 return { name: 'envelope', color: '#757575' };
         }
@@ -189,6 +204,10 @@ export default function MessagesScreen() {
             case 'reminder':
                 return 'Ride Reminder';
             case 'completion':
+                return 'Ride Completed';
+            case 'private_ride_booked':
+                return 'New Passenger';
+            case 'private_ride_completed':
                 return 'Ride Completed';
             default:
                 return 'Message';
