@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Link, useRouter } from 'expo-router';
 import { Button, Input, Text, Layout } from '@ui-kitten/components';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 export default function Login() {
     const [password, setPassword] = useState('');
     const [contact_number, setContact_number] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    const { login, loginError, logout } = useAuth();
+    const { login, loginError, logout, response } = useAuth();
     const router = useRouter();
 
     const handleLogin = async () => {
@@ -16,6 +20,7 @@ export default function Login() {
             // Format phone number to match server validation
             const formattedPhoneNumber = `+250${contact_number}`;
             await login(formattedPhoneNumber, password);
+            
         } catch (error) {
             console.error('Login error:', error);
         }
@@ -43,43 +48,57 @@ export default function Login() {
     }, [loginError]);
 
     return (
-        <Layout style={styles.container}>
-            <View style={styles.formContainer}>
-                <Text category='h1' style={styles.title}>Welcome Back</Text>
-                <Text category='s1' style={styles.subtitle}>Sign in to your account</Text>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}
+        >
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+            >
+                <Layout style={styles.container}>
+                    <View style={styles.formContainer}>
+                        <Text category='h1' style={styles.title}>Welcome Back</Text>
+                        <Text category='s1' style={styles.subtitle}>Sign in to your account</Text>
 
-                <Input
-                    style={styles.input}
-                    placeholder="Phone Number"
-                    value={contact_number}
-                    onChangeText={setContact_number}
-                    autoCapitalize="none"
-                    keyboardType="phone-pad"
-                    maxLength={9}
-                />
-                <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
+                        <Input
+                            style={styles.input}
+                            placeholder="Phone Number"
+                            value={contact_number}
+                            onChangeText={setContact_number}
+                            autoCapitalize="none"
+                            keyboardType="phone-pad"
+                            maxLength={9}
+                            textContentType="telephoneNumber"
+                            autoComplete="tel"
+                        />
+                        <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
 
-                <Input
-                    style={styles.input}
-                    placeholder="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                />
+                        <Input
+                            style={styles.input}
+                            placeholder="Password"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                            textContentType="password"
+                            autoComplete="password"
+                        />
 
-                <Button
-                    style={styles.button}
-                    onPress={handleLogin}
-                    disabled={!contact_number || !password}
-                >
-                    LOGIN
-                </Button>
+                        <Button
+                            style={styles.button}
+                            onPress={handleLogin}
+                            disabled={!contact_number || !password}
+                        >
+                            LOGIN
+                        </Button>
 
-                <Link href="/(auth)/signup" style={styles.link}>
-                    <Text category='s1' status='info'>Don't have an account? Sign up</Text>
-                </Link>
-            </View>
-        </Layout>
+                        <Link href="/(auth)/signup" style={styles.link}>
+                            <Text category='s1' status='info'>Don't have an account? Sign up</Text>
+                        </Link>
+                    </View>
+                </Layout>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -87,6 +106,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+    },
+    scrollContent: {
+        flexGrow: 1,
     },
     formContainer: {
         flex: 1,

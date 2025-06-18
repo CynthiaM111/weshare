@@ -27,13 +27,17 @@ export default function Profile() {
             axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies/${user.agencyId}`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             }),
-            axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies/${user.agencyId}/categories/${user.destinationCategoryId}`, {
+            axios.get(`${process.env.EXPO_PUBLIC_API_URL}/destinations/agency/${user.agencyId}`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             })
         ]);
+
         setAgencyName(agencyRes.data.name);
-        setDestinationCategory(`${categoryRes.data.from} to ${categoryRes.data.to}`);
-        return { agency: agencyRes.data, category: categoryRes.data };
+        const category = categoryRes.data.find(cat => cat._id === user.destinationCategoryId);
+        if (category) {
+            setDestinationCategory(`${category.from} to ${category.to}`);
+        }
+        return { agency: agencyRes.data, category };
     });
 
     useEffect(() => {

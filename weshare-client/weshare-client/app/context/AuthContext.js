@@ -17,21 +17,25 @@ export const AuthProvider = ({ children }) => {
     const router = useRouter();
     const { handleAuthError, handleGlobalError } = useError();
 
-    const loginApi = useApi(async (contact_number, password) => {
+    const loginApi = useApi(async (contact_number, password, email) => {
         try {
             // Clear any existing auth data before login
             await AsyncStorage.multiRemove(['token', 'role', 'userData', 'contact_number']);
+            console.log('[LOGIN API] Attempting login with:', { contact_number, email });
 
             const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/auth/login`, {
                 contact_number,
                 password,
+                email
             });
+            const data = response.data;
+            console.log('[LOGIN API] Login response:', data);
 
             if (response.status !== 200) {
+                console.log('[LOGIN API] Non-200 response:', response.status);
                 throw new Error(response.data.error || 'Login failed. Check your credentials and try again.');
             }
 
-            const data = response.data;
             const userData = {
                 id: data.userId,
                 contact_number: data.contact_number,
@@ -40,7 +44,9 @@ export const AuthProvider = ({ children }) => {
                 token: data.token,
                 agencyId: data.agencyId,
                 destinationCategoryId: data.destinationCategoryId,
+                isVerified: data.isVerified
             };
+            console.log('[LOGIN API] Created user data:', userData);
 
             // Store auth data
             await AsyncStorage.multiSet([
@@ -49,14 +55,29 @@ export const AuthProvider = ({ children }) => {
                 ['contact_number', data.contact_number],
                 ['userData', JSON.stringify(userData)]
             ]);
+            console.log('[LOGIN API] Auth data stored in AsyncStorage');
 
             setUser(userData);
 
-            const route = data.role === 'agency' ? '/(agency)' :
-                data.role === 'agency_employee' ? '/(employee)' :
-                    '/(home)';
-            router.replace(route);
+            // Navigate based on verification
+            if (!data.isVerified) {
+                console.log('[LOGIN API] User is not verified. Redirecting to /verify');
+                router.replace('/(auth)/verify');
+            } else {
+                const route = data.role === 'agency' ? '/(agency)' :
+                    data.role === 'agency_employee' ? '/(employee)' :
+                        '/(home)';
+                console.log(`[LOGIN API] User is verified. Redirecting to ${route}`);
+                router.replace(route);
+            }
+            return data;
+
         } catch (error) {
+            console.error('[LOGIN API] Error:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
             // Clear any partial data on error
             await AsyncStorage.multiRemove(['token', 'role', 'userData', 'contact_number']);
             const formattedError = handleAuthError(error);
@@ -64,6 +85,10 @@ export const AuthProvider = ({ children }) => {
         }
     }, {
         onError: (error) => {
+            console.log('[LOGIN API] Error handler:', {
+                code: error.code,
+                message: error.message
+            });
             // Handle specific authentication errors
             if (error.code === ERROR_CODES.INVALID_CREDENTIALS) {
                 // Don't show additional alerts, the login screen will handle this
@@ -74,17 +99,42 @@ export const AuthProvider = ({ children }) => {
     });
 
     const signupApi = useApi(async (userData, role) => {
-        const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/auth/signup`, {
-            ...userData,
-            role,
-        });
+        try {
+            const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/auth/signup`, {
+                ...userData,
+                role,
+            });
+            const data = response.data;
+            console.log('[SIGNUP] Signup response:', data);
+            if (response.status !== 201) {
+                throw new Error(response.data.error || 'Signup failed');
+            }
 
-        if (response.status !== 201) {
-            throw new Error(response.data.error || 'Signup failed');
+            // Store minimal user data for verification
+            const verificationData = {
+                contact_number: userData.contact_number,
+                role: role,
+                name: userData.name,
+                isVerified: data.isVerified
+            };
+
+            await AsyncStorage.setItem('verificationData', JSON.stringify(verificationData));
+
+            // Return the response data
+            // Navigate to verify screen if required
+            if (data.requiresVerification) {
+                console.log('[SIGNUP] Verification required. Redirecting to /verify');
+                router.replace('/(auth)/verify');
+            } else {
+                console.log('[SIGNUP] No verification required.');
+            }
+
+            return data;
+
+        } catch (error) {
+            console.error('Signup error:', error);
+            throw error;
         }
-
-        Alert.alert('Success', response.data.message);
-        await loginApi.execute(userData.contact_number, userData.password);
     }, {
         onError: (error) => {
             // Handle specific signup errors
@@ -148,6 +198,7 @@ export const AuthProvider = ({ children }) => {
                     token: token[1],
                     agencyId: response.data.agencyId,
                     destinationCategoryId: response.data.destinationCategoryId,
+                    isVerified: response.data.isVerified
                 };
 
                 await AsyncStorage.setItem('userData', JSON.stringify(userData));

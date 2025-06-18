@@ -101,10 +101,16 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading || !isNavigationReady || !user) return;
 
+    // Don't redirect if user needs verification
+    if (!user.isVerified) {
+      console.log('[ROOT LAYOUT] User needs verification, not redirecting');
+      return;
+    }
+
     const homeRoute = user.role === 'agency_employee' ? '/(employee)' : '/(home)';
     // Only navigate if not already on the correct route
     if (router.pathname !== homeRoute) {
-
+      console.log('[ROOT LAYOUT] Redirecting to home route:', homeRoute);
       router.replace(homeRoute);
     }
   }, [user, loading, isNavigationReady, router]);
@@ -273,6 +279,14 @@ function RootLayoutNav() {
         />
         <Tabs.Screen
           name="(auth)/signup"
+          options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
+        />
+        <Tabs.Screen
+          name="(auth)/verify"
+          options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
+        />
+        <Tabs.Screen
+          name="(messages)/index"
           options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
         />
         <Tabs.Screen

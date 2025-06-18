@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Link, useRouter } from 'expo-router';
 import { Button, Input, Text, Layout, Select, SelectItem } from '@ui-kitten/components';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function Signup() {
@@ -22,6 +23,7 @@ export default function Signup() {
     const fetchAgencies = async () => {
         try {
             const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies`);
+            
             setAgencies(res.data);
         } catch (error) {
             console.error('Error fetching agencies:', error);
@@ -39,8 +41,9 @@ export default function Signup() {
         if (agencyId) {
             const fetchCategories = async () => {
                 try {
-                    const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies/${agencyId}/categories`);
+                    const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/destinations/agency/${agencyId}`);
                     setCategories(res.data);
+                   
                 } catch (error) {
                     console.error('Error fetching categories:', error);
                     setError('Failed to load categories');
@@ -92,7 +95,7 @@ export default function Signup() {
                 "We couldn't sign you up at this time. Check your credentials and try again.";
 
             Alert.alert('Signup Failed', userMessage, [
-                { text: 'Try Again', onPress: () => router.push('/(auth)/signup') },
+                { text: 'Try Again', onPress: () => { setTimeout(() => { router.push('/(auth)/signup') }, 0) } },
                 { text: 'Cancel', style: 'cancel' }
             ]);
         }
@@ -151,9 +154,7 @@ export default function Signup() {
                             value={roleDisplay}
                             onSelect={index => {
                                 const newRole = index.row === 0 ? 'user' : 'agency_employee';
-                                setTimeout(() => {
-                                    setRole(newRole);
-                                }, 1000);
+                                setRole(newRole);
                             }}
                             size="large"
                         >
@@ -168,9 +169,7 @@ export default function Signup() {
                                     value={agencyDisplay}
                                     onSelect={index => {
                                         const newAgencyId = agencies[index.row]?._id || '';
-                                        setTimeout(() => {
-                                            setAgencyId(newAgencyId);
-                                        }, 1000);
+                                        setAgencyId(newAgencyId);
                                     }}
                                     disabled={agencies.length === 0}
                                     size="large"
@@ -185,9 +184,7 @@ export default function Signup() {
                                     value={categoryDisplay}
                                     onSelect={index => {
                                         const newCategoryId = categories[index.row]?._id || '';
-                                        setTimeout(() => {
-                                            setDestinationCategoryId(newCategoryId);
-                                        }, 1000);
+                                        setDestinationCategoryId(newCategoryId);
                                     }}
                                     disabled={!agencyId || categories.length === 0}
                                     size="large"

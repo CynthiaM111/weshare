@@ -57,6 +57,7 @@ export default function HomeScreen() {
     const [isSelectingSuggestion, setIsSelectingSuggestion] = useState(false);
     const router = useRouter();
     const { user } = useAuth();
+    const [unreadCount, setUnreadCount] = useState(0);
 
     // Add refs for the inputs and animations
     const fromInputRef = useRef(null);
@@ -65,6 +66,7 @@ export default function HomeScreen() {
 
     useEffect(() => {
         loadFrequentSearches();
+        loadUnreadCount();
         // Add subtle bounce animation
         Animated.loop(
             Animated.sequence([
@@ -80,7 +82,7 @@ export default function HomeScreen() {
                 }),
             ])
         ).start();
-    }, [loadFrequentSearches]);
+    }, []);
 
     // Load frequent searches when user changes (login/logout)
     useEffect(() => {
@@ -247,9 +249,9 @@ export default function HomeScreen() {
                 }
             });
         } catch (_) {
-            
-    };
-}
+
+        };
+    }
 
     const handleAddPrivateRide = () => {
         router.push('/(rides)/add-private-ride');
@@ -278,21 +280,44 @@ export default function HomeScreen() {
 
     useEffect(() => {
         if (searchError) {
-            const userMessage =
-                searchError?.userMessage ||
-                searchError?.response?.data?.error ||
-                "We couldn't find rides at the moment. Please try again.";
-
             Alert.alert(
                 'Search Error',
-                userMessage,
+                searchError.userMessage || 'We encountered an error while searching for rides. Please try again.',
                 [
-                    { text: 'Try Again', onPress: () => router.push('/(home)') },
-                    { text: 'Cancel', style: 'cancel' }
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Retry', onPress: retrySearch }
                 ]
             );
         }
     }, [searchError]);
+
+    const {
+        error: unreadError,
+        execute: fetchUnreadCount,
+        retry: retryUnreadCount
+    } = useApi(async () => {
+        const response = await axios.get(
+            `${process.env.EXPO_PUBLIC_API_URL}/messages/unread-count`,
+            {
+                headers: { Authorization: `Bearer ${user.token}` },
+            }
+        );
+        return response.data;
+    });
+
+    const loadUnreadCount = async () => {
+        try {
+            const result = await fetchUnreadCount();
+            setUnreadCount(result.count || 0);
+        } catch (error) {
+            console.error('Error loading unread count:', error);
+        }
+    };
+
+    const handleNotificationPress = () => {
+        router.push('/(messages)');
+    };
+
     return (
         <LinearGradient
             colors={['#0a2472', '#1E90FF']}
@@ -309,8 +334,13 @@ export default function HomeScreen() {
                         <Text style={styles.greetingText}>{getGreeting()}</Text>
                         <Text style={styles.headerTitle}>Where are you heading? 🚗</Text>
                     </View>
-                    <TouchableOpacity style={styles.notificationIcon}>
+                    <TouchableOpacity style={styles.notificationIcon} onPress={handleNotificationPress}>
                         <Text style={styles.notificationEmoji}>🔔</Text>
+                        {unreadCount > 0 && (
+                            <View style={styles.notificationBadge}>
+                                <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -516,6 +546,19 @@ export const styles = StyleSheet.create({
     },
     notificationEmoji: {
         fontSize: 24,
+    },
+    notificationBadge: {
+        position: 'absolute',
+        top: -5,
+        right: -5,
+        backgroundColor: '#FF0000',
+        borderRadius: 12,
+        padding: 2,
+    },
+    notificationBadgeText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#fff',
     },
     searchContainer: {
         flex: 1,
