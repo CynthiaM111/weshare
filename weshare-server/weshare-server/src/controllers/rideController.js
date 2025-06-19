@@ -5,6 +5,7 @@ const User = require('../models/user');
 const DestinationCategory = require('../models/destinationCategory');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
+const messagingService = require('../services/messagingService');
 
 // Helper function to clear Redis cache
 const clearCache = async () => {
@@ -188,7 +189,7 @@ const createRide = async (req, res) => {
                 return res.status(400).json({ error: 'You cannot create a ride more than 30 days in advance' });
             }
 
-            
+
 
             // Check time range (6 AM to 10 PM)
             const hours = departureTime.getHours();
@@ -392,6 +393,14 @@ const updateRide = async (req, res) => {
             return res.status(404).json({ error: 'Ride not found' });
         }
 
+        // Send ride update messages to all passengers
+        try {
+            await messagingService.sendRideUpdateToPassengers(id, updates);
+        } catch (messageError) {
+            console.error('Failed to send ride update messages:', messageError);
+            // Don't fail the update if message sending fails
+        }
+
         await clearCache();
         const rideWithStatus = {
             ...updatedRide.toObject(),
@@ -411,6 +420,14 @@ const deleteRide = async (req, res) => {
 
         if (!ride) {
             return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        // Send ride cancellation messages to all passengers
+        try {
+            await messagingService.sendRideCancellationToPassengers(id);
+        } catch (messageError) {
+            console.error('Failed to send ride cancellation messages:', messageError);
+            // Don't fail the deletion if message sending fails
         }
 
         await clearCache(); // Clear cache on delete
@@ -527,6 +544,14 @@ const bookRide = async (req, res) => {
         const user = await User.findById(userId);
         user.booked_rides.push(rideId);
         await user.save();
+
+        // Send booking confirmation message
+        try {
+            await messagingService.sendBookingConfirmation(userId, rideId);
+        } catch (messageError) {
+            console.error('Failed to send booking confirmation message:', messageError);
+            // Don't fail the booking if message sending fails
+        }
 
         await redisClient.del(`bookedRides:${userId}`);
         res.status(200).json({
@@ -652,6 +677,14 @@ const cancelRideBooking = async (req, res) => {
         const user = await User.findById(userId);
         user.booked_rides = user.booked_rides.filter(id => id.toString() !== rideId);
         await user.save();
+
+        // Send booking cancellation message
+        try {
+            await messagingService.sendBookingCancellation(userId, rideId);
+        } catch (messageError) {
+            console.error('Failed to send booking cancellation message:', messageError);
+            // Don't fail the cancellation if message sending fails
+        }
 
         await redisClient.del(`bookedRides:${userId}`);
         await clearCache();
@@ -1107,6 +1140,14 @@ const completeRideWithPin = async (req, res) => {
         // Clear cache for all passengers on this ride
         for (const booking of ride.bookedBy) {
             await redisClient.del(`bookedRides:${booking.userId._id || booking.userId}`);
+        }
+
+        // Send ride completion message to the passenger
+        try {
+            await messagingService.sendRideCompletion(passengerUserId, rideId);
+        } catch (messageError) {
+            console.error('Failed to send ride completion message:', messageError);
+            // Don't fail the completion if message sending fails
         }
 
         console.log('Ride completed successfully for passenger:', passengerUserId);

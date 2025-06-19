@@ -31,8 +31,8 @@ const agencySchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
-    role: { 
-        type: String, enum: ['agency'], default: 'agency' 
+    role: {
+        type: String, enum: ['agency'], default: 'agency'
     },
     created_at: {
         type: Date,

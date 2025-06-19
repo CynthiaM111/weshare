@@ -85,3 +85,16 @@ exports.deleteCategory = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getCategoriesByAgency = async (req, res) => {
+    try {
+        const { agencyId } = req.params;
+        const categories = await DestinationCategory.find({
+            agencyId,
+            isActive: true
+        }).sort({ from: 1, to: 1 });
+        res.json(categories);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

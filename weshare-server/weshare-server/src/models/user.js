@@ -5,7 +5,10 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true, minlength: 6 },
     role: { type: String, enum: ['user', 'agency_employee'], default: 'user' }, // Only normal users here
     name: { type: String, required: true },
-    contact_number: { type: String, required: true, unique: true, match: [/^\+2507[2389]\d{7}$/, 'Please enter a valid Rwandan phone number']},
+    contact_number: { type: String, required: true, unique: true, match: [/^\+2507[2389]\d{7}$/, 'Please enter a valid Rwandan phone number'] },
+    isVerified: { type: Boolean, default: false },
+    verificationCode: { type: String },
+    verificationCodeExpires: { type: Date },
     agencyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Agency' },
     destinationCategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'DestinationCategory' },
     created_at: { type: Date, default: Date.now },
@@ -15,5 +18,23 @@ const userSchema = new mongoose.Schema({
     }]
 });
 
+// Create indexes
+userSchema.index({ contact_number: 1 }, { unique: true });
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
+
 const User = mongoose.model('User', userSchema);
+
+// Ensure indexes are created
+const ensureIndexes = async () => {
+    try {
+        await User.createIndexes();
+        console.log('User model indexes created successfully');
+    } catch (error) {
+        console.error('Error creating User model indexes:', error);
+    }
+};
+
+// Call ensureIndexes when the model is loaded
+ensureIndexes();
+
 module.exports = User;

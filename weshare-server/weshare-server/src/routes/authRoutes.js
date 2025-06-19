@@ -1,12 +1,32 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
+const {
+    signup,
+    login,
+    protect,
+    agencyOnly,
+    status,
+    employeeOnly,
+    getAgencies,
+    getAgencyCategories,
+    getAgencyById,
+    getDestinationCategoryById,
+    verifyPhone,
+    resendVerificationCode,
+    sendOTP
+} = require('../controllers/authController');
 
-router.post('/signup', authController.signup);
-router.post('/login', authController.login);
-router.get('/status', authController.status);
-router.get('/agencies', authController.getAgencies);
-router.get('/agencies/:agencyId/categories', authController.getAgencyCategories);
-router.get('/agencies/:agencyId/categories/:categoryId', authController.protect, authController.getDestinationCategoryById);
-router.get('/agencies/:agencyId', authController.protect, authController.getAgencyById);
+// Public routes
+router.post('/signup', signup);
+router.post('/login', login);
+router.post('/verify-phone', verifyPhone);
+router.post('/resend-verification', resendVerificationCode);
+router.post('/send-otp', sendOTP);
+// Protected routes
+router.get('/status', protect, status);
+router.get('/agencies', getAgencies);
+router.get('/agencies/:agencyId', protect, getAgencyById);
+router.get('/agencies/:id/categories', getAgencyCategories);
+router.get('/categories/:id', protect, getDestinationCategoryById);
+
 module.exports = router;
