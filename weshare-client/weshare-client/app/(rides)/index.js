@@ -1,13 +1,12 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal, ScrollView, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal, ScrollView, Alert, StatusBar, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import RideCard from '../../components/RideCard';
 import { useLocalSearchParams } from 'expo-router';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
-// import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -234,276 +233,379 @@ export default function RidesScreen() {
     const hasEmptySearchResults = hasSearched && !hasSearchResults; // User searched but got no results
 
     return (
-        <LinearGradient
-            colors={['#0a2472', '#1E90FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.backgroundGradient}
-        >
-            <SafeAreaView style={styles.container}>
-                <FlatList
-                    data={[]}
-                    renderItem={null}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isLoadingBookings || isLoadingPrivateRides}
-                            onRefresh={onRefresh}
-                            colors={['#4CAF50']}
-                            tintColor='#4CAF50'
-                        />
-                    }
-                    contentContainerStyle={styles.scrollContent}
-                    ListHeaderComponent={
-                        <>
-                            {/* No search performed yet */}
-                            {!hasSearched && (
-                                <View style={styles.emptySearchContainer}>
-                                    <View style={styles.emptySearchIcon}>
-                                        <FontAwesome5 name="route" size={56} color="#2196F3" />
-                                    </View>
-                                    <Text style={styles.welcomeTitle}>
-                                        {hasBookings ? "Ready for your next adventure?" : "Welcome to WeShare!"}
-                                    </Text>
-                                    <Text style={styles.emptySearchText}>
-                                        {hasBookings
-                                            ? "Search for rides to discover new destinations and connect with fellow travelers."
-                                            : 'Find shared rides to your destination and start your journey with us.'}
-                                    </Text>
+        <View style={styles.container}>
+            <StatusBar barStyle="light-content" backgroundColor="#3b82f6" />
+
+            {/* Header with Gradient */}
+            <LinearGradient
+                colors={['#3b82f6', '#1d4ed8', '#1e40af']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerGradient}
+            >
+                <View style={styles.header}>
+                    <View style={styles.headerContent}>
+                        <View style={styles.headerLeft}>
+                            <View style={styles.headerIconContainer}>
+                                <Ionicons name="car-sport" size={32} color="#fbbf24" />
+                            </View>
+                            <View>
+                                <Text style={styles.headerTitle}>Available Rides</Text>
+                                <Text style={styles.headerSubtitle}>
+                                    {hasSearchResults ? `${searchResults.length} rides found` : 'Find your perfect ride'}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={styles.headerRight}>
+                            <Ionicons name="star" size={20} color="#fbbf24" />
+                        </View>
+                    </View>
+                </View>
+            </LinearGradient>
+
+            <FlatList
+                data={[]}
+                renderItem={null}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isLoadingBookings || isLoadingPrivateRides}
+                        onRefresh={onRefresh}
+                        colors={['#3b82f6']}
+                        tintColor='#3b82f6'
+                    />
+                }
+                contentContainerStyle={styles.scrollContent}
+                ListHeaderComponent={
+                    <>
+                        {/* No search performed yet */}
+                        {!hasSearched && (
+                            <View style={styles.emptySearchContainer}>
+                                <View style={styles.emptySearchIcon}>
+                                    <Text style={styles.emptySearchEmoji}>🎯</Text>
+                                </View>
+                                <Text style={styles.welcomeTitle}>
+                                    {hasBookings ? "Ready for your next adventure?" : "Welcome to WeShare!"}
+                                </Text>
+                                <Text style={styles.emptySearchText}>
+                                    {hasBookings
+                                        ? "Search for rides to discover new destinations and connect with fellow travelers."
+                                        : 'Find shared rides to your destination and start your journey with us.'}
+                                </Text>
+                                <LinearGradient
+                                    colors={['#3b82f6', '#1d4ed8']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={styles.searchButtonGradient}
+                                >
                                     <TouchableOpacity
                                         style={styles.searchButton}
                                         onPress={() => router.push('/(home)')}
                                     >
-                                        <FontAwesome5
-                                            name="search"
-                                            size={16}
-                                            color="#fff"
-                                            style={styles.searchIcon}
-                                        />
+                                        <Ionicons name="search" size={20} color="#fff" />
                                         <Text style={styles.searchButtonText}>Search for Rides</Text>
                                     </TouchableOpacity>
+                                </LinearGradient>
+                            </View>
+                        )}
+
+                        {/* User searched but no results found */}
+                        {hasEmptySearchResults && (
+                            <View style={styles.noResultsContainer}>
+                                <View style={styles.noResultsIcon}>
+                                    <Text style={styles.noResultsEmoji}>🔍</Text>
                                 </View>
-                            )}
+                                <Text style={styles.noResultsTitle}>No rides found</Text>
+                                <Text style={styles.noResultsText}>
+                                    We couldn't find any rides matching your search criteria. Try adjusting your search or check back later.
+                                </Text>
+                                <LinearGradient
+                                    colors={['#3b82f6', '#1d4ed8']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={styles.newSearchButtonGradient}
+                                >
+                                    <TouchableOpacity
+                                        style={styles.newSearchButton}
+                                        onPress={() => router.push('/(home)')}
+                                    >
+                                        <Ionicons name="search" size={20} color="#fff" />
+                                        <Text style={styles.newSearchText}>Try New Search</Text>
+                                    </TouchableOpacity>
+                                </LinearGradient>
 
-                            {/* User searched but no results found */}
-                            {hasEmptySearchResults && (
-                                <View style={styles.noResultsContainer}>
-                                    <View style={styles.noResultsIcon}>
-                                        <FontAwesome5 name="search-minus" size={52} color="#FF6B6B" />
-                                    </View>
-                                    <Text style={styles.noResultsTitle}>No rides found</Text>
-                                    <Text style={styles.noResultsText}>
-                                        We couldn't find any rides matching your search criteria. Try adjusting your search or check back later.
-                                    </Text>
-                                    <View style={styles.noResultsActions}>
-                                        <TouchableOpacity
-                                            style={styles.newSearchButton}
-                                            onPress={() => router.push('/(home)')}
-                                        >
-                                            <FontAwesome5
-                                                name="search"
-                                                size={16}
-                                                color="#fff"
-                                                style={styles.newSearchIcon}
-                                            />
-                                            <Text style={styles.newSearchText}>Try New Search</Text>
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    {/* Quick action buttons for empty results */}
-                                    {user && (
-                                        <View style={styles.emptyResultsActionsRow}>
-                                            {hasBookings && (
-                                                <TouchableOpacity
-                                                    style={styles.emptyResultButton}
-                                                    onPress={() => router.push('/(rides)/booked')}
-                                                >
-                                                    <FontAwesome5 name="ticket-alt" size={14} color="#2563EB" />
-                                                    <Text style={styles.emptyResultButtonText}>My Bookings</Text>
-                                                </TouchableOpacity>
-                                            )}
-                                            <TouchableOpacity
-                                                style={styles.emptyResultButton}
-                                                onPress={() => router.push('/(rides)/private')}
-                                            >
-                                                <FontAwesome5 name="car" size={14} color="#0a2472" />
-                                                <Text style={styles.emptyResultButtonText}>My Rides</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                </View>
-                            )}
-
-                            {/* All action buttons and status messages at the top for better visibility */}
-                            {hasSearchResults && (
-                                <View style={styles.topActionsContainer}>
-                                    {/* Already booked message */}
-                                    {groupedBookedRides.length > 0 && (
-                                        <View style={styles.bookedNotice}>
-                                            <FontAwesome5 name="check-circle" size={18} color="#4CAF50" />
-                                            <Text style={styles.bookedNoticeText}>Already booked</Text>
-                                        </View>
-                                    )}
-
-                                    {/* Action buttons */}
-                                    <View style={styles.quickActionsRow}>
+                                {/* Quick action buttons for empty results */}
+                                {user && (
+                                    <View style={styles.emptyResultsActionsRow}>
                                         {hasBookings && (
                                             <TouchableOpacity
-                                                style={styles.compactButton}
+                                                style={styles.emptyResultButton}
                                                 onPress={() => router.push('/(rides)/booked')}
                                             >
-                                                <FontAwesome5 name="ticket-alt" size={14} color="#2563EB" />
-                                                <Text style={styles.compactButtonText}>Bookings</Text>
+                                                <Ionicons name="ticket" size={16} color="#3b82f6" />
+                                                <Text style={styles.emptyResultButtonText}>My Bookings</Text>
                                             </TouchableOpacity>
                                         )}
-                                        {user && (
-                                            <TouchableOpacity
-                                                style={styles.compactButton}
-                                                onPress={() => router.push('/(rides)/private')}
-                                            >
-                                                <FontAwesome5 name="car" size={14} color="#0a2472" />
-                                                <Text style={styles.compactButtonText}>My Rides</Text>
-                                            </TouchableOpacity>
-                                        )}
+                                        <TouchableOpacity
+                                            style={styles.emptyResultButton}
+                                            onPress={() => router.push('/(rides)/private')}
+                                        >
+                                            <Ionicons name="car-sport" size={16} color="#1d4ed8" />
+                                            <Text style={styles.emptyResultButtonText}>My Rides</Text>
+                                        </TouchableOpacity>
                                     </View>
-                                </View>
-                            )}
+                                )}
+                            </View>
+                        )}
 
-                            {hasSearchResults && groupedAvailableRides.length > 0 && (
-                                <View style={styles.section}>
-                                    <TouchableOpacity onPress={() => toggleExpand('available')}>
+                        {/* All action buttons and status messages at the top for better visibility */}
+                        {hasSearchResults && (
+                            <View style={styles.topActionsContainer}>
+                                {/* Already booked message */}
+                                {groupedBookedRides.length > 0 && (
+                                    <View style={styles.bookedNotice}>
+                                        <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                                        <Text style={styles.bookedNoticeText}>Already booked</Text>
+                                    </View>
+                                )}
+
+                                {/* Action buttons */}
+                                <View style={styles.quickActionsRow}>
+                                    {hasBookings && (
+                                        <TouchableOpacity
+                                            style={styles.compactButton}
+                                            onPress={() => router.push('/(rides)/booked')}
+                                        >
+                                            <Ionicons name="ticket" size={16} color="#3b82f6" />
+                                            <Text style={styles.compactButtonText}>Bookings</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    {user && (
+                                        <TouchableOpacity
+                                            style={styles.compactButton}
+                                            onPress={() => router.push('/(rides)/private')}
+                                        >
+                                            <Ionicons name="car-sport" size={16} color="#1d4ed8" />
+                                            <Text style={styles.compactButtonText}>My Rides</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
+                        )}
+
+                        {hasSearchResults && groupedAvailableRides.length > 0 && (
+                            <View style={styles.section}>
+                                <TouchableOpacity onPress={() => toggleExpand('available')}>
+                                    <LinearGradient
+                                        colors={['#10b981', '#059669']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={styles.sectionHeaderGradient}
+                                    >
                                         <View style={styles.sectionHeader}>
                                             <View style={styles.sectionHeaderLeft}>
-                                                <FontAwesome5 name="car" size={20} color="#fff" />
+                                                <Text style={styles.sectionEmoji}>✅</Text>
                                                 <Text style={styles.sectionTitle}>Available Rides ({availableRides.length})</Text>
                                             </View>
-                                            <FontAwesome5
+                                            <Ionicons
                                                 name={expandedSections.available ? 'chevron-up' : 'chevron-down'}
                                                 size={16}
                                                 color="#fff"
                                             />
                                         </View>
-                                    </TouchableOpacity>
+                                    </LinearGradient>
+                                </TouchableOpacity>
 
-                                    {expandedSections.available && (
-                                        <View style={styles.sectionContent}>
-                                            {groupedAvailableRides.map((group) => (
-                                                <View key={`available-${group.date}`} style={styles.dateGroup}>
-                                                    <View style={styles.dateHeader}>
-                                                        <FontAwesome5
-                                                            name="calendar-alt"
-                                                            size={16}
-                                                            color="#0a2472"
-                                                            style={{ marginRight: 8 }}
-                                                        />
-                                                        <Text style={styles.dateText}>{group.date}</Text>
-                                                        <Text style={styles.timeRangeText}>{group.timeRange}</Text>
-                                                    </View>
-                                                    {group.rides.map((ride) => (
-                                                        <RideCard
-                                                            key={ride._id}
-                                                            ride={ride}
-                                                            onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                            isBooked={false}
-                                                            availableSeats={ride.available_seats}
-                                                            statusDisplay={ride.statusDisplay}
-                                                        />
-                                                    ))}
+                                {expandedSections.available && (
+                                    <View style={styles.sectionContent}>
+                                        {groupedAvailableRides.map((group) => (
+                                            <View key={`available-${group.date}`} style={styles.dateGroup}>
+                                                <View style={styles.dateHeader}>
+                                                    <Ionicons
+                                                        name="calendar"
+                                                        size={16}
+                                                        color="#3b82f6"
+                                                        style={{ marginRight: 8 }}
+                                                    />
+                                                    <Text style={styles.dateText}>{group.date}</Text>
+                                                    <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                 </View>
-                                            ))}
-                                        </View>
-                                    )}
-                                </View>
-                            )}
+                                                {group.rides.map((ride) => (
+                                                    <RideCard
+                                                        key={ride._id}
+                                                        ride={ride}
+                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                        isBooked={false}
+                                                        availableSeats={ride.available_seats}
+                                                        statusDisplay={ride.statusDisplay}
+                                                    />
+                                                ))}
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+                        )}
 
-                            {hasSearchResults && groupedFullRides.length > 0 && (
-                                <View style={styles.section}>
-                                    <TouchableOpacity onPress={() => toggleExpand('full')}>
-                                        <View style={[styles.sectionHeader, { backgroundColor: '#FF6B6B' }]}>
+                        {hasSearchResults && groupedFullRides.length > 0 && (
+                            <View style={styles.section}>
+                                <TouchableOpacity onPress={() => toggleExpand('full')}>
+                                    <LinearGradient
+                                        colors={['#ef4444', '#dc2626']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={styles.sectionHeaderGradient}
+                                    >
+                                        <View style={styles.sectionHeader}>
                                             <View style={styles.sectionHeaderLeft}>
-                                                <FontAwesome5 name="ban" size={20} color="#fff" />
+                                                <Text style={styles.sectionEmoji}>🚫</Text>
                                                 <Text style={styles.sectionTitle}>Full Rides ({fullRides.length})</Text>
                                             </View>
-                                            <FontAwesome5
+                                            <Ionicons
                                                 name={expandedSections.full ? 'chevron-up' : 'chevron-down'}
                                                 size={16}
                                                 color="#fff"
                                             />
                                         </View>
-                                    </TouchableOpacity>
+                                    </LinearGradient>
+                                </TouchableOpacity>
 
-                                    {expandedSections.full && (
-                                        <View style={styles.sectionContent}>
-                                            {groupedFullRides.map((group) => (
-                                                <View key={`full-${group.date}`} style={styles.dateGroup}>
-                                                    <View style={styles.dateHeader}>
-                                                        <FontAwesome5
-                                                            name="calendar-alt"
-                                                            size={16}
-                                                            color="#0a2472"
-                                                            style={{ marginRight: 8 }}
-                                                        />
-                                                        <Text style={styles.dateText}>{group.date}</Text>
-                                                        <Text style={styles.timeRangeText}>{group.timeRange}</Text>
-                                                    </View>
-                                                    {group.rides.map((ride) => (
-                                                        <RideCard
-                                                            key={ride._id}
-                                                            ride={ride}
-                                                            onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                            isBooked={false}
-                                                            availableSeats={ride.available_seats}
-                                                            statusDisplay={ride.statusDisplay}
-                                                            isFull
-                                                        />
-                                                    ))}
+                                {expandedSections.full && (
+                                    <View style={styles.sectionContent}>
+                                        {groupedFullRides.map((group) => (
+                                            <View key={`full-${group.date}`} style={styles.dateGroup}>
+                                                <View style={styles.dateHeader}>
+                                                    <Ionicons
+                                                        name="calendar"
+                                                        size={16}
+                                                        color="#3b82f6"
+                                                        style={{ marginRight: 8 }}
+                                                    />
+                                                    <Text style={styles.dateText}>{group.date}</Text>
+                                                    <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                 </View>
-                                            ))}
-                                        </View>
-                                    )}
-                                </View>
-                            )}
+                                                {group.rides.map((ride) => (
+                                                    <RideCard
+                                                        key={ride._id}
+                                                        ride={ride}
+                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                        isBooked={false}
+                                                        availableSeats={ride.available_seats}
+                                                        statusDisplay={ride.statusDisplay}
+                                                        isFull
+                                                    />
+                                                ))}
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+                        )}
 
-                            {/* Show action buttons at bottom only when there are no search results */}
-                            {!hasSearched && hasBookings && (
-                                <View style={styles.actionButtonsContainer}>
+                        {/* Show action buttons at bottom only when there are no search results */}
+                        {!hasSearched && hasBookings && (
+                            <View style={styles.actionButtonsContainer}>
+                                <LinearGradient
+                                    colors={['#3b82f6', '#1d4ed8']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={styles.bookedButtonGradient}
+                                >
                                     <TouchableOpacity
                                         style={styles.bookedButton}
                                         onPress={() => router.push('/(rides)/booked')}
                                     >
-                                        <FontAwesome5 name="ticket-alt" size={16} color="#fff" style={styles.bookedIcon} />
+                                        <Ionicons name="ticket" size={20} color="#fff" />
                                         <Text style={styles.bookedButtonText}>View Booked Rides</Text>
                                     </TouchableOpacity>
-                                </View>
-                            )}
+                                </LinearGradient>
+                            </View>
+                        )}
 
-                            {!hasSearched && user && (
-                                <View style={styles.actionButtonsContainer}>
+                        {!hasSearched && user && (
+                            <View style={styles.actionButtonsContainer}>
+                                <LinearGradient
+                                    colors={['#1d4ed8', '#1e40af']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={styles.privateRidesButtonGradient}
+                                >
                                     <TouchableOpacity
                                         style={styles.privateRidesButton}
                                         onPress={() => router.push('/(rides)/private')}
                                     >
-                                        <FontAwesome5 name="car" size={16} color="#fff" style={styles.privateRidesIcon} />
+                                        <Ionicons name="car-sport" size={20} color="#fff" />
                                         <Text style={styles.privateRidesButtonText}>View Your Private Rides</Text>
                                     </TouchableOpacity>
-                                </View>
-                            )}
-                        </>
-                    }
-                />
-            </SafeAreaView>
-        </LinearGradient>
+                                </LinearGradient>
+                            </View>
+                        )}
+                    </>
+                }
+            />
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    backgroundGradient: {
-        flex: 1,
-    },
     container: {
         flex: 1,
+        backgroundColor: '#f8fafc',
+    },
+    headerGradient: {
+        paddingTop: 60,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+        minHeight: 140,
+    },
+    header: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    headerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginRight: 16,
+    },
+    headerRight: {
+        padding: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 12,
+        minWidth: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerIconContainer: {
+        marginRight: 12,
+        padding: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 48,
+        minHeight: 48,
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#ffffff',
+        marginBottom: 4,
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    },
+    headerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontWeight: '500',
     },
     scrollContent: {
-        padding: 16,
+        padding: 20,
+        paddingBottom: 100,
     },
     emptySearchContainer: {
         flex: 1,
@@ -511,179 +613,227 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 40,
         marginBottom: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        borderRadius: 20,
+        backgroundColor: '#ffffff',
+        borderRadius: 24,
         marginHorizontal: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 6,
+        shadowRadius: 16,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
     },
     emptySearchIcon: {
         marginBottom: 20,
-        padding: 16,
-        backgroundColor: 'rgba(33, 150, 243, 0.1)',
-        borderRadius: 50,
+        padding: 20,
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderRadius: 60,
+    },
+    emptySearchEmoji: {
+        fontSize: 48,
     },
     welcomeTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1F2937',
+        fontSize: 26,
+        fontWeight: '800',
+        color: '#1f2937',
         marginBottom: 12,
         textAlign: 'center',
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     },
     emptySearchText: {
         textAlign: 'center',
         fontSize: 16,
-        color: '#6B7280',
-        marginBottom: 28,
+        color: '#6b7280',
+        marginBottom: 32,
         lineHeight: 24,
         paddingHorizontal: 8,
+        fontWeight: '500',
+    },
+    searchButtonGradient: {
+        borderRadius: 16,
+        padding: 3,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 6,
+    },
+    searchButton: {
+        backgroundColor: 'transparent',
+        paddingVertical: 18,
+        paddingHorizontal: 32,
+        borderRadius: 13,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    searchButtonText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#fff',
+        marginLeft: 8,
     },
     section: {
-        marginBottom: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
+        marginBottom: 20,
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
+    },
+    sectionHeaderGradient: {
+        borderRadius: 0,
+        padding: 0,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#2196F3',
+        padding: 18,
     },
     sectionHeaderLeft: {
         flexDirection: 'row',
         alignItems: 'center',
     },
+    sectionEmoji: {
+        fontSize: 20,
+        marginRight: 10,
+    },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
         color: '#fff',
-        marginLeft: 10,
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     },
     sectionContent: {
-        padding: 16,
+        padding: 20,
     },
     dateGroup: {
-        marginBottom: 16,
-        backgroundColor: '#f8f9fa',
-        padding: 12,
-        borderRadius: 8,
+        marginBottom: 20,
+        backgroundColor: '#f8fafc',
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
     },
     dateHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
-        paddingBottom: 8,
+        marginBottom: 16,
+        paddingBottom: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#e9ecef',
+        borderBottomColor: '#e5e7eb',
     },
     dateText: {
-        fontWeight: '600',
+        fontWeight: '700',
         marginRight: 12,
-        color: '#0a2472',
-        fontSize: 14,
+        color: '#1f2937',
+        fontSize: 16,
     },
     timeRangeText: {
-        color: '#6c757d',
-        fontSize: 12,
-    },
-    searchButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#2196F3',
-        paddingVertical: 14,
-        paddingHorizontal: 28,
-        borderRadius: 30,
-        elevation: 4,
-        shadowColor: '#2196F3',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-    },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#fff',
+        color: '#6b7280',
+        fontSize: 14,
+        fontWeight: '500',
     },
     actionButtonsContainer: {
-        marginTop: 12,
+        marginTop: 16,
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        padding: 20,
-        borderRadius: 16,
+        backgroundColor: '#ffffff',
+        padding: 24,
+        borderRadius: 20,
         marginHorizontal: 8,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
+    },
+    bookedButtonGradient: {
+        borderRadius: 16,
+        padding: 3,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 6,
     },
     bookedButton: {
+        backgroundColor: 'transparent',
+        paddingVertical: 18,
+        paddingHorizontal: 28,
+        borderRadius: 13,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#2563EB',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 25,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    bookedIcon: {
-        marginRight: 8,
+        justifyContent: 'center',
     },
     bookedButtonText: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
+        marginLeft: 8,
+    },
+    privateRidesButtonGradient: {
+        borderRadius: 16,
+        padding: 3,
+        shadowColor: '#1d4ed8',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 6,
     },
     privateRidesButton: {
+        backgroundColor: 'transparent',
+        paddingVertical: 18,
+        paddingHorizontal: 28,
+        borderRadius: 13,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#0a2472',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 25,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    privateRidesIcon: {
-        marginRight: 8,
+        justifyContent: 'center',
     },
     privateRidesButtonText: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
+        marginLeft: 8,
     },
     topActionsContainer: {
-        marginBottom: 20,
+        marginBottom: 24,
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        padding: 20,
-        borderRadius: 16,
+        backgroundColor: '#ffffff',
+        padding: 24,
+        borderRadius: 20,
         marginHorizontal: 8,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
     },
     bookedNotice: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(16, 185, 129, 0.2)',
     },
     bookedNoticeText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1F2937',
+        color: '#065f46',
         marginLeft: 8,
     },
     quickActionsRow: {
@@ -696,80 +846,93 @@ const styles = StyleSheet.create({
     compactButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        elevation: 2,
+        backgroundColor: '#f8fafc',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 16,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        minWidth: 100,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+        minWidth: 120,
         justifyContent: 'center',
         flex: 1,
-        maxWidth: 120,
+        maxWidth: 140,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
     },
     compactButtonText: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
-        color: '#0a2472',
-        marginLeft: 6,
+        color: '#1f2937',
+        marginLeft: 8,
     },
     noResultsContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 32,
+        padding: 40,
         marginBottom: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 16,
+        backgroundColor: '#ffffff',
+        borderRadius: 24,
         marginHorizontal: 8,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
     },
     noResultsIcon: {
-        marginBottom: 16,
+        marginBottom: 20,
+        padding: 20,
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderRadius: 60,
+    },
+    noResultsEmoji: {
+        fontSize: 48,
     },
     noResultsTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: '#1F2937',
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#1f2937',
         marginBottom: 12,
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     },
     noResultsText: {
         textAlign: 'center',
         fontSize: 16,
-        color: '#666',
-        marginBottom: 20,
-        lineHeight: 24,
-    },
-    noResultsActions: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: '100%',
-        gap: 16,
+        color: '#6b7280',
         marginBottom: 24,
+        lineHeight: 24,
+        fontWeight: '500',
+    },
+    newSearchButtonGradient: {
+        borderRadius: 16,
+        padding: 3,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 6,
     },
     newSearchButton: {
+        backgroundColor: 'transparent',
+        paddingVertical: 18,
+        paddingHorizontal: 28,
+        borderRadius: 13,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#2196F3',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 25,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-    },
-    newSearchIcon: {
-        marginRight: 8,
+        justifyContent: 'center',
+        marginBottom: 24,
     },
     newSearchText: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
         color: '#fff',
+        marginLeft: 8,
     },
     emptyResultsActionsRow: {
         flexDirection: 'row',
@@ -781,24 +944,26 @@ const styles = StyleSheet.create({
     emptyResultButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        elevation: 2,
+        backgroundColor: '#f8fafc',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 16,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        minWidth: 100,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+        minWidth: 120,
         justifyContent: 'center',
         flex: 1,
-        maxWidth: 120,
+        maxWidth: 140,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
     },
     emptyResultButtonText: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
-        color: '#0a2472',
-        marginLeft: 6,
+        color: '#1f2937',
+        marginLeft: 8,
     },
 });
