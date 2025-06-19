@@ -31,7 +31,7 @@ export default function CreateRideForm({
             if (editingRide) {
                 // Update existing ride
                 await axios.put(
-                    `http://localhost:5002/api/rides/${editingRide._id}`,
+                    `${process.env.NEXT_PUBLIC_API_URL}/rides/${editingRide._id}`,
                     rideData,
                     {
                         headers: { Authorization: `Bearer ${token}` }
@@ -40,7 +40,7 @@ export default function CreateRideForm({
             } else {
                 // Create new ride
                 await axios.post(
-                    'http://localhost:5002/api/rides',
+                    `${process.env.NEXT_PUBLIC_API_URL}/rides`,
                     rideData,
                     {
                         headers: { Authorization: `Bearer ${token}` }
