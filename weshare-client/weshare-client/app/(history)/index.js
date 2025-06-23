@@ -36,7 +36,7 @@ export default function RideHistory() {
         retry: retryFetch
     } = useApi(async (pageToFetch = 1, isRefresh = false) => {
         const data = await fetchRideHistory({ pageParam: pageToFetch });
-        
+
         if (isRefresh) {
             setRides(data.history);
             setPage(1);
@@ -44,7 +44,7 @@ export default function RideHistory() {
             setRides((prev) => [...prev, ...data.history]);
             setPage(pageToFetch);
         }
-        
+
         setHasMore(data.pagination.currentPage < data.pagination.totalPages);
         return data;
     }, {
@@ -75,7 +75,7 @@ export default function RideHistory() {
     // Load rides function
     const loadRides = async (pageToFetch, isRefresh = false) => {
         if (!hasMore && !isRefresh) return;
-        
+
         try {
             await fetchRides(pageToFetch, isRefresh);
         } catch (err) {
@@ -128,6 +128,17 @@ export default function RideHistory() {
                     </View>
                 )}
             </View>
+
+            {item.agencyId && (
+                <View style={styles.agencyContainer}>
+                    <FontAwesome5 name="building" size={14} color="#2196F3" />
+                    <Text style={styles.agencyText}>
+                        {typeof item.agencyId === 'object' && item.agencyId.name
+                            ? item.agencyId.name
+                            : 'Agency'}
+                    </Text>
+                </View>
+            )}
 
             <View style={styles.cardContent}>
                 <View style={styles.detailRow}>
@@ -381,5 +392,16 @@ const styles = StyleSheet.create({
         color: 'rgba(255, 255, 255, 0.7)',
         textAlign: 'center',
         marginTop: 8,
+    },
+    agencyContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    agencyText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#2196F3',
+        marginLeft: 8,
     },
 }); 

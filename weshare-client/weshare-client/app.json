@@ -11,7 +11,7 @@
     
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.myapp",
+      "bundleIdentifier": "com.cynthia_m.weshare",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

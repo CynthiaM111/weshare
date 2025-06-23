@@ -66,7 +66,22 @@ export default function RideCard({
             disabled={isFull && !isBooked}
         >
             <View style={styles.header}>
-                <Text style={styles.title}>{ride.from} → {ride.to}</Text>
+                <View style={styles.titleContainer}>
+                    <Text style={styles.title}>{ride.from} → {ride.to}</Text>
+                    {ride.agencyId && (
+                        <View style={styles.agencyBadge}>
+                            <FontAwesome5 name="building" size={12} color="#2196F3" />
+                            <Text style={styles.agencyBadgeText}>
+                                {typeof ride.agencyId === 'object' && ride.agencyId.name
+                                    ? ride.agencyId.name
+                                    : 'Agency'}
+                            </Text>
+                        </View>
+                    )}
+                    {ride.agencyId && typeof ride.agencyId === 'object' && ride.agencyId.email && (
+                        <Text style={styles.agencyEmail}>{ride.agencyId.email}</Text>
+                    )}
+                </View>
                 <View style={styles.badgeContainer}>
                     {isBooked && (
                         <Text style={styles.bookedTag}>Booked</Text>
@@ -202,14 +217,41 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
-    badgeContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+    titleContainer: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        flex: 1,
     },
     title: {
         fontSize: 18,
         fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    agencyBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E3F2FD',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#2196F3',
+    },
+    agencyBadgeText: {
+        color: '#2196F3',
+        fontSize: 11,
+        fontWeight: '600',
+        marginLeft: 4,
+    },
+    agencyEmail: {
+        color: '#666',
+        fontSize: 12,
+        marginTop: 2,
+    },
+    badgeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     bookedTag: {
         backgroundColor: '#4CAF50',

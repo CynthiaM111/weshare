@@ -121,7 +121,7 @@ export default function BookedRidesScreen() {
             fetchUserBookings();
         } catch (_) {
             // Error is already handled by useApi
-            
+
         }
     };
 
@@ -272,6 +272,16 @@ export default function BookedRidesScreen() {
                                             {item.from || item.categoryId?.from || 'Unknown'} → {item.to || item.categoryId?.to || 'Unknown'}
                                         </Text>
                                     </View>
+                                    {item.agencyId && (
+                                        <View style={styles.agencyContainer}>
+                                            <FontAwesome5 name="building" size={14} color="#2196F3" style={styles.icon} />
+                                            <Text style={styles.agencyText}>
+                                                {typeof item.agencyId === 'object' && item.agencyId.name
+                                                    ? item.agencyId.name
+                                                    : 'Agency'}
+                                            </Text>
+                                        </View>
+                                    )}
                                     {item.isPrivate && (
                                         <View style={styles.privateTag}>
                                             <FontAwesome5 name="lock" size={10} color="#fff" />
@@ -776,5 +786,19 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(156, 163, 175, 0.1)',
         padding: 8,
         borderRadius: 8,
+    },
+    agencyContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f0f0f0',
+        padding: 8,
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    agencyText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#2196F3',
+        marginLeft: 4,
     },
 }); 
