@@ -155,7 +155,7 @@ export default function CategoryCard({ category, onEdit, onRideCreated }) {
                         className="text-blue-600 hover:text-blue-800"
                         aria-label="Edit category"
                     >
-                        <FontAwesomeIcon icon={faEdit} color='gray'/>
+                        <FontAwesomeIcon icon={faEdit} color='gray' />
                     </button>
                 </div>
             </div>

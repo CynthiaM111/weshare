@@ -6,6 +6,7 @@ import CreateDestinationCategoryForm from '../destination/CreateDestinationCateg
 
 export default function RideList({ rides, categories, onRideCreated }) {
     const [showCategoryForm, setShowCategoryForm] = useState(false);
+    const [showAllRides, setShowAllRides] = useState(true);
     const [categoryFormData, setCategoryFormData] = useState({
         from: '',
         to: '',
@@ -14,9 +15,15 @@ export default function RideList({ rides, categories, onRideCreated }) {
     });
     const [editingCategoryId, setEditingCategoryId] = useState(null);
 
+    // Filter rides based on user preference
+    const filteredRides = showAllRides ? rides : rides.filter(ride => {
+        const currentAgencyId = localStorage.getItem('currentAgencyId');
+        return ride.agencyId && ride.agencyId._id === currentAgencyId;
+    });
+
     // Group rides by category
     const getRidesForCategory = (categoryId) => {
-        return rides.filter(ride => {
+        return filteredRides.filter(ride => {
             if (typeof ride.categoryId === 'object' && ride.categoryId !== null) {
                 return ride.categoryId._id === categoryId;
             }
@@ -63,24 +70,47 @@ export default function RideList({ rides, categories, onRideCreated }) {
         <div className="mt-8">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-[#4169E1]">Manage Categories and Rides</h2>
-                <button
-                    onClick={() => {
-                        setShowCategoryForm(true);
-                        setEditingCategoryId(null);
-                        setCategoryFormData({
-                            from: '',
-                            to: '',
-                            averageTime: '',
-                            description: '',
-                        });
-                    }}
-                    className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold flex items-center space-x-2"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    <span>New Category</span>
-                </button>
+                <div className="flex items-center space-x-4">
+                    {/* Filter Toggle */}
+                    <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+                        <button
+                            onClick={() => setShowAllRides(true)}
+                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${showAllRides
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                        >
+                            All Rides
+                        </button>
+                        <button
+                            onClick={() => setShowAllRides(false)}
+                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!showAllRides
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                        >
+                            My Rides
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setShowCategoryForm(true);
+                            setEditingCategoryId(null);
+                            setCategoryFormData({
+                                from: '',
+                                to: '',
+                                averageTime: '',
+                                description: '',
+                            });
+                        }}
+                        className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold flex items-center space-x-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span>New Category</span>
+                    </button>
+                </div>
             </div>
 
             {showCategoryForm && (

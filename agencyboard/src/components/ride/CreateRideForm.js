@@ -1,31 +1,50 @@
 // src/app/dashboard/CreateRideForm.js
 'use client';
+import { useState } from 'react';
 import axios from 'axios';
 
 export default function CreateRideForm({
     category,
     formData,
     setFormData,
-    onSuccess,
+    onRideCreated,
     editingRide,
     onCancel
 }) {
+    // If no formData is provided, manage it internally
+    const [internalFormData, setInternalFormData] = useState({
+        departure_time: '',
+        seats: '',
+        price: '',
+        licensePlate: '',
+    });
+
+    const currentFormData = formData || internalFormData;
+    const currentSetFormData = setFormData || setInternalFormData;
+
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        currentSetFormData({ ...currentFormData, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Don't proceed if no category is selected
+        if (!category) {
+            console.error('No category selected');
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
 
             const rideData = {
                 categoryId: category._id,
-                departure_time: formData.departure_time,
-                seats: Number(formData.seats),
-                price: Number(formData.price) || 0,
-                licensePlate: formData.licensePlate,
+                departure_time: currentFormData.departure_time,
+                seats: Number(currentFormData.seats),
+                price: Number(currentFormData.price) || 0,
+                licensePlate: currentFormData.licensePlate,
             };
 
             if (editingRide) {
@@ -48,20 +67,32 @@ export default function CreateRideForm({
                 );
             }
 
-            setFormData({
+            currentSetFormData({
                 departure_time: '',
                 seats: '',
                 price: '',
                 licensePlate: '',
             });
-            
-            if (onSuccess) {
-                onSuccess();
+
+            if (onRideCreated) {
+                onRideCreated();
             }
         } catch (error) {
             console.error('Error saving ride:', error);
         }
     };
+
+    // Don't render if no category is selected
+    if (!category) {
+        return (
+            <div className="bg-white p-6 rounded-lg shadow-md">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">
+                    Create New Ride
+                </h2>
+                <p className="text-gray-500">Please select a category first.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
@@ -101,7 +132,7 @@ export default function CreateRideForm({
                     <input
                         type="datetime-local"
                         name="departure_time"
-                        value={formData.departure_time}
+                        value={currentFormData.departure_time}
                         onChange={handleChange}
                         className="w-full p-2 border rounded-md text-black"
                         required
@@ -112,7 +143,7 @@ export default function CreateRideForm({
                     <input
                         type="number"
                         name="seats"
-                        value={formData.seats}
+                        value={currentFormData.seats}
                         onChange={handleChange}
                         className="w-full p-2 border rounded-md text-black"
                         min="1"
@@ -124,7 +155,7 @@ export default function CreateRideForm({
                     <input
                         type="number"
                         name="price"
-                        value={formData.price}
+                        value={currentFormData.price}
                         onChange={handleChange}
                         className="w-full p-2 border rounded-md text-black"
                         step="0.01"
@@ -136,7 +167,7 @@ export default function CreateRideForm({
                     <input
                         type="text"
                         name="licensePlate"
-                        value={formData.licensePlate}
+                        value={currentFormData.licensePlate}
                         onChange={handleChange}
                         className="w-full p-2 border rounded-md text-black"
                         required
