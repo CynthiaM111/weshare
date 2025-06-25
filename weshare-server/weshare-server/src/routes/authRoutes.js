@@ -13,7 +13,8 @@ const {
     getDestinationCategoryById,
     verifyPhone,
     resendVerificationCode,
-    sendOTP
+    sendOTP,
+    getUsers
 } = require('../controllers/authController');
 
 // Public routes
@@ -25,8 +26,10 @@ router.post('/send-otp', sendOTP);
 // Protected routes
 router.get('/status', protect, status);
 router.get('/agencies', getAgencies);
+router.get('/users', protect, getUsers);
 router.get('/agencies/:agencyId', protect, getAgencyById);
 router.get('/agencies/:id/categories', getAgencyCategories);
 router.get('/categories/:id', protect, getDestinationCategoryById);
+
 
 module.exports = router;

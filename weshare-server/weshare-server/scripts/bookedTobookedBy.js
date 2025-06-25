@@ -1,13 +1,16 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import Ride from '../src/models/ride';
+
+dotenv.config();
+
 const Ride = require('../src/models/ride');
+
+
 
 async function main() {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
-        console.log('Connected to MongoDB');
 
-        const db = mongoose.connection.db; // ✅ Corrected this line
 
         const rides = await db.collection('rides').find({ booked_users: { $exists: true } }).toArray();
 

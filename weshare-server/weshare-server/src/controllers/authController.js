@@ -19,6 +19,12 @@ const generateVerificationCode = () => {
     return crypto.randomInt(100000, 999999).toString();
 };
 
+// Get all users
+const getUsers = async (req, res) => {
+    const users = await User.find();
+    res.status(200).json(users);
+};
+
 // Signup
 const signup = async (req, res) => {
     try {
@@ -553,4 +559,4 @@ const sendOTP = async (req, res) => {
     }
 };
 
-module.exports = { signup, login, protect, agencyOnly, status, employeeOnly, getAgencies, getAgencyCategories, getAgencyById, getDestinationCategoryById, verifyPhone, resendVerificationCode, sendOTP };
+module.exports = { signup, login, protect, agencyOnly, status, employeeOnly, getAgencies, getAgencyCategories, getAgencyById, getDestinationCategoryById, verifyPhone, resendVerificationCode, sendOTP, getUsers };

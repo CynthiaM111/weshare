@@ -9,8 +9,80 @@ const messagingService = require('../services/messagingService');
 
 // Helper function to clear Redis cache
 const clearCache = async () => {
-    await redisClient.del('available_rides');
+    try {
+        // Clear multiple cache keys to ensure consistency
+        await Promise.all([
+            redisClient.del('available_rides'),
+            redisClient.del('bookedRides:*'), // Clear user-specific caches
+        ]);
+        console.log('Cache cleared successfully');
+    } catch (error) {
+        console.warn('Failed to clear cache:', error.message);
+    }
 };
+
+// Helper function to warm up cache with fresh data
+const warmCache = async () => {
+    try {
+        // Force a fresh fetch and cache it
+        const rides = await Ride.aggregate([
+            {
+                $match: {
+                    status: 'active',
+                    departure_time: { $gte: new Date() },
+                    publishStatus: 'published',
+                },
+            },
+            {
+                $project: {
+                    from: 1,
+                    to: 1,
+                    departure_time: 1,
+                    estimatedArrivalTime: 1,
+                    seats: 1,
+                    agencyId: 1,
+                    price: 1,
+                    status: 1,
+                    booked_seats: 1,
+                    categoryId: 1,
+                    licensePlate: 1,
+                    created_at: 1,
+                    updated_at: 1,
+                    available_seats: { $subtract: ['$seats', '$booked_seats'] },
+                    statusDisplay: {
+                        $cond: {
+                            if: { $gte: ['$booked_seats', '$seats'] },
+                            then: 'Full',
+                            else: {
+                                $cond: {
+                                    if: { $gte: [{ $divide: ['$booked_seats', '$seats'] }, 0.75] },
+                                    then: 'Nearly Full',
+                                    else: 'Available'
+                                }
+                            }
+                        }
+                    }
+                },
+            },
+            {
+                $sort: { departure_time: 1 },
+            },
+        ]);
+
+        await Ride.populate(rides, [
+            { path: 'agencyId', select: 'name email' },
+            { path: 'categoryId', select: 'from to averageTime' }
+        ]);
+
+        if (Array.isArray(rides) && rides.length > 0) {
+            await redisClient.setEx('available_rides', 300, JSON.stringify(rides));
+            console.log(`Cache warmed with ${rides.length} rides`);
+        }
+    } catch (error) {
+        console.warn('Failed to warm cache:', error.message);
+    }
+};
+
 // Helper function to compute ride status
 const getRideStatus = (ride) => {
     const bookedRatio = ride.booked_seats / ride.seats;
@@ -50,6 +122,7 @@ const createRide = async (req, res) => {
             isPrivate: !!isPrivate,
             booked_seats: 0,
             status: 'active',
+            publishStatus: 'published', // Set as published for new rides
         };
 
         if (isPrivate) {
@@ -189,8 +262,6 @@ const createRide = async (req, res) => {
                 return res.status(400).json({ error: 'You cannot create a ride more than 30 days in advance' });
             }
 
-
-
             // Check time range (6 AM to 10 PM)
             const hours = departureTime.getHours();
             if (hours < 6 || hours > 22) {
@@ -261,13 +332,164 @@ const createRide = async (req, res) => {
     }
 };
 
+const createDraft = async (req, res) => {
+    try {
+        const {
+            isPrivate,
+            from,
+            to,
+            date,
+            time,
+            description,
+            estimatedArrivalTime,
+            licensePlate,
+            categoryId,
+            departure_time,
+            seats,
+            price
+        } = req.body;
+
+        let rideData = {
+            licensePlate,
+            description,
+            isPrivate: !!isPrivate,
+            booked_seats: 0,
+            status: 'pending',
+            publishStatus: 'draft', // Set as draft
+        };
+
+        if (isPrivate) {
+            // For drafts, we can be more lenient with validation
+            if (!from || !to || !description || !licensePlate || !seats || !price) {
+                return res.status(400).json({ error: 'Please fill in all required fields for the draft' });
+            }
+
+            // Basic validation for license plate
+            const plateRegex = /^[A-Z0-9]{2,7}$/;
+            if (!plateRegex.test(licensePlate.trim().toUpperCase())) {
+                return res.status(400).json({ error: 'Please enter a valid license plate number (2-7 characters, letters and numbers only)' });
+            }
+
+            // Basic validation for seats
+            const seatCount = parseInt(seats);
+            if (isNaN(seatCount) || seatCount < 1 || seatCount > 8) {
+                return res.status(400).json({ error: 'Please enter a valid number of seats (1-8 passengers)' });
+            }
+
+            // Basic validation for price
+            const ridePrice = parseFloat(price);
+            if (isNaN(ridePrice) || ridePrice < 1 || ridePrice > 100) {
+                return res.status(400).json({ error: 'Please enter a valid price (minimum $1, maximum $100)' });
+            }
+
+            // For drafts, we can allow future dates without strict validation
+            const departureTime = date && time ? new Date(`${date}T${time}`) : new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to tomorrow
+
+            rideData = {
+                ...rideData,
+                from,
+                to,
+                departure_time: departureTime,
+                estimatedArrivalTime: estimatedArrivalTime ?
+                    new Date(departureTime.getTime() + (parseInt(estimatedArrivalTime) * 60 * 60 * 1000)) :
+                    new Date(departureTime.getTime() + (2 * 60 * 60 * 1000)), // Default 2 hours
+                seats: seatCount,
+                price: ridePrice,
+                userId: req.user.id,
+                categoryId: null,
+                agencyId: null
+            };
+        } else {
+            // For public ride drafts
+            if (!categoryId || !licensePlate || !seats) {
+                return res.status(400).json({ error: 'Please fill in all required fields for the draft' });
+            }
+
+            // Basic validation for license plate
+            const plateRegex = /^[A-Z0-9]{2,7}$/;
+            if (!plateRegex.test(licensePlate.trim().toUpperCase())) {
+                return res.status(400).json({ error: 'Please enter a valid license plate number (2-7 characters, letters and numbers only)' });
+            }
+
+            // Basic validation for seats
+            const seatCount = parseInt(seats);
+            if (isNaN(seatCount) || seatCount < 1 || seatCount > 50) {
+                return res.status(400).json({ error: 'Please enter a valid number of seats (1-50 passengers)' });
+            }
+
+            const category = await DestinationCategory.findOne({
+                _id: categoryId,
+                agencyId: req.user.id
+            });
+
+            if (!category) {
+                return res.status(400).json({ error: 'Invalid destination category' });
+            }
+
+            // For drafts, we can allow future dates without strict validation
+            const departureTime = departure_time ? new Date(departure_time) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+            rideData = {
+                ...rideData,
+                from: category.from,
+                to: category.to,
+                departure_time: departureTime,
+                estimatedArrivalTime: new Date(departureTime.getTime() + (category.averageTime * 60 * 60 * 1000)),
+                seats: seatCount,
+                price: price || category.averagePrice || 0,
+                categoryId: category._id,
+                agencyId: req.user.id,
+                userId: null
+            };
+        }
+
+        const ride = new Ride(rideData);
+        await ride.save();
+
+        await clearCache();
+
+        res.status(201).json({
+            message: 'Draft ride created successfully',
+            ride: {
+                id: ride._id,
+                from: ride.from,
+                to: ride.to,
+                departure_time: ride.departure_time,
+                seats: ride.seats,
+                price: ride.price,
+                publishStatus: ride.publishStatus,
+                status: ride.status
+            }
+        });
+
+    } catch (error) {
+        console.error('Error creating draft ride:', error);
+        res.status(500).json({ error: 'Failed to create draft ride' });
+    }
+};
 
 const getRides = async (req, res) => {
     try {
         // Check Redis cache first
-        const cachedRides = await redisClient.get('available_rides');
+        let cachedRides = null;
+        try {
+            cachedRides = await redisClient.get('available_rides');
+        } catch (cacheError) {
+            console.warn('Redis cache error, proceeding without cache:', cacheError.message);
+        }
+
         if (cachedRides) {
-            return res.status(200).json(JSON.parse(cachedRides));
+            try {
+                const parsedRides = JSON.parse(cachedRides);
+                // Validate that cached data is an array and has content
+                if (Array.isArray(parsedRides) && parsedRides.length > 0) {
+                    return res.status(200).json(parsedRides);
+                } else {
+                    console.log('Cached data is empty or invalid, fetching fresh data');
+                }
+            } catch (parseError) {
+                console.warn('Failed to parse cached rides, fetching fresh data:', parseError.message);
+            }
         }
 
         // Use aggregation to compare seats and booked_seats
@@ -277,6 +499,7 @@ const getRides = async (req, res) => {
                 $match: {
                     status: 'active',
                     departure_time: { $gte: new Date() },
+                    publishStatus: 'published', // Only show published rides
                 },
             },
             // Add a field for available seats and status
@@ -311,12 +534,6 @@ const getRides = async (req, res) => {
                     }
                 },
             },
-            // // Filter for rides with available seats > 0
-            // {
-            //     $match: {
-            //         available_seats: { $gt: 0 },
-            //     },
-            // },
             // Sort by departure time
             {
                 $sort: { departure_time: 1 },
@@ -329,8 +546,16 @@ const getRides = async (req, res) => {
             { path: 'categoryId', select: 'from to averageTime' }
         ]);
 
-        // Cache the result for 5 minutes
-        await redisClient.setEx('available_rides', 300, JSON.stringify(rides));
+        // Only cache if we have valid data
+        if (Array.isArray(rides) && rides.length > 0) {
+            try {
+                // Cache the result for 5 minutes
+                await redisClient.setEx('available_rides', 300, JSON.stringify(rides));
+            } catch (cacheError) {
+                console.warn('Failed to cache rides:', cacheError.message);
+            }
+        }
+
         res.status(200).json(rides);
     } catch (error) {
         console.error('Error in getRides:', error);
@@ -449,7 +674,8 @@ const searchRides = async (req, res) => {
         // Base query conditions
         const query = {
             status: 'active',
-            departure_time: { $gte: new Date() }
+            departure_time: { $gte: new Date() },
+            publishStatus: 'published', // Only show published rides
         };
 
         // Add isPrivate filter - default to false (public rides) if not specified
@@ -1242,6 +1468,144 @@ const getUserPrivateRideHistory = async (req, res) => {
     }
 };
 
+const getDrafts = async (req, res) => {
+    try {
+        const { role } = req.user;
+        let query = { publishStatus: 'draft' };
+
+        if (role === 'agency') {
+            query.agencyId = req.user.id;
+        } else if (role === 'user') {
+            query.userId = req.user.id;
+        }
+
+        const drafts = await Ride.find(query)
+            .populate('categoryId', 'from to')
+            .populate('agencyId', 'name')
+            .populate('userId', 'name')
+            .sort({ created_at: -1 });
+
+        const formattedDrafts = drafts.map(draft => ({
+            id: draft._id,
+            from: draft.from,
+            to: draft.to,
+            departure_time: draft.departure_time,
+            estimatedArrivalTime: draft.estimatedArrivalTime,
+            seats: draft.seats,
+            price: draft.price,
+            licensePlate: draft.licensePlate,
+            description: draft.description,
+            status: draft.status,
+            publishStatus: draft.publishStatus,
+            isPrivate: draft.isPrivate,
+            category: draft.categoryId,
+            agency: draft.agencyId,
+            user: draft.userId,
+            created_at: draft.created_at,
+            updated_at: draft.updated_at
+        }));
+
+        res.json(formattedDrafts);
+    } catch (error) {
+        console.error('Error fetching drafts:', error);
+        res.status(500).json({ error: 'Failed to fetch drafts' });
+    }
+};
+
+const publishDraft = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.user;
+
+        let query = { _id: id, publishStatus: 'draft' };
+
+        if (role === 'agency') {
+            query.agencyId = req.user.id;
+        } else if (role === 'user') {
+            query.userId = req.user.id;
+        }
+
+        const draft = await Ride.findOne(query);
+
+        if (!draft) {
+            return res.status(404).json({ error: 'Draft not found or you do not have permission to publish it' });
+        }
+
+        // Validate the draft before publishing
+        const currentTime = new Date();
+        const twoHoursFromNow = new Date(currentTime.getTime() + (2 * 60 * 60 * 1000));
+        const thirtyDaysFromNow = new Date(currentTime.getTime() + (30 * 24 * 60 * 60 * 1000));
+
+        // Check if departure time is valid for publishing
+        if (draft.departure_time < currentTime) {
+            return res.status(400).json({ error: 'Cannot publish a ride with a past departure time' });
+        }
+
+        if (draft.departure_time < twoHoursFromNow) {
+            return res.status(400).json({ error: 'Rides must be published at least 2 hours before departure' });
+        }
+
+        if (draft.departure_time > thirtyDaysFromNow) {
+            return res.status(400).json({ error: 'Cannot publish a ride more than 30 days in advance' });
+        }
+
+        // Check time range (6 AM to 10 PM)
+        const hours = draft.departure_time.getHours();
+        if (hours < 6 || hours > 22) {
+            return res.status(400).json({ error: 'Rides are only available from 6:00 AM to 10:00 PM' });
+        }
+
+        // For private rides, check weekend restriction
+        if (draft.isPrivate) {
+            const dayOfWeek = draft.departure_time.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                return res.status(400).json({ error: 'Private rides cannot be scheduled on weekends' });
+            }
+        }
+
+        // Update the draft to published
+        draft.publishStatus = 'published';
+        draft.status = 'active';
+        await draft.save();
+
+        await clearCache();
+
+        res.json({
+            message: 'Draft published successfully',
+            ride: {
+                id: draft._id,
+                from: draft.from,
+                to: draft.to,
+                departure_time: draft.departure_time,
+                seats: draft.seats,
+                price: draft.price,
+                publishStatus: draft.publishStatus,
+                status: draft.status
+            }
+        });
+
+    } catch (error) {
+        console.error('Error publishing draft:', error);
+        res.status(500).json({ error: 'Failed to publish draft' });
+    }
+};
+
+const refreshCache = async (req, res) => {
+    try {
+        console.log('🔄 Manual cache refresh requested');
+        await clearCache();
+        await warmCache();
+
+        res.json({
+            message: 'Cache refreshed successfully',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error refreshing cache:', error);
+        res.status(500).json({ error: 'Failed to refresh cache' });
+    }
+};
+
 module.exports = {
     createRide,
     getRides,
@@ -1259,6 +1623,11 @@ module.exports = {
     getAvailablePrivateRides,
     generateCompletionPin,
     completeRideWithPin,
-    getUserPrivateRideHistory
+    getUserPrivateRideHistory,
+    createDraft,
+    getDrafts,
+    publishDraft,
+    refreshCache,
+    warmCache
 };
 

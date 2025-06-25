@@ -12,4 +12,14 @@ const createAgency = async (req, res) => {
     }
 };
 
-module.exports = { createAgency };
+// GET /agencies - Get all agencies
+const getAgencies = async (req, res) => {
+    try {
+        const agencies = await Agency.find();
+        res.status(200).json(agencies);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get agencies', details: error.message });
+    }
+};
+
+module.exports = { createAgency, getAgencies };
