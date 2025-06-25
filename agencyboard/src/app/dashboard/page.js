@@ -9,6 +9,11 @@ import CreateRideForm from '@/components/ride/CreateRideForm';
 import CreateDestinationCategoryForm from '@/components/destination/CreateDestinationCategoryForm';
 import SearchRideForm from '@/components/ride/SearchRideForm';
 import RideList from '@/components/ride/RideList';
+import StatsCards from '@/components/dashboard/StatsCards';
+import DraftsSection from '@/components/dashboard/DraftsSection';
+import CategoriesSection from '@/components/dashboard/CategoriesSection';
+import DraftsCTA from '@/components/dashboard/DraftsCTA';
+import DashboardModals from '@/components/dashboard/DashboardModals';
 
 export default function Dashboard() {
     const [rides, setRides] = useState([]);
@@ -33,8 +38,6 @@ export default function Dashboard() {
         agencyId: '',
         price: '',
         licensePlate: '',
-        from: '', // Will be prefilled from category
-        to: '', // Will be prefilled from category
         estimatedArrivalTime: '', // Will be calculated
     });
     const [isSearching, setIsSearching] = useState(false);
@@ -87,13 +90,15 @@ export default function Dashboard() {
         minPrice: '',
         maxPrice: '',
         minSeats: '',
-        maxSeats: ''
+        maxSeats: '',
+        statusFilter: 'all' // 'all', 'available', 'nearly-full', 'full'
     });
     const [filteredCategoryRides, setFilteredCategoryRides] = useState([]);
     const [drafts, setDrafts] = useState([]);
     const [showDrafts, setShowDrafts] = useState(false);
     const [showCategorySelection, setShowCategorySelection] = useState(false);
     const [isCreatingDraft, setIsCreatingDraft] = useState(false);
+    const [categorySearchFilter, setCategorySearchFilter] = useState('');
     const draftsSectionRef = useRef(null);
     const router = useRouter();
 
@@ -109,6 +114,13 @@ export default function Dashboard() {
         }
     }, [isLoggedIn]);
 
+    // Refetch data when currentAgency changes (handles navigation back from other pages)
+    useEffect(() => {
+        if (isLoggedIn && currentAgency && !loading) {
+            fetchData();
+        }
+    }, [currentAgency]);
+
     // Auto-refresh data every 30 seconds when logged in
     useEffect(() => {
         if (!isLoggedIn || !initialLoadComplete) return;
@@ -122,6 +134,29 @@ export default function Dashboard() {
 
         return () => clearInterval(interval);
     }, [isLoggedIn, loading, initialLoadComplete]);
+
+    // Handle navigation back to dashboard
+    useEffect(() => {
+        const handleFocus = () => {
+            if (isLoggedIn && currentAgency && !loading) {
+                fetchData();
+            }
+        };
+
+        const handleRouteChange = () => {
+            if (isLoggedIn && currentAgency && !loading) {
+                fetchData();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        router.events?.on('routeChangeComplete', handleRouteChange);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            router.events?.off('routeChangeComplete', handleRouteChange);
+        };
+    }, [isLoggedIn, currentAgency, loading, router]);
 
     // Update filtered categories when data or filters change
     useEffect(() => {
@@ -188,6 +223,12 @@ export default function Dashboard() {
                 return;
             }
 
+            // Ensure currentAgency is available before proceeding
+            if (!currentAgency?.id) {
+                console.log('Waiting for currentAgency to be set...');
+                return;
+            }
+
             // Fetch rides with cache-busting parameter
             const ridesResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/rides`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -239,11 +280,18 @@ export default function Dashboard() {
             }
 
             // Filter rides to only include those belonging to the current agency
-            const currentAgencyId = currentAgency?.id;
+            const currentAgencyId = currentAgency.id;
             const agencyRides = ridesResponse.data.filter(ride =>
-                ride.agencyId && ride.agencyId._id === currentAgencyId
+                ride.agencyId && (ride.agencyId._id === currentAgencyId || ride.agencyId === currentAgencyId)
             );
             setAgencyRides(agencyRides);
+
+            console.log('Data fetch debug:', {
+                totalRides: ridesResponse.data.length,
+                agencyRides: agencyRides.length,
+                currentAgencyId: currentAgencyId,
+                categories: uniqueCategories.length
+            });
 
             // Calculate stats based on agency rides only
             const totalRides = agencyRides.length;
@@ -375,6 +423,31 @@ export default function Dashboard() {
         setShowDrafts(true); // Ensure draft mode is enabled
     };
 
+    const getFilteredCategories = () => {
+        if (!categorySearchFilter.trim()) {
+            return categories;
+        }
+        const searchTerm = categorySearchFilter.toLowerCase();
+        return categories.filter(category =>
+            category.from.toLowerCase().includes(searchTerm) ||
+            category.to.toLowerCase().includes(searchTerm) ||
+            `${category.from} ${category.to}`.toLowerCase().includes(searchTerm)
+        );
+    };
+
+    const getRideStatus = (ride) => {
+        const availableSeats = ride.seats - (ride.booked_seats || 0);
+        const occupancyRate = (ride.booked_seats || 0) / ride.seats;
+
+        if (availableSeats === 0) {
+            return { status: 'full', color: 'bg-red-500 text-white', text: 'Full' };
+        } else if (occupancyRate >= 0.8) {
+            return { status: 'nearly-full', color: 'bg-orange-500 text-white', text: 'Nearly Full' };
+        } else {
+            return { status: 'available', color: 'bg-green-500 text-white', text: 'Available' };
+        }
+    };
+
     const scrollToDrafts = () => {
         draftsSectionRef.current?.scrollIntoView({
             behavior: 'smooth',
@@ -456,6 +529,14 @@ export default function Dashboard() {
         // Filter by active rides only
         if (categoryRidesFilters.showOnlyActive) {
             filtered = filtered.filter(ride => new Date(ride.departure_time) > new Date());
+        }
+
+        // Filter by status
+        if (categoryRidesFilters.statusFilter !== 'all') {
+            filtered = filtered.filter(ride => {
+                const rideStatus = getRideStatus(ride);
+                return rideStatus.status === categoryRidesFilters.statusFilter;
+            });
         }
 
         // Filter by price range
@@ -643,8 +724,6 @@ export default function Dashboard() {
     const handleEdit = (ride) => {
         setEditingRide(ride);
         setFormData({
-            from: ride.from,
-            to: ride.to,
             departure_time: ride.departure_time.split('.')[0], // Remove milliseconds for datetime-local input
             seats: ride.seats,
             price: ride.price,
@@ -662,8 +741,6 @@ export default function Dashboard() {
             }
 
             await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/rides/${editingRide._id}`, {
-                from: formData.from,
-                to: formData.to,
                 departure_time: formData.departure_time,
                 seats: parseInt(formData.seats),
                 price: parseFloat(formData.price),
@@ -689,14 +766,27 @@ export default function Dashboard() {
                 setLoading(false);
                 return;
             }
+
+            // Immediately remove from local state for better UX
+            setRides(prevRides => prevRides.filter(ride => ride._id !== id));
+            setAgencyRides(prevRides => prevRides.filter(ride => ride._id !== id));
+            setSelectedCategoryRides(prevRides => prevRides.filter(ride => ride._id !== id));
+
+            // Also remove from drafts if it's a draft
+            setDrafts(prevDrafts => prevDrafts.filter(draft => draft._id !== id));
+
             await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/rides/${id}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
-            fetchData(); // Refresh ride list
+
+            // Refresh data to ensure consistency
+            fetchData();
         } catch (error) {
             console.error('Error deleting ride:', error);
+            // If deletion failed, refresh data to restore the ride
+            fetchData();
         }
     };
 
@@ -812,61 +902,90 @@ export default function Dashboard() {
                     {/* Header */}
                     <header className="bg-white/95 backdrop-blur-sm border-b border-blue-100">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="flex justify-between items-center py-8">
+                            <div className="flex justify-between items-center py-6">
+                                {/* Left Side - Brand and User Info */}
                                 <div className="flex items-center space-x-6">
                                     <h1 className="text-3xl font-bold tracking-wide gradient-text" style={{ fontFamily: 'var(--font-syncopate)' }}>
                                         WeShare
                                     </h1>
                                     <div className="h-12 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
-                                    <div className="flex flex-col">
-                                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">Dashboard</h2>
-                                        <div className="flex items-center space-x-2">
-                                            <span className="text-gray-500 font-medium">Welcome back,</span>
-                                            <span className="text-blue-600 font-semibold text-lg">{currentAgency.name}</span>
-                                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl px-5 py-4 border border-blue-200 shadow-sm">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-sm">
+                                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h2 className="text-lg font-bold text-gray-900">{currentAgency.name}</h2>
+                                                <div className="flex items-center space-x-2 mt-1">
+                                                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                                    <span className="text-xs text-gray-500 font-medium">Online</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        {lastUpdated && (
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                Last updated: {lastUpdated.toLocaleTimeString()}
-                                            </p>
-                                        )}
                                     </div>
                                 </div>
-                                <div className="flex items-center space-x-6">
-                                    <div className="hidden md:flex items-center space-x-3 text-sm text-gray-600 font-medium bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
-                                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                        <span>{currentAgency.email}</span>
+
+                                {/* Right Side - Actions */}
+                                <div className="flex items-center space-x-4">
+                                    {/* Last Updated - Hidden on mobile */}
+                                    {lastUpdated && (
+                                        <div className="hidden md:flex items-center text-xs text-gray-400">
+                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            {lastUpdated.toLocaleTimeString()}
+                                        </div>
+                                    )}
+
+                                    {/* Primary Actions */}
+                                    <div className="flex items-center space-x-3">
+                                        {/* Analytics Button */}
+                                        <button
+                                            onClick={() => router.push('/analytics')}
+                                            className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                            <span>Analytics</span>
+                                        </button>
+
+                                        {/* History Button */}
+                                        <button
+                                            onClick={() => router.push('/history')}
+                                            className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span>History</span>
+                                        </button>
+
+                                        {/* Refresh Button */}
+                                        <button
+                                            onClick={fetchData}
+                                            disabled={loading}
+                                            className={`p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title="Refresh Data"
+                                        >
+                                            <svg className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        </button>
+
+                                        {/* Logout Button */}
+                                        <button
+                                            onClick={handleLogout}
+                                            className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                            </svg>
+                                            <span>Logout</span>
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => router.push('/analytics')}
-                                        className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                        </svg>
-                                        <span>Analytics</span>
-                                    </button>
-                                    <button
-                                        onClick={fetchData}
-                                        disabled={loading}
-                                        className={`bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                        <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                        <span>{loading ? 'Updating...' : 'Refresh'}</span>
-                                    </button>
-                                    <button
-                                        onClick={handleLogout}
-                                        className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                        </svg>
-                                        <span>Logout</span>
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -875,1126 +994,110 @@ export default function Dashboard() {
                     {/* Main Content */}
                     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                         {/* Stats Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                            <div className="bg-white rounded-2xl card-shadow border border-blue-100 p-6 hover:scale-105 transition-all duration-300">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-600">Your Rides</p>
-                                        <p className="text-2xl font-bold text-gray-900">{stats.totalRides}</p>
-                                    </div>
-                                </div>
-                            </div>
+                        <StatsCards
+                            stats={stats}
+                            loading={loading}
+                            hasNewBookings={hasNewBookings}
+                            clearNewBookingsIndicator={clearNewBookingsIndicator}
+                        />
 
-                            <div className="bg-white rounded-2xl card-shadow border border-blue-100 p-6 hover:scale-105 transition-all duration-300">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                                            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-600">Total Categories</p>
-                                        <p className="text-2xl font-bold text-gray-900">{stats.totalCategories}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div
-                                className="bg-white rounded-2xl card-shadow border border-blue-100 p-6 hover:scale-105 transition-all duration-300 cursor-pointer"
-                                onClick={clearNewBookingsIndicator}
-                                title={hasNewBookings ? "Click to clear new bookings indicator" : ""}
-                            >
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                                            <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <div className="flex items-center space-x-2">
-                                            <p className="text-sm font-medium text-gray-600">Your Bookings</p>
-                                            {hasNewBookings && (
-                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                            )}
-                                        </div>
-                                        <p className="text-2xl font-bold text-gray-900">
-                                            {loading ? '...' : stats.totalBookings}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white rounded-2xl card-shadow border border-blue-100 p-6 hover:scale-105 transition-all duration-300">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                                            <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                                        <p className="text-2xl font-bold text-gray-900">${stats.totalRevenue.toLocaleString()}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div
-                                className="bg-white rounded-2xl card-shadow border border-purple-100 p-6 hover:scale-105 transition-all duration-300 cursor-pointer"
-                                onClick={() => router.push('/analytics')}
-                                title="Click to view detailed analytics"
-                            >
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                                            <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <div className="flex items-center space-x-2">
-                                            <p className="text-sm font-medium text-gray-600">Seat Utilization</p>
-                                            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-2xl font-bold text-gray-900">
-                                            {stats.totalRides > 0 ?
-                                                Math.round((agencyRides.reduce((sum, ride) => sum + (ride.booked_seats || 0), 0) /
-                                                    agencyRides.reduce((sum, ride) => sum + (ride.seats || 0), 0)) * 100) : 0}%
-                                        </p>
-                                        <p className="text-xs text-purple-600 font-medium">View Analytics →</p>
-                                    </div>
-                                </div>
-                            </div>
+                        {/* Drafts CTA */}
+                        <div className="mb-8">
+                            <DraftsCTA
+                                drafts={drafts}
+                                handleCreateDraft={handleCreateDraft}
+                                scrollToDrafts={scrollToDrafts}
+                            />
                         </div>
 
-                        {/* Drafts CTA Section */}
-                        <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-2xl p-6 mb-8">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                    <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
-                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900">Manage Your Draft Rides</h3>
-                                        <p className="text-sm text-gray-600">Create and manage unpublished rides that aren't visible to passengers yet</p>
-                                    </div>
-                                </div>
-                                <div className="flex space-x-3">
-                                    <button
-                                        onClick={scrollToDrafts}
-                                        className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold flex items-center space-x-2"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                        <span>View Drafts</span>
-                                    </button>
-                                    <button
-                                        onClick={handleCreateDraft}
-                                        className="bg-white border-2 border-orange-500 text-orange-600 px-6 py-3 rounded-xl hover:bg-orange-50 transition-all duration-300 font-semibold flex items-center space-x-2"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                        </svg>
-                                        <span>Add New Draft</span>
-                                    </button>
-                                </div>
-                            </div>
+                        {/* Categories Section */}
+                        <div className="mb-8">
+                            <CategoriesSection
+                                filteredCategories={filteredCategories}
+                                categoryFilters={categoryFilters}
+                                setCategoryFilters={setCategoryFilters}
+                                handleCategorySelection={handleCategorySelection}
+                                fetchCategoryRides={fetchCategoryRides}
+                                handleDeleteCategory={handleDeleteCategory}
+                                setShowCreateCategoryForm={setShowCreateCategoryForm}
+                            />
                         </div>
 
-                        {/* Rides Management */}
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                            {/* Categories Section */}
-                            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                                <div className="bg-white rounded-2xl card-shadow border border-blue-100 overflow-hidden">
-                                    {/* Header */}
-                                    <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b border-green-100">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <h2 className="text-xl font-bold gradient-text tracking-tight">Route Categories</h2>
-                                                <p className="text-sm text-gray-600 font-medium mt-1">Manage your destination routes and track performance</p>
-                                            </div>
-                                            <div className="flex items-center space-x-3">
-                                                <button
-                                                    onClick={() => setShowCreateCategoryForm(true)}
-                                                    className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                    </svg>
-                                                    <span>New Category</span>
-                                                </button>
-                                                <div className="bg-white px-4 py-2 rounded-xl border border-green-200 shadow-sm">
-                                                    <span className="text-sm text-gray-600 font-medium">Categories: </span>
-                                                    <span className="text-lg font-bold text-green-600">{filteredCategories.length}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Filters */}
-                                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                                        <div className="flex flex-wrap gap-4 items-center">
-                                            {/* Search */}
-                                            <div className="flex-1 min-w-64">
-                                                <div className="flex gap-2 items-end">
-                                                    <div className="flex-1">
-                                                        <label className="block text-xs font-medium text-gray-700 mb-1">From</label>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Departure city..."
-                                                            value={categoryFilters.searchFrom || ''}
-                                                            onChange={(e) => setCategoryFilters(prev => ({ ...prev, searchFrom: e.target.value }))}
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-sm"
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center px-2 pb-2">
-                                                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                                        </svg>
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <label className="block text-xs font-medium text-gray-700 mb-1">To</label>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Destination city..."
-                                                            value={categoryFilters.searchTo || ''}
-                                                            onChange={(e) => setCategoryFilters(prev => ({ ...prev, searchTo: e.target.value }))}
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-sm"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Show only categories with rides */}
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    id="showOnlyWithRides"
-                                                    checked={categoryFilters.showOnlyWithRides}
-                                                    onChange={(e) => setCategoryFilters(prev => ({ ...prev, showOnlyWithRides: e.target.checked }))}
-                                                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                                />
-                                                <label htmlFor="showOnlyWithRides" className="text-sm font-medium text-gray-700">
-                                                    Show only categories with rides
-                                                </label>
-                                            </div>
-
-                                            {/* Sort by */}
-                                            <div className="flex items-center space-x-2">
-                                                <label className="text-sm font-medium text-gray-700">Sort by:</label>
-                                                <select
-                                                    value={categoryFilters.sortBy}
-                                                    onChange={(e) => setCategoryFilters(prev => ({ ...prev, sortBy: e.target.value }))}
-                                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm text-gray-900 bg-white"
-                                                >
-                                                    <option value="name">Name</option>
-                                                    <option value="rides">Number of Rides</option>
-                                                    <option value="bookings">Number of Bookings</option>
-                                                    <option value="revenue">Total Revenue</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Sort order */}
-                                            <div className="flex items-center space-x-2">
-                                                <label className="text-sm font-medium text-gray-700">Order:</label>
-                                                <select
-                                                    value={categoryFilters.sortOrder}
-                                                    onChange={(e) => setCategoryFilters(prev => ({ ...prev, sortOrder: e.target.value }))}
-                                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm text-gray-900 bg-white"
-                                                >
-                                                    <option value="asc">Ascending</option>
-                                                    <option value="desc">Descending</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Clear filters */}
-                                            <button
-                                                onClick={() => setCategoryFilters({
-                                                    searchFrom: '',
-                                                    searchTo: '',
-                                                    showOnlyWithRides: false,
-                                                    sortBy: 'name',
-                                                    sortOrder: 'asc'
-                                                })}
-                                                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-                                            >
-                                                Clear Filters
-                                            </button>
-
-                                            {/* Results count */}
-                                            <div className="text-sm text-gray-600">
-                                                {filteredCategories.length} of {categories.length} categories
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Content */}
-                                    <div className="p-6">
-                                        {filteredCategories.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                {filteredCategories.map((category) => (
-                                                    <div key={category._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300">
-                                                        <div className="flex justify-between items-start mb-4">
-                                                            <div>
-                                                                <h3 className="text-lg font-semibold text-gray-900">
-                                                                    {category.from} → {category.to}
-                                                                </h3>
-                                                                <p className="text-sm text-gray-500 mt-1">
-                                                                    {category.description || 'No description available'}
-                                                                </p>
-                                                            </div>
-                                                            <div className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                                {category.rideCount} rides
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="space-y-3 mb-4">
-                                                            {/* Primary Stats Row */}
-                                                            <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-3">
-                                                                <div className="flex items-center space-x-3">
-                                                                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-sm font-medium text-gray-700">Total Rides</p>
-                                                                        <p className="text-lg font-bold text-green-600">{category.rideCount}</p>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="text-right">
-                                                                    <div className="flex items-center space-x-1">
-                                                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                                                        <span className="text-xs text-gray-600">Total</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Secondary Stats Grid */}
-                                                            <div className="grid grid-cols-3 gap-3">
-                                                                <div className="bg-purple-50 rounded-lg p-3 text-center">
-                                                                    <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-1">
-                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <p className="text-lg font-bold text-purple-600">{category.bookingCount}</p>
-                                                                    <p className="text-xs text-gray-600">Bookings</p>
-                                                                </div>
-
-                                                                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                                                                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-1">
-                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <p className="text-lg font-bold text-blue-600">${category.totalRevenue?.toLocaleString() || 0}</p>
-                                                                    <p className="text-xs text-gray-600">Revenue</p>
-                                                                </div>
-
-                                                                <div className="bg-orange-50 rounded-lg p-3 text-center">
-                                                                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-1">
-                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <p className="text-lg font-bold text-orange-600">{category.activeRides}</p>
-                                                                    <p className="text-xs text-gray-600">Active Now</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="text-sm text-gray-500">
-                                                                {category.averageTime && `Avg. Time: ${category.averageTime}h`}
-                                                            </div>
-                                                            <div className="flex space-x-2">
-                                                                <button
-                                                                    onClick={() => fetchCategoryRides(category)}
-                                                                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors duration-200"
-                                                                >
-                                                                    View Rides
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleCategorySelection(category)}
-                                                                    className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors duration-200"
-                                                                >
-                                                                    Add Ride
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (window.confirm(`Are you sure you want to delete the route "${category.from} → ${category.to}"? This will also delete all rides associated with this route.`)) {
-                                                                            handleDeleteCategory(category._id);
-                                                                        }
-                                                                    }}
-                                                                    className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors duration-200"
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-12">
-                                                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                                </svg>
-                                                <h3 className="text-lg font-medium text-gray-900 mb-2">No categories found</h3>
-                                                <p className="text-gray-500 mb-4">
-                                                    {categoryFilters.searchFrom || categoryFilters.searchTo || categoryFilters.showOnlyWithRides
-                                                        ? 'Try adjusting your filters or search terms.'
-                                                        : 'Get started by creating your first route category.'}
-                                                </p>
-                                                <button
-                                                    onClick={() => setShowCreateCategoryForm(true)}
-                                                    className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold"
-                                                >
-                                                    Create First Category
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Drafts Section */}
-                            <div ref={draftsSectionRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                                <div className="bg-white rounded-2xl card-shadow border border-orange-100 overflow-hidden">
-                                    {/* Header */}
-                                    <div className="bg-gradient-to-r from-orange-50 to-orange-100 px-6 py-4 border-b border-orange-100">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <h2 className="text-xl font-bold text-gray-900 tracking-tight">Draft Rides</h2>
-                                                <p className="text-sm text-gray-600 font-medium mt-1">Manage your unpublished rides</p>
-                                            </div>
-                                            <div className="flex items-center space-x-3">
-                                                <button
-                                                    onClick={handleCreateDraft}
-                                                    className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm font-semibold flex items-center space-x-2"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                    </svg>
-                                                    <span>New Draft</span>
-                                                </button>
-                                                <div className="bg-white px-4 py-2 rounded-xl border border-orange-200 shadow-sm">
-                                                    <span className="text-sm text-gray-600 font-medium">Drafts: </span>
-                                                    <span className="text-lg font-bold text-orange-600">{drafts.length}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Content */}
-                                    <div className="p-6">
-                                        {drafts.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                {drafts.map((draft) => (
-                                                    <div key={draft.id} className="bg-white border border-orange-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300">
-                                                        <div className="flex justify-between items-start mb-4">
-                                                            <div>
-                                                                <h3 className="text-lg font-semibold text-gray-900">
-                                                                    {draft.from} → {draft.to}
-                                                                </h3>
-                                                                <p className="text-sm text-gray-500 mt-1">
-                                                                    {draft.description || 'No description available'}
-                                                                </p>
-                                                            </div>
-                                                            <div className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                                                Draft
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="space-y-3 mb-4">
-                                                            <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3">
-                                                                <div className="flex items-center space-x-3">
-                                                                    <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                                                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-sm font-medium text-gray-700">Departure</p>
-                                                                        <p className="text-lg font-bold text-orange-600">
-                                                                            {new Date(draft.departure_time).toLocaleDateString()} at {new Date(draft.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="grid grid-cols-3 gap-3">
-                                                                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                                                                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-1">
-                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <p className="text-lg font-bold text-blue-600">{draft.seats}</p>
-                                                                    <p className="text-xs text-gray-600">Seats</p>
-                                                                </div>
-
-                                                                <div className="bg-green-50 rounded-lg p-3 text-center">
-                                                                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-1">
-                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <p className="text-lg font-bold text-green-600">${draft.price?.toLocaleString() || 0}</p>
-                                                                    <p className="text-xs text-gray-600">Price</p>
-                                                                </div>
-
-                                                                <div className="bg-purple-50 rounded-lg p-3 text-center">
-                                                                    <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-1">
-                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                        </svg>
-                                                                    </div>
-                                                                    <p className="text-lg font-bold text-purple-600">{draft.licensePlate}</p>
-                                                                    <p className="text-xs text-gray-600">Vehicle</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="text-sm text-gray-500">
-                                                                Created: {new Date(draft.created_at).toLocaleDateString()}
-                                                            </div>
-                                                            <div className="flex space-x-2">
-                                                                <button
-                                                                    onClick={() => publishDraft(draft.id)}
-                                                                    className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors duration-200"
-                                                                >
-                                                                    Publish
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleEdit(draft)}
-                                                                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors duration-200"
-                                                                >
-                                                                    Edit
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (window.confirm('Are you sure you want to delete this draft?')) {
-                                                                            handleDelete(draft.id);
-                                                                        }
-                                                                    }}
-                                                                    className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors duration-200"
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-12">
-                                                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                </svg>
-                                                <h3 className="text-lg font-medium text-gray-900 mb-2">No drafts found</h3>
-                                                <p className="text-gray-500 mb-4">Create your first draft ride to get started.</p>
-                                                <button
-                                                    onClick={handleCreateDraft}
-                                                    className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold"
-                                                >
-                                                    Create First Draft
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                        {/* Drafts Section */}
+                        <div ref={draftsSectionRef}>
+                            <DraftsSection
+                                drafts={drafts}
+                                loading={loading}
+                                handleCreateDraft={handleCreateDraft}
+                                scrollToDrafts={scrollToDrafts}
+                                handleEdit={handleEdit}
+                                publishDraft={publishDraft}
+                                handleDelete={handleDelete}
+                            />
                         </div>
-
-                        {/* Category Selection Modal for Draft Creation */}
-                        {showCategorySelection && (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                                    <div className="p-6 border-b border-orange-100">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Select Route for Draft Ride</h3>
-                                                <p className="text-sm text-gray-600 mt-1">Choose which route category this draft ride will belong to</p>
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    setShowCategorySelection(false);
-                                                    setIsCreatingDraft(false);
-                                                }}
-                                                className="text-gray-400 hover:text-gray-600 transition-colors duration-300"
-                                            >
-                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="p-6">
-                                        {categories.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {categories.map((category) => (
-                                                    <div
-                                                        key={category._id}
-                                                        onClick={() => handleCategorySelection(category)}
-                                                        className="bg-white border-2 border-orange-200 rounded-xl p-4 hover:border-orange-400 hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                                                    >
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                                                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                                                </svg>
-                                                            </div>
-                                                            <div className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
-                                                                {category.rideCount || 0} rides
-                                                            </div>
-                                                        </div>
-                                                        <h4 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors duration-300">
-                                                            {category.from} → {category.to}
-                                                        </h4>
-                                                        <p className="text-sm text-gray-600 mb-3">
-                                                            {category.description || 'No description available'}
-                                                        </p>
-                                                        <div className="flex items-center justify-between text-xs text-gray-500">
-                                                            <span>{category.averageTime && `Avg. Time: ${category.averageTime}h`}</span>
-                                                            <span className="text-orange-600 font-medium">Click to select</span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-12">
-                                                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                                </svg>
-                                                <h3 className="text-lg font-medium text-gray-900 mb-2">No route categories found</h3>
-                                                <p className="text-gray-500 mb-4">You need to create at least one route category before creating a draft ride.</p>
-                                                <button
-                                                    onClick={() => {
-                                                        setShowCategorySelection(false);
-                                                        setIsCreatingDraft(false);
-                                                        setShowCreateCategoryForm(true);
-                                                    }}
-                                                    className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold"
-                                                >
-                                                    Create First Category
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </main>
 
                     {/* Modals */}
-                    {showCreateRideForm && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                                <div className="p-6 border-b border-blue-100">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <h3 className="text-xl font-bold text-gray-900 tracking-tight">
-                                                {isCreatingDraft ? 'Create New Draft Ride' : 'Create New Ride'}
-                                            </h3>
-                                            {isCreatingDraft && selectedCategory && (
-                                                <p className="text-sm text-gray-600 mt-1">
-                                                    Route: {selectedCategory.from} → {selectedCategory.to}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center space-x-4">
-                                            <label className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    id="draftMode"
-                                                    checked={showDrafts}
-                                                    onChange={(e) => setShowDrafts(e.target.checked)}
-                                                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                                                />
-                                                <span className="text-sm font-medium text-gray-700">Save as Draft</span>
-                                            </label>
-                                            <button
-                                                onClick={() => setShowCreateRideForm(false)}
-                                                className="text-gray-400 hover:text-gray-600 transition-colors duration-300"
-                                            >
-                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-6">
-                                    <CreateRideForm
-                                        category={selectedCategory}
-                                        formData={formData}
-                                        setFormData={setFormData}
-                                        onRideCreated={() => {
-                                            setShowCreateRideForm(false);
-                                            setShowDrafts(false);
-                                            setIsCreatingDraft(false);
-                                            fetchData();
-                                        }}
-                                        onCancel={() => {
-                                            setShowCreateRideForm(false);
-                                            setShowDrafts(false);
-                                            setIsCreatingDraft(false);
-                                        }}
-                                        isDraft={showDrafts}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    <DashboardModals
+                        // Modal states
+                        showCreateRideForm={showCreateRideForm}
+                        setShowCreateRideForm={setShowCreateRideForm}
+                        showCreateCategoryForm={showCreateCategoryForm}
+                        setShowCreateCategoryForm={setShowCreateCategoryForm}
+                        showCategorySelection={showCategorySelection}
+                        setShowCategorySelection={setShowCategorySelection}
+                        showCategoryRides={showCategoryRides}
+                        setShowCategoryRides={setShowCategoryRides}
+                        showDrafts={showDrafts}
+                        setShowDrafts={setShowDrafts}
+                        isCreatingDraft={isCreatingDraft}
+                        setIsCreatingDraft={setIsCreatingDraft}
 
-                    {editingRide && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                                <div className="p-6 border-b border-blue-100">
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Edit Ride</h3>
-                                        <button
-                                            onClick={() => setEditingRide(null)}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors duration-300"
-                                        >
-                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="p-6">
-                                    <form onSubmit={handleEditSubmit} className="space-y-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">From</label>
-                                                <input
-                                                    type="text"
-                                                    value={formData.from}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 cursor-not-allowed"
-                                                    readOnly
-                                                />
-                                                <p className="text-xs text-gray-500 mt-1">Route cannot be changed</p>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">To</label>
-                                                <input
-                                                    type="text"
-                                                    value={formData.to}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 cursor-not-allowed"
-                                                    readOnly
-                                                />
-                                                <p className="text-xs text-gray-500 mt-1">Route cannot be changed</p>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Departure Time</label>
-                                                <input
-                                                    type="datetime-local"
-                                                    value={formData.departure_time}
-                                                    onChange={(e) => setFormData({ ...formData, departure_time: e.target.value })}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Price ($)</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.price}
-                                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Seats</label>
-                                            <input
-                                                type="number"
-                                                value={formData.seats}
-                                                onChange={(e) => setFormData({ ...formData, seats: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="flex justify-end space-x-3 pt-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditingRide(null)}
-                                                className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 font-semibold"
-                                            >
-                                                Update Ride
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        // Data and handlers
+                        selectedCategory={selectedCategory}
+                        setSelectedCategory={setSelectedCategory}
+                        selectedCategoryRides={selectedCategoryRides}
+                        selectedCategoryForRides={selectedCategoryForRides}
+                        loadingCategoryRides={loadingCategoryRides}
+                        filteredCategoryRides={filteredCategoryRides}
+                        categoryRidesFilters={categoryRidesFilters}
+                        setCategoryRidesFilters={setCategoryRidesFilters}
+                        getRideStatus={getRideStatus}
+                        handleEdit={handleEdit}
+                        publishDraft={publishDraft}
+                        handleDelete={handleDelete}
 
-                    {showCreateCategoryForm && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                                <div className="p-6 border-b border-blue-100">
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Add New Route</h3>
-                                        <button
-                                            onClick={() => setShowCreateCategoryForm(false)}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors duration-300"
-                                        >
-                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="p-6">
-                                    <CreateDestinationCategoryForm
-                                        onCategoryCreated={() => {
-                                            setShowCreateCategoryForm(false);
-                                            fetchData();
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        // Search functionality
+                        isSearching={isSearching}
+                        searchResults={searchResults}
+                        hasSearched={hasSearched}
+                        searchParams={searchParams}
+                        setSearchParams={setSearchParams}
+                        handleSearch={handleSearch}
+                        clearSearch={clearSearch}
 
-                    {/* Category Rides Modal */}
-                    {showCategoryRides && selectedCategoryForRides && (
-                        <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
-                                <div className="p-6 border-b border-blue-100">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <h3 className="text-xl font-bold gradient-text tracking-tight">
-                                                Rides for {selectedCategoryForRides.from} → {selectedCategoryForRides.to}
-                                            </h3>
-                                            <p className="text-sm text-gray-600 font-medium mt-1">
-                                                {filteredCategoryRides.length} of {selectedCategoryRides.length} ride(s) found
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                setShowCategoryRides(false);
-                                                setSelectedCategoryForRides(null);
-                                                setSelectedCategoryRides([]);
-                                                setCategoryRidesFilters({
-                                                    showOnlyActive: false,
-                                                    sortBy: 'departure',
-                                                    sortOrder: 'asc',
-                                                    minPrice: '',
-                                                    maxPrice: '',
-                                                    minSeats: '',
-                                                    maxSeats: ''
-                                                });
-                                            }}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors duration-300"
-                                        >
-                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
+                        // Form data
+                        formData={formData}
+                        setFormData={setFormData}
+                        editingRide={editingRide}
+                        setEditingRide={setEditingRide}
+                        handleEditSubmit={handleEditSubmit}
 
-                                {/* Filters */}
-                                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                                    <div className="flex flex-wrap gap-4 items-center">
-                                        {/* Show only active rides */}
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                id="showOnlyActiveRides"
-                                                checked={categoryRidesFilters.showOnlyActive}
-                                                onChange={(e) => setCategoryRidesFilters(prev => ({ ...prev, showOnlyActive: e.target.checked }))}
-                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                            />
-                                            <label htmlFor="showOnlyActiveRides" className="text-sm font-medium text-gray-700">
-                                                Show only active rides
-                                            </label>
-                                        </div>
+                        // Category data
+                        categories={categories}
+                        categorySearchFilter={categorySearchFilter}
+                        setCategorySearchFilter={setCategorySearchFilter}
+                        getFilteredCategories={getFilteredCategories}
 
-                                        {/* Price range */}
-                                        <div className="flex items-center space-x-2">
-                                            <label className="text-sm font-medium text-gray-700">Price:</label>
-                                            <input
-                                                type="number"
-                                                placeholder="Min"
-                                                value={categoryRidesFilters.minPrice}
-                                                onChange={(e) => setCategoryRidesFilters(prev => ({ ...prev, minPrice: e.target.value }))}
-                                                className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                                            />
-                                            <span className="text-gray-500">-</span>
-                                            <input
-                                                type="number"
-                                                placeholder="Max"
-                                                value={categoryRidesFilters.maxPrice}
-                                                onChange={(e) => setCategoryRidesFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
-                                                className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                                            />
-                                        </div>
-
-                                        {/* Seats range */}
-                                        <div className="flex items-center space-x-2">
-                                            <label className="text-sm font-medium text-gray-700">Seats:</label>
-                                            <input
-                                                type="number"
-                                                placeholder="Min"
-                                                value={categoryRidesFilters.minSeats}
-                                                onChange={(e) => setCategoryRidesFilters(prev => ({ ...prev, minSeats: e.target.value }))}
-                                                className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                                            />
-                                            <span className="text-gray-500">-</span>
-                                            <input
-                                                type="number"
-                                                placeholder="Max"
-                                                value={categoryRidesFilters.maxSeats}
-                                                onChange={(e) => setCategoryRidesFilters(prev => ({ ...prev, maxSeats: e.target.value }))}
-                                                className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                                            />
-                                        </div>
-
-                                        {/* Sort by */}
-                                        <div className="flex items-center space-x-2">
-                                            <label className="text-sm font-medium text-gray-700">Sort by:</label>
-                                            <select
-                                                value={categoryRidesFilters.sortBy}
-                                                onChange={(e) => setCategoryRidesFilters(prev => ({ ...prev, sortBy: e.target.value }))}
-                                                className="px-3 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                                            >
-                                                <option value="departure">Departure Time</option>
-                                                <option value="price">Price</option>
-                                                <option value="seats">Total Seats</option>
-                                                <option value="booked_seats">Booked Seats</option>
-                                            </select>
-                                        </div>
-
-                                        {/* Sort order */}
-                                        <div className="flex items-center space-x-2">
-                                            <label className="text-sm font-medium text-gray-700">Order:</label>
-                                            <select
-                                                value={categoryRidesFilters.sortOrder}
-                                                onChange={(e) => setCategoryRidesFilters(prev => ({ ...prev, sortOrder: e.target.value }))}
-                                                className="px-3 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                                            >
-                                                <option value="asc">Ascending</option>
-                                                <option value="desc">Descending</option>
-                                            </select>
-                                        </div>
-
-                                        {/* Clear filters */}
-                                        <button
-                                            onClick={() => setCategoryRidesFilters({
-                                                showOnlyActive: false,
-                                                sortBy: 'departure',
-                                                sortOrder: 'asc',
-                                                minPrice: '',
-                                                maxPrice: '',
-                                                minSeats: '',
-                                                maxSeats: ''
-                                            })}
-                                            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded transition-colors duration-200"
-                                        >
-                                            Clear Filters
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="p-6">
-                                    {loadingCategoryRides ? (
-                                        <div className="text-center py-12">
-                                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                            <p className="text-gray-600">Loading rides...</p>
-                                        </div>
-                                    ) : filteredCategoryRides.length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {filteredCategoryRides.map((ride) => {
-                                                const departureDate = new Date(ride.departure_time);
-                                                const isActive = departureDate > new Date();
-                                                const status = isActive ? 'Active' : 'Past';
-                                                const statusColor = isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600';
-
-                                                return (
-                                                    <div key={ride._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300">
-                                                        <div className="flex justify-between items-start mb-4">
-                                                            <div>
-                                                                <h4 className="text-lg font-semibold text-gray-900">
-                                                                    {ride.from} → {ride.to}
-                                                                </h4>
-                                                                <div className="mt-4">
-                                                                    <div className="flex items-center space-x-6">
-                                                                        <div className="text-center">
-                                                                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-2">
-                                                                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                                </svg>
-                                                                            </div>
-                                                                            <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Departure</div>
-                                                                            <div className="text-lg font-bold text-gray-900">
-                                                                                {departureDate.toLocaleTimeString('en-US', {
-                                                                                    hour: 'numeric',
-                                                                                    minute: '2-digit',
-                                                                                    hour12: true
-                                                                                })}
-                                                                            </div>
-                                                                            <div className="text-xs text-gray-500">
-                                                                                {departureDate.toLocaleDateString('en-US', {
-                                                                                    weekday: 'short',
-                                                                                    month: 'short',
-                                                                                    day: 'numeric'
-                                                                                })}
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {ride.estimatedArrivalTime && (
-                                                                            <>
-                                                                                <div className="flex flex-col items-center">
-                                                                                    <div className="w-8 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 mb-2"></div>
-                                                                                    <div className="text-xs text-gray-400 font-medium">Journey</div>
-                                                                                </div>
-
-                                                                                <div className="text-center">
-                                                                                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mb-2">
-                                                                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                                        </svg>
-                                                                                    </div>
-                                                                                    <div className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">Arrival</div>
-                                                                                    <div className="text-lg font-bold text-gray-900">
-                                                                                        {new Date(ride.estimatedArrivalTime).toLocaleTimeString('en-US', {
-                                                                                            hour: 'numeric',
-                                                                                            minute: '2-digit',
-                                                                                            hour12: true
-                                                                                        })}
-                                                                                    </div>
-                                                                                    <div className="text-xs text-gray-500">
-                                                                                        {new Date(ride.estimatedArrivalTime).toLocaleDateString('en-US', {
-                                                                                            weekday: 'short',
-                                                                                            month: 'short',
-                                                                                            day: 'numeric'
-                                                                                        })}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
-                                                                {status}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                                            <div className="text-center">
-                                                                <p className="text-2xl font-bold text-blue-600">${ride.price?.toLocaleString() || 0}</p>
-                                                                <p className="text-xs text-gray-500">Price</p>
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="text-2xl font-bold text-purple-600">{ride.seats - (ride.booked_seats || 0)}</p>
-                                                                <p className="text-xs text-gray-500">Available Seats</p>
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="text-2xl font-bold text-green-600">{ride.booked_seats || 0}</p>
-                                                                <p className="text-xs text-gray-500">Booked Seats</p>
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="text-2xl font-bold text-yellow-600">{ride.seats}</p>
-                                                                <p className="text-xs text-gray-500">Total Seats</p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="text-sm text-gray-500">
-                                                                {ride.licensePlate && `Vehicle: ${ride.licensePlate}`}
-                                                            </div>
-                                                            <div className="flex space-x-2">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        handleEdit(ride);
-                                                                        setShowCategoryRides(false);
-                                                                    }}
-                                                                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors duration-200"
-                                                                >
-                                                                    Edit
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (window.confirm('Are you sure you want to delete this ride?')) {
-                                                                            handleDelete(ride._id);
-                                                                            setShowCategoryRides(false);
-                                                                        }
-                                                                    }}
-                                                                    className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors duration-200"
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-12">
-                                            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                            </svg>
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No rides found</h3>
-                                            <p className="text-gray-500 mb-4">
-                                                {Object.values(categoryRidesFilters).some(val => val !== false && val !== '' && val !== 'departure' && val !== 'asc')
-                                                    ? 'Try adjusting your filters.'
-                                                    : 'This category doesn\'t have any rides yet. Create the first ride for this route.'}
-                                            </p>
-                                            {!Object.values(categoryRidesFilters).some(val => val !== false && val !== '' && val !== 'departure' && val !== 'asc') && (
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedCategory(selectedCategoryForRides);
-                                                        setShowCreateRideForm(true);
-                                                        setShowCategoryRides(false);
-                                                    }}
-                                                    className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold"
-                                                >
-                                                    Create First Ride
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        // Callbacks
+                        onRideCreated={() => {
+                            fetchData();
+                            fetchDrafts();
+                        }}
+                        onCategoryCreated={() => {
+                            fetchData();
+                        }}
+                    />
                 </div>
             )}
         </>
