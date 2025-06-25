@@ -9,7 +9,8 @@ export default function CreateRideForm({
     setFormData,
     onRideCreated,
     editingRide,
-    onCancel
+    onCancel,
+    isDraft = false
 }) {
     // If no formData is provided, manage it internally
     const [internalFormData, setInternalFormData] = useState({
@@ -57,9 +58,10 @@ export default function CreateRideForm({
                     }
                 );
             } else {
-                // Create new ride
+                // Create new ride or draft
+                const endpoint = isDraft ? '/rides/draft' : '/rides';
                 await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL}/rides`,
+                    `${process.env.NEXT_PUBLIC_API_URL}${endpoint}`,
                     rideData,
                     {
                         headers: { Authorization: `Bearer ${token}` }
@@ -97,7 +99,7 @@ export default function CreateRideForm({
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-700 mb-4">
-                {editingRide ? 'Edit Ride' : 'Create New Ride'} for {category.from} → {category.to}
+                {editingRide ? 'Edit Ride' : (isDraft ? 'Create Draft Ride' : 'Create New Ride')} for {category.from} → {category.to}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -178,7 +180,7 @@ export default function CreateRideForm({
                         type="submit"
                         className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex-1"
                     >
-                        {editingRide ? 'Update Ride' : 'Create Ride'}
+                        {editingRide ? 'Update Ride' : (isDraft ? 'Save as Draft' : 'Create Ride')}
                     </button>
                     <button
                         type="button"
