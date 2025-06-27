@@ -33,13 +33,22 @@ export const ERROR_CODES = {
     RIDE_UPDATE_FAILED: 'RIDE_UPDATE_FAILED',
     RIDE_DELETE_FAILED: 'RIDE_DELETE_FAILED',
 
-    // Business Rule Violations (New)
+    // Business Rule Violations (Enhanced)
     RIDE_HAS_BOOKINGS: 'RIDE_HAS_BOOKINGS',
     RIDE_ALREADY_CANCELED: 'RIDE_ALREADY_CANCELED',
     RIDE_IN_PAST: 'RIDE_IN_PAST',
     RIDE_ALREADY_STARTED: 'RIDE_ALREADY_STARTED',
     CANCELLATION_TOO_LATE: 'CANCELLATION_TOO_LATE',
     BOOKING_ALREADY_COMPLETED: 'BOOKING_ALREADY_COMPLETED',
+    BOOKING_ALREADY_CHECKED_IN: 'BOOKING_ALREADY_CHECKED_IN',
+    BOOKING_TOO_LATE: 'BOOKING_TOO_LATE',
+    ALREADY_BOOKED: 'ALREADY_BOOKED',
+    BOOKING_LIMIT_REACHED: 'BOOKING_LIMIT_REACHED',
+    TIME_CONFLICT: 'TIME_CONFLICT',
+    UPDATE_TOO_LATE: 'UPDATE_TOO_LATE',
+    CANNOT_BOOK_OWN_RIDE: 'CANNOT_BOOK_OWN_RIDE',
+    BOOKING_NOT_FOUND: 'BOOKING_NOT_FOUND',
+    CANCELLATION_FAILED: 'CANCELLATION_FAILED',
     BUSINESS_RULE_VIOLATION: 'BUSINESS_RULE_VIOLATION',
     VALIDATION_ERROR: 'VALIDATION_ERROR',
 
@@ -83,13 +92,22 @@ export const ERROR_MESSAGES = {
     [ERROR_CODES.RIDE_UPDATE_FAILED]: "Couldn't update ride details. Try again later.",
     [ERROR_CODES.RIDE_DELETE_FAILED]: "Couldn't delete this ride. Try again later.",
 
-    // Business Rule Violations (New)
+    // Business Rule Violations (Enhanced)
     [ERROR_CODES.RIDE_HAS_BOOKINGS]: "Cannot delete ride with existing bookings. Please cancel the ride instead to notify passengers.",
     [ERROR_CODES.RIDE_ALREADY_CANCELED]: "This ride has already been canceled and cannot be deleted.",
     [ERROR_CODES.RIDE_IN_PAST]: "Cannot delete a ride that has already departed.",
     [ERROR_CODES.RIDE_ALREADY_STARTED]: "Cannot book a ride that has already started.",
     [ERROR_CODES.CANCELLATION_TOO_LATE]: "You cannot cancel your booking less than 30 minutes before departure.",
     [ERROR_CODES.BOOKING_ALREADY_COMPLETED]: "This booking has already been completed and cannot be canceled.",
+    [ERROR_CODES.BOOKING_ALREADY_CHECKED_IN]: "Cannot cancel a booking after check-in. Please contact the agency.",
+    [ERROR_CODES.BOOKING_TOO_LATE]: "Cannot book a ride less than 10 minutes before departure.",
+    [ERROR_CODES.ALREADY_BOOKED]: "You have already booked this ride.",
+    [ERROR_CODES.BOOKING_LIMIT_REACHED]: "You have reached the maximum number of active bookings (5). Please cancel an existing booking first.",
+    [ERROR_CODES.TIME_CONFLICT]: "You already have a ride booked during this time. Please check your existing bookings.",
+    [ERROR_CODES.UPDATE_TOO_LATE]: "Cannot update ride details less than 1 hour before departure.",
+    [ERROR_CODES.CANNOT_BOOK_OWN_RIDE]: "You cannot book your own ride.",
+    [ERROR_CODES.BOOKING_NOT_FOUND]: "You have not booked this ride.",
+    [ERROR_CODES.CANCELLATION_FAILED]: "Failed to cancel booking. Please try again later.",
     [ERROR_CODES.BUSINESS_RULE_VIOLATION]: "This action is not allowed due to business rules. Please check the details and try again.",
     [ERROR_CODES.VALIDATION_ERROR]: "Please check your input and try again.",
 
@@ -319,7 +337,7 @@ const getSpecificErrorCode = (error) => {
             if (message.includes('bookings') && message.includes('cancel instead')) {
                 return ERROR_CODES.RIDE_HAS_BOOKINGS;
             }
-            if (message.includes('already cancelled')) {
+            if (message.includes('already cancelled') || message.includes('already canceled')) {
                 return ERROR_CODES.RIDE_ALREADY_CANCELED;
             }
             if (message.includes('past ride') || message.includes('already departed')) {
@@ -331,8 +349,32 @@ const getSpecificErrorCode = (error) => {
             if (message.includes('less than 30 minutes')) {
                 return ERROR_CODES.CANCELLATION_TOO_LATE;
             }
+            if (message.includes('less than 10 minutes')) {
+                return ERROR_CODES.BOOKING_TOO_LATE;
+            }
+            if (message.includes('less than 1 hour')) {
+                return ERROR_CODES.UPDATE_TOO_LATE;
+            }
             if (message.includes('already completed')) {
                 return ERROR_CODES.BOOKING_ALREADY_COMPLETED;
+            }
+            if (message.includes('after check-in')) {
+                return ERROR_CODES.BOOKING_ALREADY_CHECKED_IN;
+            }
+            if (message.includes('already booked')) {
+                return ERROR_CODES.ALREADY_BOOKED;
+            }
+            if (message.includes('maximum number') && message.includes('bookings')) {
+                return ERROR_CODES.BOOKING_LIMIT_REACHED;
+            }
+            if (message.includes('time conflict') || message.includes('during this time')) {
+                return ERROR_CODES.TIME_CONFLICT;
+            }
+            if (message.includes('cannot book your own ride')) {
+                return ERROR_CODES.CANNOT_BOOK_OWN_RIDE;
+            }
+            if (message.includes('have not booked')) {
+                return ERROR_CODES.BOOKING_NOT_FOUND;
             }
             if (message.includes('business rules')) {
                 return ERROR_CODES.BUSINESS_RULE_VIOLATION;
