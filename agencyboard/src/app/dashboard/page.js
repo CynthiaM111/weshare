@@ -14,6 +14,8 @@ import DraftsSection from '@/components/dashboard/DraftsSection';
 import CategoriesSection from '@/components/dashboard/CategoriesSection';
 import DraftsCTA from '@/components/dashboard/DraftsCTA';
 import DashboardModals from '@/components/dashboard/DashboardModals';
+import ErrorDisplay from '@/components/ErrorDisplay';
+import { handleApiError } from '@/utils/errorHandler';
 
 export default function Dashboard() {
     const [rides, setRides] = useState([]);
@@ -100,6 +102,9 @@ export default function Dashboard() {
     const [isCreatingDraft, setIsCreatingDraft] = useState(false);
     const [categorySearchFilter, setCategorySearchFilter] = useState('');
     const draftsSectionRef = useRef(null);
+
+    // Error handling state
+    const [errors, setErrors] = useState({});
     const router = useRouter();
 
     // Check auth status and fetch rides on mount
@@ -397,21 +402,33 @@ export default function Dashboard() {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
+            // Clear any existing errors for this action
+            setErrors(prev => ({ ...prev, publishDraft: null }));
+
             // Refresh data after publishing
             fetchData();
             fetchDrafts();
         } catch (error) {
-            console.error('Error publishing draft:', error);
-            alert('Failed to publish draft: ' + (error.response?.data?.error || error.message));
+            // Use enhanced error handling
+            const errorDetails = handleApiError(error);
+            setErrors(prev => ({ ...prev, publishDraft: errorDetails }));
         }
     };
 
     const handleCreateDraft = () => {
         if (categories.length === 0) {
-            alert('You need to create at least one route category before creating a draft ride.');
+            setErrors(prev => ({
+                ...prev,
+                createDraft: {
+                    userMessage: 'You need to create at least one route category before creating a draft ride.',
+                    code: 'MISSING_FIELDS'
+                }
+            }));
             setShowCreateCategoryForm(true);
             return;
         }
+        // Clear any existing errors
+        setErrors(prev => ({ ...prev, createDraft: null }));
         setIsCreatingDraft(true);
         setShowCategorySelection(true);
     };
@@ -767,7 +784,14 @@ export default function Dashboard() {
                 return;
             }
 
-            // Immediately remove from local state for better UX
+            // Make the API call first
+            await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/rides/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            // Only remove from local state if the API call succeeds
             setRides(prevRides => prevRides.filter(ride => ride._id !== id));
             setAgencyRides(prevRides => prevRides.filter(ride => ride._id !== id));
             setSelectedCategoryRides(prevRides => prevRides.filter(ride => ride._id !== id));
@@ -775,18 +799,18 @@ export default function Dashboard() {
             // Also remove from drafts if it's a draft
             setDrafts(prevDrafts => prevDrafts.filter(draft => draft._id !== id));
 
-            await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/rides/${id}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
+            // Clear any existing errors for this action
+            setErrors(prev => ({ ...prev, deleteRide: null }));
 
             // Refresh data to ensure consistency
             fetchData();
+
+            // Return success
+            return { success: true };
         } catch (error) {
-            console.error('Error deleting ride:', error);
-            // If deletion failed, refresh data to restore the ride
-            fetchData();
+            // If deletion failed, don't refresh data since the ride should still be there
+            // Return error for modal to handle
+            throw error;
         }
     };
 
@@ -804,9 +828,15 @@ export default function Dashboard() {
                     Authorization: `Bearer ${token}`
                 }
             });
+
+            // Clear any existing errors for this action
+            setErrors(prev => ({ ...prev, deleteCategory: null }));
+
             fetchData(); // Refresh data
         } catch (error) {
-            console.error('Error deleting category:', error);
+            // Use enhanced error handling
+            const errorDetails = handleApiError(error);
+            setErrors(prev => ({ ...prev, deleteCategory: errorDetails }));
         }
     };
 
@@ -993,6 +1023,39 @@ export default function Dashboard() {
 
                     {/* Main Content */}
                     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {/* Error Display Components */}
+                        {errors.deleteCategory && (
+                            <ErrorDisplay
+                                error={errors.deleteCategory}
+                                onDismiss={() => setErrors(prev => ({ ...prev, deleteCategory: null }))}
+                                onRetry={() => {
+                                    setErrors(prev => ({ ...prev, deleteCategory: null }));
+                                    fetchData();
+                                }}
+                                variant="inline"
+                            />
+                        )}
+
+                        {errors.publishDraft && (
+                            <ErrorDisplay
+                                error={errors.publishDraft}
+                                onDismiss={() => setErrors(prev => ({ ...prev, publishDraft: null }))}
+                                onRetry={() => {
+                                    setErrors(prev => ({ ...prev, publishDraft: null }));
+                                    fetchData();
+                                }}
+                                variant="inline"
+                            />
+                        )}
+
+                        {errors.createDraft && (
+                            <ErrorDisplay
+                                error={errors.createDraft}
+                                onDismiss={() => setErrors(prev => ({ ...prev, createDraft: null }))}
+                                variant="inline"
+                            />
+                        )}
+
                         {/* Stats Cards */}
                         <StatsCards
                             stats={stats}

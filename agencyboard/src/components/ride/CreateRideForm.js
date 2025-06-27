@@ -2,6 +2,8 @@
 'use client';
 import { useState } from 'react';
 import axios from 'axios';
+import ErrorDisplay from '../ErrorDisplay';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function CreateRideForm({
     category,
@@ -23,8 +25,13 @@ export default function CreateRideForm({
     const currentFormData = formData || internalFormData;
     const currentSetFormData = setFormData || setInternalFormData;
 
+    // Error handling state
+    const [error, setError] = useState(null);
+
     const handleChange = (e) => {
         currentSetFormData({ ...currentFormData, [e.target.name]: e.target.value });
+        // Clear error when user starts typing
+        if (error) setError(null);
     };
 
     const handleSubmit = async (e) => {
@@ -33,6 +40,52 @@ export default function CreateRideForm({
         // Don't proceed if no category is selected
         if (!category) {
             console.error('No category selected');
+            return;
+        }
+
+        // Client-side validation
+        if (!currentFormData.departure_time) {
+            setError({ userMessage: 'Please select a departure time', code: 'MISSING_FIELDS' });
+            return;
+        }
+
+        if (!currentFormData.seats || currentFormData.seats < 1) {
+            setError({ userMessage: 'Please enter a valid number of seats (minimum 1)', code: 'VALIDATION_ERROR' });
+            return;
+        }
+
+        if (!currentFormData.licensePlate) {
+            setError({ userMessage: 'Please enter a license plate number', code: 'MISSING_FIELDS' });
+            return;
+        }
+
+        // Validate license plate format
+        const plateRegex = /^[A-Z0-9]{2,7}$/;
+        if (!plateRegex.test(currentFormData.licensePlate.trim().toUpperCase())) {
+            setError({ userMessage: 'Please enter a valid license plate number (2-7 characters, letters and numbers only)', code: 'VALIDATION_ERROR' });
+            return;
+        }
+
+        // Validate departure time
+        const departureTime = new Date(currentFormData.departure_time);
+        const currentTime = new Date();
+        const twoHoursFromNow = new Date(currentTime.getTime() + (2 * 60 * 60 * 1000));
+        const thirtyDaysFromNow = new Date(currentTime.getTime() + (30 * 24 * 60 * 60 * 1000));
+
+        if (departureTime < twoHoursFromNow) {
+            setError({ userMessage: 'Rides must be scheduled at least 2 hours in advance', code: 'INVALID_DATETIME' });
+            return;
+        }
+
+        if (departureTime > thirtyDaysFromNow) {
+            setError({ userMessage: 'You cannot create a ride more than 30 days in advance', code: 'INVALID_DATETIME' });
+            return;
+        }
+
+        // Check time range (6 AM to 10 PM)
+        const hours = departureTime.getHours();
+        if (hours < 6 || hours > 22) {
+            setError({ userMessage: 'Rides are only available from 6:00 AM to 10:00 PM', code: 'INVALID_DATETIME' });
             return;
         }
 
@@ -45,7 +98,7 @@ export default function CreateRideForm({
                 departure_time: currentFormData.departure_time,
                 seats: Number(currentFormData.seats),
                 price: Number(currentFormData.price) || 0,
-                licensePlate: currentFormData.licensePlate,
+                licensePlate: currentFormData.licensePlate.trim().toUpperCase(),
             };
 
             if (editingRide) {
@@ -69,6 +122,9 @@ export default function CreateRideForm({
                 );
             }
 
+            // Clear error on success
+            setError(null);
+
             currentSetFormData({
                 departure_time: '',
                 seats: '',
@@ -80,7 +136,9 @@ export default function CreateRideForm({
                 onRideCreated();
             }
         } catch (error) {
-            console.error('Error saving ride:', error);
+            // Use enhanced error handling
+            const errorDetails = handleApiError(error);
+            setError(errorDetails);
         }
     };
 
@@ -99,6 +157,15 @@ export default function CreateRideForm({
 
     return (
         <div className="space-y-6">
+            {/* Error Display */}
+            {error && (
+                <ErrorDisplay
+                    error={error}
+                    onDismiss={() => setError(null)}
+                    variant="inline"
+                />
+            )}
+
             {/* Route Information Display */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
                 <div className="flex items-center mb-4">
@@ -167,7 +234,12 @@ export default function CreateRideForm({
                             onChange={handleChange}
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 font-medium"
                             required
+                            min={new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16)}
+                            max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Must be at least 2 hours from now, max 30 days ahead, between 6 AM - 10 PM
+                        </p>
                     </div>
 
                     <div>
@@ -186,8 +258,13 @@ export default function CreateRideForm({
                             onChange={handleChange}
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 font-medium"
                             min="1"
+                            max="50"
+                            placeholder="Enter number of seats (1-50)"
                             required
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Maximum 50 seats for public rides
+                        </p>
                     </div>
 
                     <div>
@@ -226,9 +303,13 @@ export default function CreateRideForm({
                             value={currentFormData.licensePlate}
                             onChange={handleChange}
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 font-medium"
-                            placeholder="Enter license plate"
+                            placeholder="e.g., ABC123 or 123ABC (2-7 characters)"
+                            maxLength="7"
                             required
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                            2-7 characters, letters and numbers only
+                        </p>
                     </div>
                 </div>
 

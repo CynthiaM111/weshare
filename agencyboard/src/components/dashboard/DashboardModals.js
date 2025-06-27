@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import CreateRideForm from '@/components/ride/CreateRideForm';
 import CreateDestinationCategoryForm from '@/components/destination/CreateDestinationCategoryForm';
 import SearchRideForm from '@/components/ride/SearchRideForm';
 import RideList from '@/components/ride/RideList';
+import ErrorDisplay from '@/components/ErrorDisplay';
+import { handleApiError } from '@/utils/errorHandler';
 
 export default function DashboardModals({
     // Modal states
@@ -59,6 +61,24 @@ export default function DashboardModals({
     onRideCreated,
     onCategoryCreated,
 }) {
+    // Error state for modal-specific errors
+    const [rideErrors, setRideErrors] = useState({}); // Track errors per ride
+
+    // Enhanced delete handler for modal
+    const handleModalDelete = async (rideId) => {
+        try {
+            // Clear any existing errors for this specific ride
+            setRideErrors(prev => ({ ...prev, [rideId]: null }));
+
+            // Call the original handleDelete function
+            await handleDelete(rideId);
+        } catch (error) {
+            // Handle error within the modal for this specific ride
+            const errorDetails = handleApiError(error);
+            setRideErrors(prev => ({ ...prev, [rideId]: errorDetails }));
+        }
+    };
+
     return (
         <>
             {/* Create Ride Form Modal */}
@@ -484,6 +504,16 @@ export default function DashboardModals({
                                                     </div>
                                                 </div>
 
+                                                {/* Error Display for this specific ride */}
+                                                {rideErrors[ride._id] && (
+                                                    <ErrorDisplay
+                                                        error={rideErrors[ride._id]}
+                                                        onDismiss={() => setRideErrors(prev => ({ ...prev, [ride._id]: null }))}
+                                                        variant="inline"
+                                                        className="mb-4"
+                                                    />
+                                                )}
+
                                                 <div className="flex space-x-2">
                                                     <button
                                                         onClick={() => {
@@ -501,11 +531,7 @@ export default function DashboardModals({
                                                         Edit Ride
                                                     </button>
                                                     <button
-                                                        onClick={() => {
-                                                            if (window.confirm('Are you sure you want to delete this ride?')) {
-                                                                handleDelete(ride._id);
-                                                            }
-                                                        }}
+                                                        onClick={() => handleModalDelete(ride._id)}
                                                         className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors duration-200"
                                                     >
                                                         Delete
