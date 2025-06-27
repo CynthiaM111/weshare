@@ -5,6 +5,7 @@ import SearchRideForm from '@/components/ride/SearchRideForm';
 import RideList from '@/components/ride/RideList';
 import ErrorDisplay from '@/components/ErrorDisplay';
 import { handleApiError } from '@/utils/errorHandler';
+import axios from 'axios';
 
 export default function DashboardModals({
     // Modal states
@@ -60,18 +61,60 @@ export default function DashboardModals({
     // Callbacks
     onRideCreated,
     onCategoryCreated,
+    onRideCancelled,
 }) {
     // Error state for modal-specific errors
     const [rideErrors, setRideErrors] = useState({}); // Track errors per ride
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [rideToCancel, setRideToCancel] = useState(null);
 
-    // Enhanced delete handler for modal
+    // Handle ride cancellation
+    const handleCancel = async (rideId) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/rides/${rideId}/cancel-ride`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Call the callback to immediately update the parent state
+            if (onRideCancelled) {
+                onRideCancelled(rideId);
+            }
+
+            setShowCancelModal(false);
+            setRideToCancel(null);
+        } catch (error) {
+            throw error; // Re-throw to be handled by the calling function
+        }
+    };
+
+    const confirmCancelRide = (ride) => {
+        setRideToCancel(ride);
+        setShowCancelModal(true);
+    };
+
+    // Handle ride deletion
     const handleModalDelete = async (rideId) => {
         try {
             // Clear any existing errors for this specific ride
             setRideErrors(prev => ({ ...prev, [rideId]: null }));
 
-            // Call the original handleDelete function
-            await handleDelete(rideId);
+            // Find the ride to check if it has bookings
+            const ride = filteredCategoryRides.find(r => r._id === rideId);
+            const hasBookings = ride && ride.booked_seats > 0;
+
+            if (hasBookings) {
+                // Show cancel confirmation modal
+                setRideToCancel(ride);
+                setShowCancelModal(true);
+            } else {
+                // Delete ride without bookings
+                if (!window.confirm('Are you sure you want to delete this ride?')) {
+                    return;
+                }
+                // Call the original handleDelete function
+                await handleDelete(rideId);
+            }
         } catch (error) {
             // Handle error within the modal for this specific ride
             const errorDetails = handleApiError(error);
@@ -502,6 +545,10 @@ export default function DashboardModals({
                                                         <span className="text-sm text-gray-600">Booked:</span>
                                                         <span className="font-semibold text-blue-600">{ride.booked_seats || 0}</span>
                                                     </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-gray-600">License:</span>
+                                                        <span className="font-semibold text-gray-900">{ride.licensePlate}</span>
+                                                    </div>
                                                 </div>
 
                                                 {/* Error Display for this specific ride */}
@@ -524,18 +571,28 @@ export default function DashboardModals({
                                                                 price: ride.price,
                                                             });
                                                             setEditingRide(ride);
-                                                            setShowCategoryRides(false); // Close the category rides modal
+                                                            // Don't close the category rides modal - keep it open
                                                         }}
                                                         className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors duration-200"
                                                     >
                                                         Edit Ride
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleModalDelete(ride._id)}
-                                                        className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors duration-200"
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                    {ride.booked_seats === 0 ? (
+                                                        <button
+                                                            onClick={() => handleModalDelete(ride._id)}
+                                                            className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors duration-200"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => confirmCancelRide(ride)}
+                                                            className="flex-1 px-3 py-2 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors duration-200"
+                                                            title={`Cancel ride (${ride.booked_seats} booking${ride.booked_seats !== 1 ? 's' : ''} will be refunded)`}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
@@ -683,6 +740,11 @@ export default function DashboardModals({
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                                                 </svg>
                                                 <span>Price ($)</span>
+                                                {editingRide && editingRide.booked_seats > 0 && (
+                                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
+                                                        Cannot Edit
+                                                    </span>
+                                                )}
                                             </div>
                                         </label>
                                         <input
@@ -691,9 +753,21 @@ export default function DashboardModals({
                                             min="0"
                                             value={formData.price}
                                             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 font-medium placeholder-gray-500"
+                                            className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 font-medium placeholder-gray-500 ${editingRide && editingRide.booked_seats > 0
+                                                ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                                                : ''
+                                                }`}
                                             required
+                                            disabled={editingRide && editingRide.booked_seats > 0}
                                         />
+                                        {editingRide && editingRide.booked_seats > 0 && (
+                                            <p className="text-xs text-yellow-700 mt-1 flex items-center">
+                                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                                </svg>
+                                                Price cannot be changed when ride has {editingRide.booked_seats} booking{editingRide.booked_seats !== 1 ? 's' : ''}
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -730,6 +804,76 @@ export default function DashboardModals({
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Beautiful Cancel Confirmation Modal */}
+            {showCancelModal && rideToCancel && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+                        <div className="text-center">
+                            {/* Warning Icon */}
+                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-orange-100 mb-4">
+                                <svg className="h-8 w-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                            </div>
+
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                Cancel Ride Confirmation
+                            </h3>
+
+                            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
+                                <div className="text-sm text-orange-800 space-y-2">
+                                    <p className="font-medium">⚠️ This action will:</p>
+                                    <ul className="list-disc list-inside space-y-1 text-left">
+                                        <li>Cancel the ride scheduled for <span className="font-semibold">{new Date(rideToCancel.departure_time).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span></li>
+                                        <li>Notify all <span className="font-semibold">{rideToCancel.booked_seats} passenger{rideToCancel.booked_seats !== 1 ? 's' : ''}</span> about the cancellation</li>
+                                        <li>Automatically refund all bookings</li>
+                                        <li>Remove the ride from the schedule</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                                <div className="text-sm text-gray-700 space-y-2">
+                                    <p className="font-medium">Ride Details:</p>
+                                    <div className="grid grid-cols-2 gap-2 text-left">
+                                        <span className="text-gray-600">Route:</span>
+                                        <span className="font-medium">{rideToCancel.from} → {rideToCancel.to}</span>
+                                        <span className="text-gray-600">License:</span>
+                                        <span className="font-medium">{rideToCancel.licensePlate}</span>
+                                        <span className="text-gray-600">Price:</span>
+                                        <span className="font-medium">${rideToCancel.price}</span>
+                                        <span className="text-gray-600">Bookings:</span>
+                                        <span className="font-medium text-blue-600">{rideToCancel.booked_seats}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-sm text-gray-600 mb-6">
+                                This action cannot be undone. Are you sure you want to proceed?
+                            </p>
+
+                            <div className="flex space-x-3">
+                                <button
+                                    onClick={() => {
+                                        setShowCancelModal(false);
+                                        setRideToCancel(null);
+                                    }}
+                                    className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors duration-200"
+                                >
+                                    Keep Ride
+                                </button>
+                                <button
+                                    onClick={() => handleCancel(rideToCancel._id)}
+                                    className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-medium transition-colors duration-200"
+                                >
+                                    Cancel Ride
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

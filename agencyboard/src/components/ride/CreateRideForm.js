@@ -274,6 +274,11 @@ export default function CreateRideForm({
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                                 </svg>
                                 <span>Price ($)</span>
+                                {editingRide && editingRide.booked_seats > 0 && (
+                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
+                                        Cannot Edit
+                                    </span>
+                                )}
                             </div>
                         </label>
                         <input
@@ -281,11 +286,23 @@ export default function CreateRideForm({
                             name="price"
                             value={currentFormData.price}
                             onChange={handleChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 font-medium"
+                            className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 font-medium ${editingRide && editingRide.booked_seats > 0
+                                    ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                                    : ''
+                                }`}
                             step="0.01"
                             min="0"
                             required
+                            disabled={editingRide && editingRide.booked_seats > 0}
                         />
+                        {editingRide && editingRide.booked_seats > 0 && (
+                            <p className="text-xs text-yellow-700 mt-1 flex items-center">
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                                Price cannot be changed when ride has {editingRide.booked_seats} booking{editingRide.booked_seats !== 1 ? 's' : ''}
+                            </p>
+                        )}
                     </div>
 
                     <div>

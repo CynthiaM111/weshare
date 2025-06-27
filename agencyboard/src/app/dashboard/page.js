@@ -768,7 +768,14 @@ export default function Dashboard() {
             });
 
             setEditingRide(null);
-            fetchData(); // Refresh ride list
+
+            // Refresh the specific category rides if we're viewing a category
+            if (selectedCategoryForRides) {
+                await fetchCategoryRides(selectedCategoryForRides);
+            }
+
+            // Also refresh the main data
+            fetchData();
         } catch (error) {
             console.error('Error updating ride:', error);
         }
@@ -1158,6 +1165,14 @@ export default function Dashboard() {
                             fetchDrafts();
                         }}
                         onCategoryCreated={() => {
+                            fetchData();
+                        }}
+                        onRideCancelled={(rideId) => {
+                            // Immediately remove the cancelled ride from selectedCategoryRides
+                            setSelectedCategoryRides(prevRides => prevRides.filter(ride => ride._id !== rideId));
+                            // Also remove from agencyRides
+                            setAgencyRides(prevRides => prevRides.filter(ride => ride._id !== rideId));
+                            // Also refresh the main data
                             fetchData();
                         }}
                     />
