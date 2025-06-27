@@ -6,6 +6,7 @@ const DestinationCategory = require('../models/destinationCategory');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const messagingService = require('../services/messagingService');
+const ruleValidator = require('../Utilities/ruleValidator');
 
 // Helper function to clear Redis cache
 const clearCache = async () => {
@@ -641,11 +642,38 @@ const updateRide = async (req, res) => {
 const deleteRide = async (req, res) => {
     try {
         const { id } = req.params;
-        const ride = await Ride.findByIdAndDelete(id);
 
+        // First, find the ride to validate against rules
+        const ride = await Ride.findById(id);
         if (!ride) {
-            return res.status(404).json({ error: 'Ride not found' });
+            return res.status(404).json({
+                error: 'Ride not found',
+                code: 'RIDE_NOT_FOUND',
+                timestamp: new Date().toISOString()
+            });
         }
+
+        // Validate deletion against business rules
+        const context = ruleValidator.createRideContext(ride, req.user);
+        const validationResult = ruleValidator.validateAction('ride', 'delete', context);
+
+        if (!validationResult.isValid) {
+            return res.status(400).json({
+                error: validationResult.message,
+                code: validationResult.errorCode,
+                action: 'ride.delete',
+                timestamp: new Date().toISOString(),
+                details: {
+                    rideId: id,
+                    rideStatus: ride.status,
+                    bookingsCount: ride.bookedBy ? ride.bookedBy.length : 0,
+                    departureTime: ride.departure_time
+                }
+            });
+        }
+
+        // If validation passes, proceed with deletion
+        await Ride.findByIdAndDelete(id);
 
         // Send ride cancellation messages to all passengers
         try {
@@ -658,7 +686,12 @@ const deleteRide = async (req, res) => {
         await clearCache(); // Clear cache on delete
         res.status(200).json({ message: 'Ride deleted successfully' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to delete ride', details: error.message });
+        res.status(500).json({
+            error: 'Failed to delete ride',
+            code: 'DELETE_FAILED',
+            details: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
 };
 
@@ -730,32 +763,66 @@ const bookRide = async (req, res) => {
         const { rideId } = req.params;
         const userId = req.user.id;
 
-
         if (!mongoose.Types.ObjectId.isValid(rideId) || !mongoose.Types.ObjectId.isValid(userId)) {
             console.error('Invalid rideId or userId:', { rideId, userId });
-            return res.status(400).json({ error: 'Invalid rideId or userId' });
+            return res.status(400).json({
+                error: 'Invalid rideId or userId',
+                code: 'INVALID_INPUT'
+            });
         }
 
         const ride = await Ride.findById(rideId);
         if (!ride) {
             console.error('Ride not found:', rideId);
-            return res.status(404).json({ error: 'Ride not found' });
+            return res.status(404).json({
+                error: 'Ride not found',
+                code: 'RIDE_NOT_FOUND'
+            });
+        }
+
+        // Get user's existing bookings for validation
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                error: 'User not found',
+                code: 'USER_NOT_FOUND'
+            });
+        }
+
+        // Get user's existing bookings
+        const userBookings = await Ride.find({
+            'bookedBy.userId': userId,
+            departure_time: { $gte: new Date() }
+        }).select('departure_time');
+
+        // Validate booking creation against business rules
+        const context = ruleValidator.createBookingCreationContext(ride, req.user, userBookings);
+        const validationResult = ruleValidator.validateAction('booking', 'create', context);
+
+        if (!validationResult.isValid) {
+            return res.status(400).json({
+                error: validationResult.message,
+                code: validationResult.errorCode,
+                action: 'booking.create',
+                timestamp: new Date().toISOString(),
+                details: {
+                    rideId: rideId,
+                    userId: userId,
+                    rideStatus: ride.status,
+                    availableSeats: ride.seats - (ride.booked_seats || 0),
+                    departureTime: ride.departure_time,
+                    userBookingCount: userBookings.length
+                }
+            });
         }
 
         // Prevent drivers from booking their own private rides
         if (ride.isPrivate && ride.userId && ride.userId.toString() === userId) {
             console.error('Driver cannot book their own ride:', { userId, rideId });
-            return res.status(400).json({ error: 'You cannot book your own ride' });
-        }
-
-        if (ride.booked_seats >= ride.seats) {
-            console.error('No seats available:', rideId);
-            return res.status(400).json({ error: 'No seats available' });
-        }
-
-        if (ride.bookedBy.some((b) => b.userId.toString() === userId)) {
-            console.error('User already booked:', { userId, rideId });
-            return res.status(400).json({ error: 'You have already booked this ride' });
+            return res.status(400).json({
+                error: 'You cannot book your own ride',
+                code: 'CANNOT_BOOK_OWN_RIDE'
+            });
         }
 
         const bookingId = uuidv4();
@@ -767,7 +834,6 @@ const bookRide = async (req, res) => {
         ride.booked_seats = ride.bookedBy.length;
         await ride.save();
 
-        const user = await User.findById(userId);
         user.booked_rides.push(rideId);
         await user.save();
 
@@ -790,9 +856,14 @@ const bookRide = async (req, res) => {
         });
     } catch (error) {
         console.error('Booking error:', error.message, error.stack);
-        res.status(500).json({ error: 'Failed to book ride', details: error.message });
+        res.status(500).json({
+            error: 'Failed to book ride',
+            code: 'BOOKING_FAILED',
+            details: error.message
+        });
     }
 };
+
 const getUserRides = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -876,7 +947,6 @@ const getUserRides = async (req, res) => {
     }
 };
 
-
 const cancelRideBooking = async (req, res) => {
     try {
         const { rideId } = req.params;
@@ -885,16 +955,43 @@ const cancelRideBooking = async (req, res) => {
         // Find and update the ride
         const ride = await Ride.findById(rideId);
         if (!ride) {
-            return res.status(404).json({ error: 'Ride not found' });
+            return res.status(404).json({
+                error: 'Ride not found',
+                code: 'RIDE_NOT_FOUND'
+            });
         }
 
         // Check if user has booked this ride
-        const bookingIndex = ride.bookedBy.findIndex(b => b.userId.toString() === userId);
-        if (bookingIndex === -1) {
-            return res.status(400).json({ error: 'You have not booked this ride' });
+        const booking = ride.bookedBy.find(b => b.userId.toString() === userId);
+        if (!booking) {
+            return res.status(400).json({
+                error: 'You have not booked this ride',
+                code: 'BOOKING_NOT_FOUND'
+            });
+        }
+
+        // Validate booking cancellation against business rules
+        const context = ruleValidator.createBookingContext(booking, ride, req.user);
+        const validationResult = ruleValidator.validateAction('booking', 'cancel', context);
+
+        if (!validationResult.isValid) {
+            return res.status(400).json({
+                error: validationResult.message,
+                code: validationResult.errorCode,
+                action: 'booking.cancel',
+                timestamp: new Date().toISOString(),
+                details: {
+                    rideId: rideId,
+                    userId: userId,
+                    bookingStatus: booking.checkInStatus,
+                    rideStatus: ride.status,
+                    departureTime: ride.departure_time
+                }
+            });
         }
 
         // Remove user from bookedBy array
+        const bookingIndex = ride.bookedBy.findIndex(b => b.userId.toString() === userId);
         ride.bookedBy.splice(bookingIndex, 1);
         ride.booked_seats = ride.bookedBy.length;
         await ride.save();
@@ -917,7 +1014,11 @@ const cancelRideBooking = async (req, res) => {
         res.status(200).json({ message: 'Booking cancelled successfully' });
     } catch (error) {
         console.error('Error in cancelRideBooking:', error);
-        res.status(500).json({ error: 'Failed to cancel booking', details: error.message });
+        res.status(500).json({
+            error: 'Failed to cancel booking',
+            code: 'CANCELLATION_FAILED',
+            details: error.message
+        });
     }
 };
 
@@ -1091,6 +1192,7 @@ const getRideHistory = async (req, res) => {
         });
     }
 };
+
 const getUserPrivateRides = async (req, res) => {
     try {
         // Get current date for comparison
