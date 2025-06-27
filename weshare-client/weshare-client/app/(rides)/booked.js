@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, RefreshControl, SafeAreaView } from 'react-native';
 import axios from 'axios';
-import QRCode from 'react-native-qrcode-svg';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { useApi } from '../../hooks/useApi';
 import { LinearGradient } from 'expo-linear-gradient';
+
+// Safely import QRCode with error handling
+let QRCode = null;
+try {
+    QRCode = require('react-native-qrcode-svg').default;
+} catch (error) {
+    console.warn('QRCode component not available:', error.message);
+}
 
 export default function BookedRidesScreen() {
     const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
@@ -20,6 +27,47 @@ export default function BookedRidesScreen() {
     });
     const { user } = useAuth();
     const router = useRouter();
+
+    // Check if user is authenticated
+    if (!user) {
+        return (
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>My Booked Rides</Text>
+                        <View style={styles.headerPlaceholder} />
+                    </View>
+
+                    <View style={styles.loginPromptContainer}>
+                        <View style={styles.loginPromptCard}>
+                            <View style={styles.loginPromptIcon}>
+                                <FontAwesome5 name="ticket-alt" size={48} color="#0a2472" />
+                            </View>
+                            <Text style={styles.loginPromptTitle}>Login Required</Text>
+                            <Text style={styles.loginPromptText}>
+                                Please login to view and manage your booked rides.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.loginPromptButton}
+                                onPress={() => router.push('/(auth)/login')}
+                            >
+                                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
+                                <Text style={styles.loginPromptButtonText}>LOGIN / SIGN UP</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
+        );
+    }
 
     const {
         data: bookedRides,
@@ -81,12 +129,16 @@ export default function BookedRidesScreen() {
     });
 
     useEffect(() => {
-        fetchUserBookings();
-    }, []);
+        if (user) {
+            fetchUserBookings();
+        }
+    }, [user]);
 
     const onRefresh = useCallback(() => {
-        fetchUserBookings();
-    }, []);
+        if (user) {
+            fetchUserBookings();
+        }
+    }, [user]);
 
     const toggleExpand = (section) => {
         setExpandedSections(prev => ({
@@ -409,12 +461,26 @@ export default function BookedRidesScreen() {
                         <View style={styles.modalContent}>
                             <Text style={styles.modalTitle}>Ride QR Code</Text>
                             {selectedRideId && (
-                                <QRCode
-                                    value={generateQRCodeData(selectedRideId)}
-                                    size={200}
-                                    color="#000000"
-                                    backgroundColor="#FFFFFF"
-                                />
+                                <>
+                                    {QRCode ? (
+                                        <QRCode
+                                            value={generateQRCodeData(selectedRideId)}
+                                            size={200}
+                                            color="#000000"
+                                            backgroundColor="#FFFFFF"
+                                        />
+                                    ) : (
+                                        <View style={styles.qrCodeFallback}>
+                                            <FontAwesome5 name="qrcode" size={64} color="#666" />
+                                            <Text style={styles.qrCodeFallbackText}>
+                                                QR Code temporarily unavailable
+                                            </Text>
+                                            <Text style={styles.qrCodeFallbackSubtext}>
+                                                Please try again later
+                                            </Text>
+                                        </View>
+                                    )}
+                                </>
                             )}
                             <TouchableOpacity
                                 style={styles.closeButton}
@@ -800,5 +866,72 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#2196F3',
         marginLeft: 4,
+    },
+    loginPromptContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loginPromptCard: {
+        backgroundColor: '#fff',
+        padding: 20,
+        borderRadius: 12,
+        alignItems: 'center',
+        minWidth: 280,
+    },
+    loginPromptIcon: {
+        backgroundColor: '#0a2472',
+        padding: 10,
+        borderRadius: 50,
+        marginBottom: 20,
+    },
+    loginPromptTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        color: '#0a2472',
+    },
+    loginPromptText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    loginPromptButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    loginPromptButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    qrCodeFallback: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 12,
+        marginVertical: 20,
+        minHeight: 200,
+    },
+    qrCodeFallbackText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#666',
+        marginTop: 16,
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    qrCodeFallbackSubtext: {
+        fontSize: 14,
+        color: '#999',
+        textAlign: 'center',
     },
 }); 

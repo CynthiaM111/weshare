@@ -79,6 +79,26 @@ export default function RideDetails() {
     }, [bookingError]);
 
     const handleBookRide = async () => {
+        // Check if user is authenticated
+        if (!user) {
+            Alert.alert(
+                'Login Required',
+                'Please login before you can book a ride.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Login',
+                        style: 'default',
+                        onPress: () => router.push('/(auth)/login')
+                    }
+                ]
+            );
+            return;
+        }
+
         try {
             await bookRide();
             fetchRideDetails();

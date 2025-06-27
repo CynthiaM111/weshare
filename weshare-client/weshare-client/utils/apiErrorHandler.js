@@ -33,10 +33,19 @@ export const ERROR_CODES = {
     RIDE_UPDATE_FAILED: 'RIDE_UPDATE_FAILED',
     RIDE_DELETE_FAILED: 'RIDE_DELETE_FAILED',
 
+    // Business Rule Violations (New)
+    RIDE_HAS_BOOKINGS: 'RIDE_HAS_BOOKINGS',
+    RIDE_ALREADY_CANCELED: 'RIDE_ALREADY_CANCELED',
+    RIDE_IN_PAST: 'RIDE_IN_PAST',
+    RIDE_ALREADY_STARTED: 'RIDE_ALREADY_STARTED',
+    CANCELLATION_TOO_LATE: 'CANCELLATION_TOO_LATE',
+    BOOKING_ALREADY_COMPLETED: 'BOOKING_ALREADY_COMPLETED',
+    BUSINESS_RULE_VIOLATION: 'BUSINESS_RULE_VIOLATION',
+    VALIDATION_ERROR: 'VALIDATION_ERROR',
+
     // General
     BAD_REQUEST: 'BAD_REQUEST',
     NOT_FOUND: 'NOT_FOUND',
-    VALIDATION_ERROR: 'VALIDATION_ERROR',
     UNKNOWN_ERROR: 'UNKNOWN_ERROR'
 };
 
@@ -226,10 +235,19 @@ export const ERROR_MESSAGES = {
     [ERROR_CODES.RIDE_UPDATE_FAILED]: "Couldn't update ride details. Try again later.",
     [ERROR_CODES.RIDE_DELETE_FAILED]: "Couldn't delete this ride. Try again later.",
 
+    // Business Rule Violations (New)
+    [ERROR_CODES.RIDE_HAS_BOOKINGS]: "Cannot delete ride with existing bookings. Please cancel the ride instead to notify passengers.",
+    [ERROR_CODES.RIDE_ALREADY_CANCELED]: "This ride has already been canceled and cannot be deleted.",
+    [ERROR_CODES.RIDE_IN_PAST]: "Cannot delete a ride that has already departed.",
+    [ERROR_CODES.RIDE_ALREADY_STARTED]: "Cannot book a ride that has already started.",
+    [ERROR_CODES.CANCELLATION_TOO_LATE]: "You cannot cancel your booking less than 30 minutes before departure.",
+    [ERROR_CODES.BOOKING_ALREADY_COMPLETED]: "This booking has already been completed and cannot be canceled.",
+    [ERROR_CODES.BUSINESS_RULE_VIOLATION]: "This action is not allowed due to business rules. Please check the details and try again.",
+    [ERROR_CODES.VALIDATION_ERROR]: "Please check your input and try again.",
+
     // General
     [ERROR_CODES.BAD_REQUEST]: "Please check your input and try again.",
     [ERROR_CODES.NOT_FOUND]: "The requested information could not be found.",
-    [ERROR_CODES.VALIDATION_ERROR]: "Please check your input and try again.",
     [ERROR_CODES.UNKNOWN_ERROR]: "Something went wrong. Please try again."
 };
 
@@ -291,15 +309,44 @@ const getSpecificErrorCode = (error) => {
 
     const { status, data } = error.response;
     const message = data?.message || data?.error || '';
+    const errorCode = data?.code; // Check for backend error code
 
     // Check for maintenance mode first
     if (isMaintenanceMode(error)) {
         return ERROR_CODES.MAINTENANCE_MODE;
     }
 
+    // Check for backend error codes first (highest priority)
+    if (errorCode && ERROR_CODES[errorCode]) {
+        return errorCode;
+    }
+
     // Status-based error detection
     switch (status) {
         case 400:
+            // Business rule violations (check message content)
+            if (message.includes('bookings') && message.includes('cancel instead')) {
+                return ERROR_CODES.RIDE_HAS_BOOKINGS;
+            }
+            if (message.includes('already cancelled')) {
+                return ERROR_CODES.RIDE_ALREADY_CANCELED;
+            }
+            if (message.includes('past ride') || message.includes('already departed')) {
+                return ERROR_CODES.RIDE_IN_PAST;
+            }
+            if (message.includes('already started')) {
+                return ERROR_CODES.RIDE_ALREADY_STARTED;
+            }
+            if (message.includes('less than 30 minutes')) {
+                return ERROR_CODES.CANCELLATION_TOO_LATE;
+            }
+            if (message.includes('already completed')) {
+                return ERROR_CODES.BOOKING_ALREADY_COMPLETED;
+            }
+            if (message.includes('business rules')) {
+                return ERROR_CODES.BUSINESS_RULE_VIOLATION;
+            }
+
             // Authentication specific errors
             if (message.includes('email') && message.includes('password')) {
                 return ERROR_CODES.INVALID_CREDENTIALS;

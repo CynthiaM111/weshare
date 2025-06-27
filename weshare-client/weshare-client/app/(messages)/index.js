@@ -68,8 +68,10 @@ export default function MessagesScreen() {
     });
 
     useEffect(() => {
-        loadMessages();
-        loadUnreadCount();
+        if (user) {
+            loadMessages();
+            loadUnreadCount();
+        }
     }, []);
 
     useEffect(() => {
@@ -126,11 +128,13 @@ export default function MessagesScreen() {
     };
 
     const onRefresh = useCallback(() => {
-        setPage(1);
-        setHasMore(true);
-        loadMessages(1);
-        loadUnreadCount();
-    }, []);
+        if (user) {
+            setPage(1);
+            setHasMore(true);
+            loadMessages(1);
+            loadUnreadCount();
+        }
+    }, [user]);
 
     const loadMoreMessages = () => {
         if (hasMore && !isLoadingMessages) {

@@ -31,8 +31,48 @@ export default function AddPrivateRideScreen() {
     // Get ride data from route params if it exists
     const params = useLocalSearchParams();
     const hasInitialized = useRef(false);
-    useEffect(() => {
 
+    // Check if user is authenticated
+    if (!user) {
+        return (
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <Ionicons name="arrow-back" size={24} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Add Private Ride</Text>
+                    </View>
+
+                    <View style={styles.loginPromptContainer}>
+                        <View style={styles.loginPromptCard}>
+                            <View style={styles.loginPromptIcon}>
+                                <Ionicons name="car-sport" size={48} color="#0a2472" />
+                            </View>
+                            <Text style={styles.loginPromptTitle}>Login Required</Text>
+                            <Text style={styles.loginPromptText}>
+                                Please login to create and share your private rides with other travelers.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.loginPromptButton}
+                                onPress={() => router.push('/(auth)/login')}
+                            >
+                                <Ionicons name="log-in" size={16} color="#fff" />
+                                <Text style={styles.loginPromptButtonText}>LOGIN / SIGN UP</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
+        );
+    }
+
+    useEffect(() => {
         if (params?.ride && !hasInitialized.current) {
             try {
                 const parsedRide = JSON.parse(params.ride);
@@ -152,7 +192,7 @@ export default function AddPrivateRideScreen() {
                 `Failed to ${isEditing ? 'update' : 'add'} private ride. Please try again.`;
 
             Alert.alert('Error', userMessage);
-           
+
         }
     };
 
@@ -427,5 +467,49 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    loginPromptContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loginPromptCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 12,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    loginPromptIcon: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    loginPromptTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 10,
+    },
+    loginPromptText: {
+        color: '#333',
+        marginBottom: 20,
+    },
+    loginPromptButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loginPromptButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 10,
     },
 }); 

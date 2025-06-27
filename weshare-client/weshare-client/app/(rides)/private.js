@@ -25,6 +25,47 @@ export default function PrivateRidesScreen() {
     const [selectedRideForCompletion, setSelectedRideForCompletion] = useState(null);
     const [selectedPassenger, setSelectedPassenger] = useState(null);
 
+    // Check if user is authenticated
+    if (!user) {
+        return (
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Private Rides</Text>
+                        <View style={styles.headerPlaceholder} />
+                    </View>
+
+                    <View style={styles.loginPromptContainer}>
+                        <View style={styles.loginPromptCard}>
+                            <View style={styles.loginPromptIcon}>
+                                <FontAwesome5 name="lock" size={48} color="#0a2472" />
+                            </View>
+                            <Text style={styles.loginPromptTitle}>Login Required</Text>
+                            <Text style={styles.loginPromptText}>
+                                Please login to access private rides and book your journey.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.loginPromptButton}
+                                onPress={() => router.push('/(auth)/login')}
+                            >
+                                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
+                                <Text style={styles.loginPromptButtonText}>LOGIN / SIGN UP</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
+        );
+    }
+
     // User's own private rides
     const {
         data: privateRides,
@@ -1332,5 +1373,67 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         marginLeft: 4,
+    },
+    // Login prompt styles
+    loginPromptContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    loginPromptCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 20,
+        padding: 30,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+        maxWidth: 350,
+        width: '100%',
+    },
+    loginPromptIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(10, 36, 114, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    loginPromptTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    loginPromptText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 24,
+        marginBottom: 30,
+    },
+    loginPromptButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 16,
+        paddingHorizontal: 32,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    loginPromptButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 8,
     },
 }); 

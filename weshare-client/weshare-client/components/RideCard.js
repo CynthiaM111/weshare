@@ -2,8 +2,9 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
+import React from 'react';
 
-export default function RideCard({
+const RideCard = React.memo(({
     ride,
     onPress,
     isBooked,
@@ -16,7 +17,7 @@ export default function RideCard({
     isCheckedIn,
     isPrivate,
     onFinishRide
-}) {
+}) => {
     // Ensure we have valid numbers for calculations
     const totalSeats = parseInt(ride.seats) || 1;
     const bookedSeats = parseInt(ride.booked_seats) || 0;
@@ -193,7 +194,7 @@ export default function RideCard({
             </View>
         </TouchableOpacity>
     );
-}
+});
 
 const styles = StyleSheet.create({
     card: {
@@ -404,3 +405,5 @@ const styles = StyleSheet.create({
         marginLeft: 8,
     },
 });
+
+export default RideCard;

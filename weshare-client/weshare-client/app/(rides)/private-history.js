@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-export default function PrivateHistoryScreen() {
+const PrivateHistoryScreen = () => {
     const router = useRouter();
     const { user } = useAuth();
     const [repeatModalVisible, setRepeatModalVisible] = useState(false);
@@ -50,8 +50,10 @@ export default function PrivateHistoryScreen() {
     }, [user]);
 
     const onRefresh = useCallback(async () => {
-        fetchPrivateHistory();
-    }, []);
+        if (user) {
+            fetchPrivateHistory();
+        }
+    }, [user]);
 
     const handleRepeatRide = (ride) => {
         setSelectedRideForRepeat(ride);
@@ -155,24 +157,24 @@ export default function PrivateHistoryScreen() {
         setRepeatSeats('');
     };
 
-   useEffect(() => {
-    if (historyError) {
-        Alert.alert(
-            'Error Loading History',
-            historyError.userMessage || 'We encountered an error while loading your private ride history. Please try again.',
-            [
-                {
-                    text: 'Cancel',
-                    style: 'cancel'
-                },
-                {
-                    text: 'Retry',
-                    onPress: () => retryFetchHistory()
-                }
-            ]
-        );
-    }
-}, [historyError]);
+    useEffect(() => {
+        if (historyError) {
+            Alert.alert(
+                'Error Loading History',
+                historyError.userMessage || 'We encountered an error while loading your private ride history. Please try again.',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => retryFetchHistory()
+                    }
+                ]
+            );
+        }
+    }, [historyError]);
 
     const history = historyData?.history || [];
 
@@ -741,4 +743,6 @@ const styles = StyleSheet.create({
     disabledButton: {
         backgroundColor: '#ccc',
     },
-}); 
+});
+
+export default PrivateHistoryScreen; 

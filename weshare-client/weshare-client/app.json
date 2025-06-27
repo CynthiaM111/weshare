@@ -8,10 +8,9 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cynthia_m.weshare",
+      "bundleIdentifier": "com.cynthiam.weshare",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -21,7 +20,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.cynthia_m.weshare"
+      "package": "com.cynthiam.weshare"
     },
     "web": {
       "bundler": "metro",
@@ -30,6 +29,7 @@
     },
     "plugins": [
       "expo-router",
+      
       [
         "expo-splash-screen",
         {

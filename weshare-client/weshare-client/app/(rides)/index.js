@@ -1,6 +1,6 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Modal, ScrollView, Alert, StatusBar, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import RideCard from '../../components/RideCard';
 import { useLocalSearchParams } from 'expo-router';
@@ -48,7 +48,7 @@ export default function RidesScreen() {
         if (!user?.id || !user?.token) {
             return;
         }
-        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/private/user/${user.id}`, {
+        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/private`, {
             headers: { Authorization: `Bearer ${user?.token}` },
         });
         return response.data;
@@ -139,6 +139,11 @@ export default function RidesScreen() {
     }, [params.rides, user]);
 
     const groupRidesByDate = (ridesToGroup) => {
+        // Handle undefined, null, or non-array values
+        if (!ridesToGroup || !Array.isArray(ridesToGroup)) {
+            return [];
+        }
+
         const grouped = ridesToGroup.reduce((acc, ride) => {
             const date = new Date(ride.departure_time).toLocaleDateString();
             if (!acc[date]) {
@@ -163,12 +168,28 @@ export default function RidesScreen() {
         return Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date));
     };
 
-    const toggleExpand = (section) => {
+    const handleRidePress = useCallback((rideId) => {
+        router.push(`/(rides)/${rideId}`);
+    }, [router]);
+
+    const handleToggleExpand = useCallback((section) => {
         setExpandedSections((prev) => ({
             ...prev,
             [section]: !prev[section],
         }));
-    };
+    }, []);
+
+    const handleSearchPress = useCallback(() => {
+        router.push('/(home)');
+    }, [router]);
+
+    const handleBookedPress = useCallback(() => {
+        router.push('/(rides)/booked');
+    }, [router]);
+
+    const handlePrivatePress = useCallback(() => {
+        router.push('/(rides)/private');
+    }, [router]);
 
     useEffect(() => {
         if (bookingsError && bookingsError.statusCode !== 404) {
@@ -210,27 +231,42 @@ export default function RidesScreen() {
 
     // Separate available rides and booked rides
     // Filter out missed rides from active bookings as they should not appear in search results
-    const bookedRideIds = new Set(
-        userBookings?.filter(ride => ride.checkInStatus !== 'missed').map((ride) => ride._id) || []
-    );
-    const availableRides = searchResults.filter(
+    const bookedRideIds = useMemo(() => new Set(
+        (userBookings || []).filter(ride => ride.checkInStatus !== 'missed').map((ride) => ride._id) || []
+    ), [userBookings]);
+
+    const availableRides = useMemo(() => (searchResults || []).filter(
         (ride) => !bookedRideIds.has(ride._id) && ride.available_seats > 0
-    );
-    const bookedRidesFromSearch = searchResults.filter((ride) => bookedRideIds.has(ride._id));
-    const fullRides = searchResults.filter(
+    ), [searchResults, bookedRideIds]);
+
+    const bookedRidesFromSearch = useMemo(() => (searchResults || []).filter((ride) => bookedRideIds.has(ride._id)), [searchResults, bookedRideIds]);
+
+    const fullRides = useMemo(() => (searchResults || []).filter(
         (ride) => !bookedRideIds.has(ride._id) && ride.available_seats <= 0
-    );
+    ), [searchResults, bookedRideIds]);
 
-    const groupedAvailableRides = groupRidesByDate(availableRides);
-    const groupedBookedRides = groupRidesByDate(bookedRidesFromSearch);
-    const groupedFullRides = groupRidesByDate(fullRides);
-    const allBookedRides = groupRidesByDate(userBookings?.filter(ride => ride.checkInStatus !== 'missed') || []);
-    const groupedPrivateRides = groupRidesByDate(privateRides || []);
+    const groupedAvailableRides = useMemo(() => groupRidesByDate(availableRides), [availableRides]);
+    const groupedBookedRides = useMemo(() => groupRidesByDate(bookedRidesFromSearch), [bookedRidesFromSearch]);
+    const groupedFullRides = useMemo(() => groupRidesByDate(fullRides), [fullRides]);
+    const allBookedRides = useMemo(() => groupRidesByDate((userBookings || []).filter(ride => ride.checkInStatus !== 'missed')), [userBookings]);
+    const groupedPrivateRides = useMemo(() => groupRidesByDate(privateRides || []), [privateRides]);
 
-    const hasSearchResults = searchResults.length > 0;
-    const hasBookings = userBookings?.filter(ride => ride.checkInStatus !== 'missed').length > 0;
-    const hasSearched = params.rides !== undefined; // User performed a search if params.rides is set
-    const hasEmptySearchResults = hasSearched && !hasSearchResults; // User searched but got no results
+    const hasSearchResults = useMemo(() => (searchResults || []).length > 0, [searchResults]);
+    const hasBookings = useMemo(() => (userBookings || []).filter(ride => ride.checkInStatus !== 'missed').length > 0, [userBookings]);
+    const hasSearched = useMemo(() => params.rides !== undefined, [params.rides]); // User performed a search if params.rides is set
+    const hasEmptySearchResults = useMemo(() => hasSearched && !hasSearchResults, [hasSearched, hasSearchResults]); // User searched but got no results
+
+    const renderRideCard = useCallback(({ item: ride, isBooked = false, isFull = false }) => (
+        <RideCard
+            key={ride._id}
+            ride={ride}
+            onPress={() => handleRidePress(ride._id)}
+            isBooked={isBooked}
+            availableSeats={ride.available_seats}
+            statusDisplay={ride.statusDisplay}
+            isFull={isFull}
+        />
+    ), [handleRidePress]);
 
     return (
         <View style={styles.container}>
@@ -252,7 +288,7 @@ export default function RidesScreen() {
                             <View>
                                 <Text style={styles.headerTitle}>Available Rides</Text>
                                 <Text style={styles.headerSubtitle}>
-                                    {hasSearchResults ? `${searchResults.length} rides found` : 'Find your perfect ride'}
+                                    {hasSearchResults ? `${(searchResults || []).length} rides found` : 'Find your perfect ride'}
                                 </Text>
                             </View>
                         </View>
@@ -275,6 +311,13 @@ export default function RidesScreen() {
                     />
                 }
                 contentContainerStyle={styles.scrollContent}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                windowSize={10}
+                initialNumToRender={5}
+                updateCellsBatchingPeriod={50}
+                getItemLayout={undefined}
+                keyExtractor={(item, index) => index.toString()}
                 ListHeaderComponent={
                     <>
                         {/* No search performed yet */}
@@ -299,7 +342,7 @@ export default function RidesScreen() {
                                 >
                                     <TouchableOpacity
                                         style={styles.searchButton}
-                                        onPress={() => router.push('/(home)')}
+                                        onPress={handleSearchPress}
                                     >
                                         <Ionicons name="search" size={20} color="#fff" />
                                         <Text style={styles.searchButtonText}>Search for Rides</Text>
@@ -326,7 +369,7 @@ export default function RidesScreen() {
                                 >
                                     <TouchableOpacity
                                         style={styles.newSearchButton}
-                                        onPress={() => router.push('/(home)')}
+                                        onPress={handleSearchPress}
                                     >
                                         <Ionicons name="search" size={20} color="#fff" />
                                         <Text style={styles.newSearchText}>Try New Search</Text>
@@ -339,7 +382,7 @@ export default function RidesScreen() {
                                         {hasBookings && (
                                             <TouchableOpacity
                                                 style={styles.emptyResultButton}
-                                                onPress={() => router.push('/(rides)/booked')}
+                                                onPress={handleBookedPress}
                                             >
                                                 <Ionicons name="ticket" size={16} color="#3b82f6" />
                                                 <Text style={styles.emptyResultButtonText}>My Bookings</Text>
@@ -347,7 +390,7 @@ export default function RidesScreen() {
                                         )}
                                         <TouchableOpacity
                                             style={styles.emptyResultButton}
-                                            onPress={() => router.push('/(rides)/private')}
+                                            onPress={handlePrivatePress}
                                         >
                                             <Ionicons name="car-sport" size={16} color="#1d4ed8" />
                                             <Text style={styles.emptyResultButtonText}>My Rides</Text>
@@ -373,7 +416,7 @@ export default function RidesScreen() {
                                     {hasBookings && (
                                         <TouchableOpacity
                                             style={styles.compactButton}
-                                            onPress={() => router.push('/(rides)/booked')}
+                                            onPress={handleBookedPress}
                                         >
                                             <Ionicons name="ticket" size={16} color="#3b82f6" />
                                             <Text style={styles.compactButtonText}>Bookings</Text>
@@ -382,7 +425,7 @@ export default function RidesScreen() {
                                     {user && (
                                         <TouchableOpacity
                                             style={styles.compactButton}
-                                            onPress={() => router.push('/(rides)/private')}
+                                            onPress={handlePrivatePress}
                                         >
                                             <Ionicons name="car-sport" size={16} color="#1d4ed8" />
                                             <Text style={styles.compactButtonText}>My Rides</Text>
@@ -394,7 +437,7 @@ export default function RidesScreen() {
 
                         {hasSearchResults && groupedAvailableRides.length > 0 && (
                             <View style={styles.section}>
-                                <TouchableOpacity onPress={() => toggleExpand('available')}>
+                                <TouchableOpacity onPress={() => handleToggleExpand('available')}>
                                     <LinearGradient
                                         colors={['#10b981', '#059669']}
                                         start={{ x: 0, y: 0 }}
@@ -404,7 +447,7 @@ export default function RidesScreen() {
                                         <View style={styles.sectionHeader}>
                                             <View style={styles.sectionHeaderLeft}>
                                                 <Text style={styles.sectionEmoji}>✅</Text>
-                                                <Text style={styles.sectionTitle}>Available Rides ({availableRides.length})</Text>
+                                                <Text style={styles.sectionTitle}>Available Rides ({(availableRides || []).length})</Text>
                                             </View>
                                             <Ionicons
                                                 name={expandedSections.available ? 'chevron-up' : 'chevron-down'}
@@ -430,14 +473,9 @@ export default function RidesScreen() {
                                                     <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                 </View>
                                                 {group.rides.map((ride) => (
-                                                    <RideCard
-                                                        key={ride._id}
-                                                        ride={ride}
-                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                        isBooked={false}
-                                                        availableSeats={ride.available_seats}
-                                                        statusDisplay={ride.statusDisplay}
-                                                    />
+                                                    <View key={ride._id}>
+                                                        {renderRideCard({ item: ride, isBooked: false })}
+                                                    </View>
                                                 ))}
                                             </View>
                                         ))}
@@ -448,7 +486,7 @@ export default function RidesScreen() {
 
                         {hasSearchResults && groupedFullRides.length > 0 && (
                             <View style={styles.section}>
-                                <TouchableOpacity onPress={() => toggleExpand('full')}>
+                                <TouchableOpacity onPress={() => handleToggleExpand('full')}>
                                     <LinearGradient
                                         colors={['#ef4444', '#dc2626']}
                                         start={{ x: 0, y: 0 }}
@@ -458,7 +496,7 @@ export default function RidesScreen() {
                                         <View style={styles.sectionHeader}>
                                             <View style={styles.sectionHeaderLeft}>
                                                 <Text style={styles.sectionEmoji}>🚫</Text>
-                                                <Text style={styles.sectionTitle}>Full Rides ({fullRides.length})</Text>
+                                                <Text style={styles.sectionTitle}>Full Rides ({(fullRides || []).length})</Text>
                                             </View>
                                             <Ionicons
                                                 name={expandedSections.full ? 'chevron-up' : 'chevron-down'}
@@ -484,15 +522,9 @@ export default function RidesScreen() {
                                                     <Text style={styles.timeRangeText}>{group.timeRange}</Text>
                                                 </View>
                                                 {group.rides.map((ride) => (
-                                                    <RideCard
-                                                        key={ride._id}
-                                                        ride={ride}
-                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                        isBooked={false}
-                                                        availableSeats={ride.available_seats}
-                                                        statusDisplay={ride.statusDisplay}
-                                                        isFull
-                                                    />
+                                                    <View key={ride._id}>
+                                                        {renderRideCard({ item: ride, isBooked: false, isFull: true })}
+                                                    </View>
                                                 ))}
                                             </View>
                                         ))}
@@ -512,7 +544,7 @@ export default function RidesScreen() {
                                 >
                                     <TouchableOpacity
                                         style={styles.bookedButton}
-                                        onPress={() => router.push('/(rides)/booked')}
+                                        onPress={handleBookedPress}
                                     >
                                         <Ionicons name="ticket" size={20} color="#fff" />
                                         <Text style={styles.bookedButtonText}>View Booked Rides</Text>
@@ -531,7 +563,7 @@ export default function RidesScreen() {
                                 >
                                     <TouchableOpacity
                                         style={styles.privateRidesButton}
-                                        onPress={() => router.push('/(rides)/private')}
+                                        onPress={handlePrivatePress}
                                     >
                                         <Ionicons name="car-sport" size={20} color="#fff" />
                                         <Text style={styles.privateRidesButtonText}>View Your Private Rides</Text>

@@ -75,7 +75,9 @@ export default function HomeScreen() {
 
     useEffect(() => {
         loadFrequentSearches();
-        loadUnreadCount();
+        if (user) {
+            loadUnreadCount();
+        }
         // Pulse animation for notification badge
         Animated.loop(
             Animated.sequence([
