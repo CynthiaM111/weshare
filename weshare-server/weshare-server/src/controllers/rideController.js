@@ -1708,6 +1708,96 @@ const refreshCache = async (req, res) => {
     }
 };
 
+const cancelRide = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const { role } = req.user;
+
+        // Only agencies can cancel rides
+        if (role !== 'agency') {
+            return res.status(403).json({
+                error: 'Only agencies can cancel rides',
+                code: 'INSUFFICIENT_PERMISSIONS'
+            });
+        }
+
+        // Find the ride and ensure it belongs to the agency
+        const ride = await Ride.findOne({
+            _id: rideId,
+            agencyId: req.user.id
+        }).populate('bookedBy', 'userId');
+
+        if (!ride) {
+            return res.status(404).json({
+                error: 'Ride not found or you do not have permission to cancel it',
+                code: 'RIDE_NOT_FOUND'
+            });
+        }
+
+        // Check if ride is already canceled
+        if (ride.status === 'canceled') {
+            return res.status(400).json({
+                error: 'Ride is already canceled',
+                code: 'RIDE_ALREADY_CANCELED'
+            });
+        }
+
+        // Check if ride has already departed
+        const currentTime = new Date();
+        if (ride.departure_time < currentTime) {
+            return res.status(400).json({
+                error: 'Cannot cancel a ride that has already departed',
+                code: 'RIDE_ALREADY_DEPARTED'
+            });
+        }
+
+        // Check if ride is too close to departure (30 minutes)
+        const thirtyMinutesFromNow = new Date(currentTime.getTime() + (30 * 60 * 1000));
+        if (ride.departure_time < thirtyMinutesFromNow) {
+            return res.status(400).json({
+                error: 'Cannot cancel a ride less than 30 minutes before departure',
+                code: 'RIDE_TOO_CLOSE_TO_DEPARTURE'
+            });
+        }
+
+        // Update ride status to canceled
+        ride.status = 'canceled';
+        await ride.save();
+
+        // Send cancellation notifications to all passengers
+        if (ride.bookedBy && ride.bookedBy.length > 0) {
+            try {
+                await messagingService.sendRideCancellationToPassengers(ride._id);
+            } catch (notificationError) {
+                console.error('Error sending cancellation notifications:', notificationError);
+                // Don't fail the cancellation if notifications fail
+            }
+        }
+
+        // Clear cache
+        await clearCache();
+
+        res.json({
+            message: 'Ride canceled successfully',
+            ride: {
+                id: ride._id,
+                from: ride.from,
+                to: ride.to,
+                departure_time: ride.departure_time,
+                status: ride.status,
+                booked_seats: ride.bookedBy ? ride.bookedBy.length : 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Error canceling ride:', error);
+        res.status(500).json({
+            error: 'Failed to cancel ride',
+            code: 'INTERNAL_SERVER_ERROR'
+        });
+    }
+};
+
 module.exports = {
     createRide,
     getRides,
@@ -1718,6 +1808,7 @@ module.exports = {
     bookRide,
     getUserRides,
     cancelRideBooking,
+    cancelRide,
     getEmployeeRides,
     checkInPassenger,
     getRideHistory,

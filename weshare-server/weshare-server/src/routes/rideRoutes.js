@@ -23,6 +23,7 @@ router.delete('/rides/:id', authController.protect, rideController.deleteRide);
 // Protected routes (require authentication)
 router.post('/rides/:rideId/book', authController.protect, rideController.bookRide);
 router.delete('/rides/:rideId/cancel', authController.protect, rideController.cancelRideBooking);
+router.patch('/rides/:rideId/cancel-ride', authController.protect, rideController.cancelRide);
 
 // PIN-based completion routes for private rides
 router.post('/rides/:rideId/generate-completion-pin', authController.protect, rideController.generateCompletionPin);
