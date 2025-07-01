@@ -82,7 +82,7 @@ export default function RideHistory() {
                 return;
             }
 
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/rides/history`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/rides/agency/history`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { days: rideHistoryPeriod }
             });
@@ -107,9 +107,9 @@ export default function RideHistory() {
 
                 switch (historyFilters.statusFilter) {
                     case 'completed':
-                        return departureDate < now;
+                        return departureDate < now || ride.status === 'completed';
                     case 'active':
-                        return departureDate > now;
+                        return departureDate > now && ride.status !== 'completed';
                     case 'cancelled':
                         return ride.status === 'cancelled';
                     default:
@@ -158,6 +158,25 @@ export default function RideHistory() {
         const availableSeats = ride.seats - (ride.booked_seats || 0);
         const occupancyRate = (ride.booked_seats || 0) / ride.seats;
 
+        // Use the status from the API if available, otherwise calculate it
+        if (ride.status) {
+            switch (ride.status) {
+                case 'completed':
+                    return { status: 'completed', color: 'bg-gray-500 text-white', text: 'Completed' };
+                case 'full':
+                    return { status: 'full', color: 'bg-red-500 text-white', text: 'Full' };
+                case 'nearly-full':
+                    return { status: 'nearly-full', color: 'bg-orange-500 text-white', text: 'Nearly Full' };
+                case 'active':
+                    return { status: 'available', color: 'bg-green-500 text-white', text: 'Available' };
+                case 'cancelled':
+                    return { status: 'cancelled', color: 'bg-red-600 text-white', text: 'Cancelled' };
+                default:
+                    break;
+            }
+        }
+
+        // Fallback to calculated status
         if (departureDate < now) {
             return { status: 'completed', color: 'bg-gray-500 text-white', text: 'Completed' };
         } else if (availableSeats === 0) {
