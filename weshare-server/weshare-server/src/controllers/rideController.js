@@ -1193,6 +1193,73 @@ const getRideHistory = async (req, res) => {
     }
 };
 
+// GET /rides/agency/history - Get agency's ride history
+const getAgencyRideHistory = async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 7;
+        const agencyId = req.user.id;
+
+        // Calculate the date range
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        // Find all rides created by this agency within the specified time period
+        const rides = await Ride.find({
+            agencyId: agencyId,
+            departure_time: { $gte: startDate, $lte: endDate }
+        })
+            .populate('categoryId', 'from to averageTime')
+            .select('from to departure_time estimatedArrivalTime price bookedBy status isPrivate licensePlate categoryId seats booked_seats')
+            .sort({ departure_time: -1 })
+            .lean();
+
+        // Transform the data to include necessary information for agency dashboard
+        const history = rides.map(ride => {
+            const now = new Date();
+            const departureDate = new Date(ride.departure_time);
+            const availableSeats = ride.seats - (ride.booked_seats || 0);
+            const occupancyRate = (ride.booked_seats || 0) / ride.seats;
+
+            // Determine ride status
+            let status = 'active';
+            if (departureDate < now) {
+                status = 'completed';
+            } else if (availableSeats === 0) {
+                status = 'full';
+            } else if (occupancyRate >= 0.8) {
+                status = 'nearly-full';
+            }
+
+            return {
+                _id: ride._id,
+                from: ride.from,
+                to: ride.to,
+                departure_time: ride.departure_time,
+                estimatedArrivalTime: ride.estimatedArrivalTime,
+                price: ride.price,
+                isPrivate: ride.isPrivate,
+                licensePlate: ride.licensePlate,
+                categoryId: ride.categoryId,
+                status: status,
+                seats: ride.seats,
+                booked_seats: ride.booked_seats || 0,
+                available_seats: availableSeats,
+                occupancy_rate: occupancyRate,
+                total_bookings: ride.bookedBy ? ride.bookedBy.length : 0
+            };
+        });
+
+        res.status(200).json(history);
+    } catch (error) {
+        console.error('Error in getAgencyRideHistory:', error);
+        res.status(500).json({
+            error: 'Failed to fetch agency ride history',
+            details: error.message
+        });
+    }
+};
+
 const getUserPrivateRides = async (req, res) => {
     try {
         // Get current date for comparison
@@ -1821,6 +1888,7 @@ module.exports = {
     getDrafts,
     publishDraft,
     refreshCache,
-    warmCache
+    warmCache,
+    getAgencyRideHistory
 };
 

@@ -13,6 +13,7 @@ router.get('/rides/drafts', authController.protect, rideController.getDrafts);
 router.post('/rides/:id/publish', authController.protect, rideController.publishDraft);
 router.post('/rides/check-in', authController.protect, rideController.checkInPassenger);
 router.get('/rides/history', authController.protect, rideController.getRideHistory);
+router.get('/rides/agency/history', authController.protect, rideController.getAgencyRideHistory);
 router.get('/rides/private', authController.protect, rideController.getUserPrivateRides);
 router.get('/rides/private/history', authController.protect, rideController.getUserPrivateRideHistory);
 router.get('/rides/private/available', authController.protect, rideController.getAvailablePrivateRides);
