@@ -1865,6 +1865,121 @@ const cancelRide = async (req, res) => {
     }
 };
 
+// GET /rides/:id/bookings - Get all bookings for a specific ride (for employee check-in)
+const getRideBookings = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.user;
+
+        // Validate ride ID
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                error: 'Invalid ride ID',
+                code: 'INVALID_RIDE_ID'
+            });
+        }
+
+        // Find the ride and populate passenger information
+        const ride = await Ride.findById(id)
+            .populate('bookedBy.userId', 'name email')
+            .populate('agencyId', 'name email')
+            .populate('categoryId', 'from to averageTime')
+            .lean();
+
+        if (!ride) {
+            return res.status(404).json({
+                error: 'Ride not found',
+                code: 'RIDE_NOT_FOUND'
+            });
+        }
+
+        // Debug logging
+        console.log('getRideBookings debug:', {
+            userRole: role,
+            userAgencyId: req.user.agencyId,
+            userDestinationCategoryId: req.user.destinationCategoryId,
+            rideAgencyId: ride.agencyId?._id,
+            rideCategoryId: ride.categoryId?._id,
+            userId: req.user.id
+        });
+
+        // Check permissions
+        if (role === 'employee' || role === 'agency_employee') {
+            // For employees, check if they can access this ride based on their destination category
+            const userDestinationCategoryId = req.user.destinationCategoryId?.toString();
+            const rideCategoryId = ride.categoryId?._id?.toString();
+            
+            console.log('Employee permission check:', {
+                userDestinationCategoryId,
+                rideCategoryId,
+                match: userDestinationCategoryId === rideCategoryId
+            });
+
+            if (!userDestinationCategoryId || !rideCategoryId || userDestinationCategoryId !== rideCategoryId) {
+                return res.status(403).json({
+                    error: 'You do not have permission to access this ride\'s bookings',
+                    code: 'INSUFFICIENT_PERMISSIONS',
+                    details: {
+                        userDestinationCategoryId,
+                        rideCategoryId,
+                        userRole: role
+                    }
+                });
+            }
+        } else if (role === 'agency') {
+            // For agencies, check if they created the ride
+            const userAgencyId = req.user.id?.toString();
+            const rideAgencyId = ride.agencyId?._id?.toString();
+
+            console.log('Agency permission check:', {
+                userAgencyId,
+                rideAgencyId,
+                match: userAgencyId === rideAgencyId
+            });
+
+            if (!userAgencyId || !rideAgencyId || userAgencyId !== rideAgencyId) {
+                return res.status(403).json({
+                    error: 'You do not have permission to access this ride\'s bookings',
+                    code: 'INSUFFICIENT_PERMISSIONS',
+                    details: {
+                        userAgencyId,
+                        rideAgencyId,
+                        userRole: role
+                    }
+                });
+            }
+        } else {
+            return res.status(403).json({
+                error: 'Only employees and agencies can access ride bookings',
+                code: 'INSUFFICIENT_PERMISSIONS'
+            });
+        }
+
+        // Transform bookings to include passenger information
+        const bookings = ride.bookedBy.map(booking => ({
+            _id: booking._id || booking.bookingId,
+            passenger: {
+                _id: booking.userId._id,
+                name: booking.userId.name,
+                email: booking.userId.email
+            },
+            status: booking.checkInStatus,
+            bookingId: booking.bookingId,
+            createdAt: booking.createdAt || booking.created_at,
+            completedAt: booking.completedAt
+        }));
+
+        res.status(200).json(bookings);
+    } catch (error) {
+        console.error('Error fetching ride bookings:', error);
+        res.status(500).json({
+            error: 'Failed to fetch ride bookings',
+            code: 'INTERNAL_SERVER_ERROR',
+            details: error.message
+        });
+    }
+};
+
 module.exports = {
     createRide,
     getRides,
@@ -1889,6 +2004,7 @@ module.exports = {
     publishDraft,
     refreshCache,
     warmCache,
-    getAgencyRideHistory
+    getAgencyRideHistory,
+    getRideBookings
 };
 

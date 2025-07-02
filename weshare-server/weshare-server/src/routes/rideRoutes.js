@@ -18,6 +18,7 @@ router.get('/rides/private', authController.protect, rideController.getUserPriva
 router.get('/rides/private/history', authController.protect, rideController.getUserPrivateRideHistory);
 router.get('/rides/private/available', authController.protect, rideController.getAvailablePrivateRides);
 router.get('/rides/:id', rideController.getRideById);
+router.get('/rides/:id/bookings', authController.protect, rideController.getRideBookings);
 router.put('/rides/:id', authController.protect, rideController.updateRide);
 router.delete('/rides/:id', authController.protect, rideController.deleteRide);
 
