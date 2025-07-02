@@ -17,7 +17,7 @@ export default function EmployeeLayout() {
             <Stack.Screen
                 name="index"
                 options={{
-                    title: 'Employee Check-In',
+                    headerShown: false,
                     // tabBarItemStyle: { display: 'none' },
                 }}
             />

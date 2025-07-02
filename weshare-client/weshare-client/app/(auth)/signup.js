@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Alert, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, Alert, TextInput, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Link, useRouter } from 'expo-router';
 import { Button, Input, Text, Layout, Select, SelectItem } from '@ui-kitten/components';
@@ -8,7 +8,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { useRef } from 'react';
-
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 export default function Signup() {
     const [name, setName] = useState('');
@@ -19,6 +21,7 @@ export default function Signup() {
     const [destinationCategoryId, setDestinationCategoryId] = useState('');
     const [agencies, setAgencies] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [showPassword, setShowPassword] = useState(false);
     const { signup, signupError } = useAuth();
     const router = useRouter();
     const hasShownAlert = useRef(false);
@@ -26,7 +29,7 @@ export default function Signup() {
     const fetchAgencies = async () => {
         try {
             const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/auth/agencies`);
-            
+
             setAgencies(res.data);
         } catch (error) {
             console.error('Error fetching agencies:', error);
@@ -46,7 +49,7 @@ export default function Signup() {
                 try {
                     const res = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/destinations/agency/${agencyId}`);
                     setCategories(res.data);
-                   
+
                 } catch (error) {
                     console.error('Error fetching categories:', error);
                     setError('Failed to load categories');
@@ -89,6 +92,10 @@ export default function Signup() {
         }
     };
 
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
+
     useFocusEffect(
         useCallback(() => {
             if (signupError && !hasShownAlert.current) {
@@ -109,201 +116,333 @@ export default function Signup() {
         }, [signupError, router])
     );
 
-
-    
-
-
-
-
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
+        <LinearGradient
+            colors={['#0a2472', '#1E90FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.backgroundGradient}
         >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
-                <Layout style={styles.container}>
-                    <View style={styles.formContainer}>
-                        <Text category="h1" style={styles.title}>Create Account</Text>
-                        <Text category="s1" style={styles.subtitle}>Sign up to get started</Text>
+            <SafeAreaView style={styles.container}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.keyboardAvoidingView}
+                >
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <View style={styles.formContainer}>
+                            {/* Logo/Icon */}
+                            <View style={styles.logoContainer}>
+                                <View style={styles.logoCircle}>
+                                    <FontAwesome5 name="user-plus" size={40} color="#0a2472" />
+                                </View>
+                            </View>
 
-                        <Input
-                            style={styles.input}
-                            placeholder="Name"
-                            value={name}
-                            onChangeText={setName}
-                            size="large"
-                        />
-                        <View style={styles.phoneInputContainer}>
-                            <Text style={styles.phonePrefix}>+250</Text>
-                            <TextInput
-                                style={styles.phoneInput}
-                                placeholder="Phone Number"
-                                value={contactNumber}
-                                onChangeText={setContactNumber}
-                                keyboardType="phone-pad"
-                                maxLength={9}
-                            />
+                            <Text style={styles.title}>Create Account</Text>
+                            <Text style={styles.subtitle}>Sign up to get started</Text>
+
+                            {/* Name Input */}
+                            <View style={styles.inputContainer}>
+                                <Input
+                                    style={styles.input}
+                                    placeholder="Name"
+                                    value={name}
+                                    onChangeText={setName}
+                                    textStyle={styles.inputText}
+                                />
+                            </View>
+
+                            {/* Phone Number Input */}
+                            <View style={styles.inputContainer}>
+                                <View style={styles.phoneInputWrapper}>
+                                    <Text style={styles.phonePrefix}>+250</Text>
+                                    <TextInput
+                                        style={styles.phoneInput}
+                                        placeholder="Phone Number"
+                                        value={contactNumber}
+                                        onChangeText={setContactNumber}
+                                        keyboardType="phone-pad"
+                                        maxLength={9}
+                                        placeholderTextColor="#8F9BB3"
+                                    />
+                                </View>
+                                <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
+                            </View>
+
+                            {/* Password Input with Toggle */}
+                            <View style={styles.inputContainer}>
+                                <View style={styles.passwordInputWrapper}>
+                                    <Input
+                                        style={styles.passwordInput}
+                                        placeholder="Password"
+                                        value={password}
+                                        onChangeText={setPassword}
+                                        secureTextEntry={!showPassword}
+                                        textStyle={styles.inputText}
+                                    />
+                                    <TouchableOpacity
+                                        style={styles.eyeButton}
+                                        onPress={togglePasswordVisibility}
+                                    >
+                                        <Ionicons
+                                            name={showPassword ? "eye-off" : "eye"}
+                                            size={20}
+                                            color="#8F9BB3"
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {/* Role Selection */}
+                            <View style={styles.inputContainer}>
+                                <Select
+                                    style={styles.selectInput}
+                                    placeholder="Select Role"
+                                    value={roleDisplay}
+                                    onSelect={index => {
+                                        const newRole = index.row === 0 ? 'user' : 'agency_employee';
+                                        setRole(newRole);
+                                    }}
+                                    textStyle={styles.inputText}
+                                >
+                                    <SelectItem title="Normal User" />
+                                    <SelectItem title="Agency Employee" />
+                                </Select>
+                            </View>
+
+                            {/* Agency Employee Fields */}
+                            {role === 'agency_employee' && (
+                                <>
+                                    <View style={styles.inputContainer}>
+                                        <Select
+                                            style={styles.selectInput}
+                                            placeholder="Select Agency"
+                                            value={agencyDisplay}
+                                            onSelect={index => {
+                                                const newAgencyId = agencies[index.row]?._id || '';
+                                                setAgencyId(newAgencyId);
+                                            }}
+                                            disabled={agencies.length === 0}
+                                            textStyle={styles.inputText}
+                                        >
+                                            {agencies.map(agency => (
+                                                <SelectItem key={agency._id} title={agency.name} />
+                                            ))}
+                                        </Select>
+                                    </View>
+                                    <View style={styles.inputContainer}>
+                                        <Select
+                                            style={styles.selectInput}
+                                            placeholder="Select Destination Category"
+                                            value={categoryDisplay}
+                                            onSelect={index => {
+                                                const newCategoryId = categories[index.row]?._id || '';
+                                                setDestinationCategoryId(newCategoryId);
+                                            }}
+                                            disabled={!agencyId || categories.length === 0}
+                                            textStyle={styles.inputText}
+                                        >
+                                            {categories.map(category => (
+                                                <SelectItem key={category._id} title={`${category.from} to ${category.to}`} />
+                                            ))}
+                                        </Select>
+                                    </View>
+                                </>
+                            )}
+
+                            {/* Sign Up Button */}
+                            <TouchableOpacity
+                                style={[
+                                    styles.signupButton,
+                                    (!name || !contactNumber || !password || (role === 'agency_employee' && (!agencyId || !destinationCategoryId))) && styles.signupButtonDisabled
+                                ]}
+                                onPress={handleSignup}
+                                disabled={!name || !contactNumber || !password || (role === 'agency_employee' && (!agencyId || !destinationCategoryId))}
+                                activeOpacity={0.8}
+                            >
+                                <FontAwesome5 name="user-plus" size={16} color="#fff" />
+                                <Text style={styles.signupButtonText}>SIGN UP</Text>
+                            </TouchableOpacity>
+
+                            {/* Login Link */}
+                            <Link href="/(auth)/login" style={styles.link}>
+                                <Text style={styles.linkText}>Already have an account? Login</Text>
+                            </Link>
                         </View>
-                        <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
-
-                        <Input
-                            style={styles.input}
-                            placeholder="Password"
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                            size="large"
-                        />
-
-                        <Select
-                            style={styles.input}
-                            placeholder="Select Role"
-                            value={roleDisplay}
-                            onSelect={index => {
-                                const newRole = index.row === 0 ? 'user' : 'agency_employee';
-                                setRole(newRole);
-                            }}
-                            size="large"
-                        >
-                            <SelectItem title="Normal User" />
-                            <SelectItem title="Agency Employee" />
-                        </Select>
-                        {role === 'agency_employee' && (
-                            <>
-                                <Select
-                                    style={styles.input}
-                                    placeholder="Select Agency"
-                                    value={agencyDisplay}
-                                    onSelect={index => {
-                                        const newAgencyId = agencies[index.row]?._id || '';
-                                        setAgencyId(newAgencyId);
-                                    }}
-                                    disabled={agencies.length === 0}
-                                    size="large"
-                                >
-                                    {agencies.map(agency => (
-                                        <SelectItem key={agency._id} title={agency.name} />
-                                    ))}
-                                </Select>
-                                <Select
-                                    style={styles.input}
-                                    placeholder="Select Destination Category"
-                                    value={categoryDisplay}
-                                    onSelect={index => {
-                                        const newCategoryId = categories[index.row]?._id || '';
-                                        setDestinationCategoryId(newCategoryId);
-                                    }}
-                                    disabled={!agencyId || categories.length === 0}
-                                    size="large"
-                                >
-                                    {categories.map(category => (
-                                        <SelectItem key={category._id} title={`${category.from} to ${category.to}`} />
-                                    ))}
-                                </Select>
-                            </>
-                        )}
-
-                        <Button
-                            style={styles.button}
-                            onPress={handleSignup}
-                            disabled={
-                                !name ||
-                                !contactNumber ||
-                                !password ||
-                                (role === 'agency_employee' && (!agencyId || !destinationCategoryId || !contactNumber))
-                            }
-                            size="large"
-                        >
-                            SIGN UP
-                        </Button>
-
-                        <Link href="/(auth)/login" style={styles.link}>
-                            <Text category="s1" status="info">Already have an account? Login</Text>
-                        </Link>
-                    </View>
-                </Layout>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
+    backgroundGradient: {
+        flex: 1,
+    },
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+    },
+    keyboardAvoidingView: {
+        flex: 1,
     },
     scrollContent: {
         flexGrow: 1,
     },
     formContainer: {
         flex: 1,
-        padding: 20,
-        width: '100%',
-        maxWidth: 500,
-        alignSelf: 'center',
+        padding: 24,
         justifyContent: 'center',
+        alignItems: 'center',
         paddingVertical: 40,
     },
+    logoContainer: {
+        marginBottom: 32,
+        alignItems: 'center',
+    },
+    logoCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+    },
     title: {
-        textAlign: 'center',
-        marginBottom: 10,
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: 'bold',
-        color: '#222B45',
+        color: '#fff',
+        textAlign: 'center',
+        marginBottom: 8,
     },
     subtitle: {
-        textAlign: 'center',
-        marginBottom: 30,
-        color: '#8F9BB3',
         fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.8)',
+        textAlign: 'center',
+        marginBottom: 40,
+    },
+    inputContainer: {
+        width: '100%',
+        marginBottom: 20,
     },
     input: {
-        marginBottom: 15,
-        backgroundColor: '#F7F9FC',
-        borderColor: '#E4E9F2',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        borderWidth: 0,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
-    button: {
+    phoneInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    phonePrefix: {
+        fontSize: 16,
+        color: '#0a2472',
+        fontWeight: '600',
+        marginRight: 8,
+    },
+    phoneInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#0a2472',
+        height: 50,
+    },
+    passwordInputWrapper: {
+        position: 'relative',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    passwordInput: {
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+        paddingRight: 50,
+    },
+    eyeButton: {
+        position: 'absolute',
+        right: 16,
+        top: 12,
+        padding: 4,
+    },
+    selectInput: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        borderWidth: 0,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    inputText: {
+        fontSize: 16,
+        color: '#0a2472',
+    },
+    phoneHint: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.7)',
+        marginTop: 8,
+        marginLeft: 4,
+    },
+    signupButton: {
+        backgroundColor: '#fff',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 32,
+        borderRadius: 12,
         marginTop: 20,
         marginBottom: 30,
-        backgroundColor: '#3366FF',
-        borderRadius: 8,
-        height: 50,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 5,
+        gap: 8,
+    },
+    signupButtonDisabled: {
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        shadowOpacity: 0.05,
+        elevation: 2,
+    },
+    signupButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0a2472',
     },
     link: {
         alignSelf: 'center',
         marginBottom: 20,
     },
-    phoneInputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E4E9F2',
-        borderRadius: 8,
-        marginBottom: 15,
-        paddingHorizontal: 10,
-        height: 50,
-        backgroundColor: '#F7F9FC',
-    },
-    phonePrefix: {
+    linkText: {
         fontSize: 16,
-        color: '#222B45',
-        marginRight: 8,
-        fontWeight: '500',
+        color: 'rgba(255, 255, 255, 0.9)',
+        textDecorationLine: 'underline',
     },
-    phoneInput: {
-        flex: 1,
-        fontSize: 16,
-        color: '#222B45',
-        height: '100%',
-    },
-    phoneHint: {
-        fontSize: 12,
-        color: '#8F9BB3',
-        marginBottom: 10,
-        marginLeft: 5,
-    }
 });
