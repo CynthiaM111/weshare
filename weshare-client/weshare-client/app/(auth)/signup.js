@@ -134,30 +134,44 @@ export default function Signup() {
                         keyboardShouldPersistTaps="handled"
                     >
                         <View style={styles.formContainer}>
-                            {/* Logo/Icon */}
+                            {/* Logo/Icon with enhanced design */}
                             <View style={styles.logoContainer}>
-                                <View style={styles.logoCircle}>
-                                    <FontAwesome5 name="user-plus" size={40} color="#0a2472" />
-                                </View>
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.85)']}
+                                    style={styles.logoCircle}
+                                >
+                                    <View style={styles.logoInner}>
+                                        <FontAwesome5 name="user-plus" size={36} color="#0a2472" />
+                                    </View>
+                                </LinearGradient>
+                                <View style={styles.logoGlow} />
                             </View>
 
-                            <Text style={styles.title}>Create Account</Text>
-                            <Text style={styles.subtitle}>Sign up to get started</Text>
+                            <Text style={styles.title}>Join WeShare! 🚀</Text>
+                            <Text style={styles.subtitle}>Create your account to start sharing rides</Text>
 
-                            {/* Name Input */}
+                            {/* Name Input with enhanced styling */}
                             <View style={styles.inputContainer}>
-                                <Input
-                                    style={styles.input}
-                                    placeholder="Name"
-                                    value={name}
-                                    onChangeText={setName}
-                                    textStyle={styles.inputText}
-                                />
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                    style={styles.inputWrapper}
+                                >
+                                    <Input
+                                        style={styles.input}
+                                        placeholder="Full Name"
+                                        value={name}
+                                        onChangeText={setName}
+                                        textStyle={styles.inputText}
+                                    />
+                                </LinearGradient>
                             </View>
 
-                            {/* Phone Number Input */}
+                            {/* Phone Number Input with enhanced styling */}
                             <View style={styles.inputContainer}>
-                                <View style={styles.phoneInputWrapper}>
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                    style={styles.phoneInputWrapper}
+                                >
                                     <Text style={styles.phonePrefix}>+250</Text>
                                     <TextInput
                                         style={styles.phoneInput}
@@ -166,15 +180,18 @@ export default function Signup() {
                                         onChangeText={setContactNumber}
                                         keyboardType="phone-pad"
                                         maxLength={9}
-                                        placeholderTextColor="#8F9BB3"
+                                        placeholderTextColor="#0a2472"
                                     />
-                                </View>
+                                </LinearGradient>
                                 <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
                             </View>
 
-                            {/* Password Input with Toggle */}
+                            {/* Password Input with enhanced styling */}
                             <View style={styles.inputContainer}>
-                                <View style={styles.passwordInputWrapper}>
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                    style={styles.passwordInputWrapper}
+                                >
                                     <Input
                                         style={styles.passwordInput}
                                         placeholder="Password"
@@ -190,10 +207,10 @@ export default function Signup() {
                                         <Ionicons
                                             name={showPassword ? "eye-off" : "eye"}
                                             size={20}
-                                            color="#8F9BB3"
+                                            color="#0a2472"
                                         />
                                     </TouchableOpacity>
-                                </View>
+                                </LinearGradient>
                             </View>
 
                             {/* Role Selection */}
@@ -253,23 +270,30 @@ export default function Signup() {
                                 </>
                             )}
 
-                            {/* Sign Up Button */}
-                            <TouchableOpacity
+                            {/* Enhanced Sign Up Button */}
+                            <LinearGradient
+                                colors={['#0a2472', '#1E90FF']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
                                 style={[
                                     styles.signupButton,
                                     (!name || !contactNumber || !password || (role === 'agency_employee' && (!agencyId || !destinationCategoryId))) && styles.signupButtonDisabled
                                 ]}
-                                onPress={handleSignup}
-                                disabled={!name || !contactNumber || !password || (role === 'agency_employee' && (!agencyId || !destinationCategoryId))}
-                                activeOpacity={0.8}
                             >
-                                <FontAwesome5 name="user-plus" size={16} color="#fff" />
-                                <Text style={styles.signupButtonText}>SIGN UP</Text>
-                            </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.signupButtonTouchable}
+                                    onPress={handleSignup}
+                                    disabled={!name || !contactNumber || !password || (role === 'agency_employee' && (!agencyId || !destinationCategoryId))}
+                                    activeOpacity={0.8}
+                                >
+                                    <FontAwesome5 name="user-plus" size={16} color="#fff" />
+                                    <Text style={styles.signupButtonText}>SIGN UP</Text>
+                                </TouchableOpacity>
+                            </LinearGradient>
 
-                            {/* Login Link */}
+                            {/* Enhanced Login Link */}
                             <Link href="/(auth)/login" style={styles.link}>
-                                <Text style={styles.linkText}>Already have an account? Login</Text>
+                                <Text style={styles.linkText}>Already have an account? <Text style={styles.linkHighlight}>Login</Text></Text>
                             </Link>
                         </View>
                     </ScrollView>
@@ -304,57 +328,81 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     logoCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        width: 90,
+        height: 90,
+        borderRadius: 45,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    logoInner: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    logoGlow: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        borderRadius: 45,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        opacity: 0.5,
     },
     title: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: 'bold',
         color: '#fff',
         textAlign: 'center',
         marginBottom: 8,
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
     },
     subtitle: {
         fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.8)',
+        color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
         marginBottom: 40,
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     inputContainer: {
         width: '100%',
         marginBottom: 20,
     },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 4,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 4,
+    },
     input: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
+        backgroundColor: 'transparent',
         borderWidth: 0,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        flex: 1,
     },
     phoneInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
+        borderRadius: 16,
         paddingHorizontal: 16,
         paddingVertical: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 4,
     },
     phonePrefix: {
         fontSize: 16,
@@ -367,16 +415,16 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#0a2472',
         height: 50,
+        fontWeight: '500',
     },
     passwordInputWrapper: {
         position: 'relative',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        borderRadius: 16,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 4,
     },
     passwordInput: {
         backgroundColor: 'transparent',
@@ -391,50 +439,51 @@ const styles = StyleSheet.create({
     },
     selectInput: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 0,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 4,
     },
     inputText: {
         fontSize: 16,
         color: '#0a2472',
+        fontWeight: '500',
     },
     phoneHint: {
         fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: 'rgba(255, 255, 255, 0.8)',
         marginTop: 8,
         marginLeft: 4,
     },
     signupButton: {
-        backgroundColor: '#fff',
+        borderRadius: 16,
+        marginTop: 20,
+        marginBottom: 30,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    signupButtonDisabled: {
+        opacity: 0.6,
+        shadowOpacity: 0.1,
+        elevation: 2,
+    },
+    signupButtonTouchable: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 32,
-        borderRadius: 12,
-        marginTop: 20,
-        marginBottom: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 5,
-        gap: 8,
-    },
-    signupButtonDisabled: {
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-        shadowOpacity: 0.05,
-        elevation: 2,
+        padding: 16,
+        borderRadius: 16,
     },
     signupButtonText: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#0a2472',
+        color: '#fff',
     },
     link: {
         alignSelf: 'center',
@@ -444,5 +493,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: 'rgba(255, 255, 255, 0.9)',
         textDecorationLine: 'underline',
+    },
+    linkHighlight: {
+        fontWeight: 'bold',
+        color: '#1E90FF',
     },
 });

@@ -185,23 +185,43 @@ function RootLayoutNav() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#cf1259',
-          tabBarInactiveTintColor: 'gray',
+          tabBarActiveTintColor: '#1E90FF',
+          tabBarInactiveTintColor: '#94a3b8',
           tabBarStyle: {
-            paddingBottom: 5,
-            height: 60,
+            backgroundColor: '#ffffff',
+            borderTopWidth: 0,
+            height: 70,
+            paddingBottom: 8,
+            paddingTop: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 8,
           },
           tabBarLabelStyle: {
-            fontSize: 12,
-            marginBottom: 10,
+            fontSize: 11,
+            fontWeight: 'bold',
+            marginTop: 4,
+            marginBottom: 0,
+          },
+          tabBarIconStyle: {
+            marginTop: 4,
+          },
+          tabBarItemStyle: {
+            paddingVertical: 4,
           },
         }}
       >
         <Tabs.Screen
           name="(home)"
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={size}
+                color={color}
+              />
             ),
             tabBarLabel: 'Home',
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
@@ -210,8 +230,12 @@ function RootLayoutNav() {
         <Tabs.Screen
           name="(rides)"
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="bus-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? "bus" : "bus-outline"}
+                size={size}
+                color={color}
+              />
             ),
             tabBarLabel: 'Rides',
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
@@ -239,8 +263,12 @@ function RootLayoutNav() {
         <Tabs.Screen
           name="(private)"
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="car-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? "car" : "car-outline"}
+                size={size}
+                color={color}
+              />
             ),
             tabBarLabel: 'Private',
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
@@ -249,8 +277,12 @@ function RootLayoutNav() {
         <Tabs.Screen
           name="(history)"
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="time-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? "time" : "time-outline"}
+                size={size}
+                color={color}
+              />
             ),
             tabBarLabel: 'History',
           }}
@@ -258,18 +290,26 @@ function RootLayoutNav() {
         <Tabs.Screen
           name="(profile)"
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? "person" : "person-outline"}
+                size={size}
+                color={color}
+              />
             ),
             tabBarLabel: 'Profile',
           }}
         />
-        
+
         <Tabs.Screen
           name="(employee)"
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? "person" : "person-outline"}
+                size={size}
+                color={color}
+              />
             ),
             tabBarLabel: 'Employee',
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'flex' } : { display: 'none' },

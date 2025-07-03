@@ -72,19 +72,28 @@ export default function Login() {
                         showsVerticalScrollIndicator={false}
                     >
                         <View style={styles.formContainer}>
-                            {/* Logo/Icon */}
+                            {/* Logo/Icon with enhanced design */}
                             <View style={styles.logoContainer}>
-                                <View style={styles.logoCircle}>
-                                    <FontAwesome5 name="car" size={40} color="#0a2472" />
-                                </View>
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.85)']}
+                                    style={styles.logoCircle}
+                                >
+                                    <View style={styles.logoInner}>
+                                        <FontAwesome5 name="car" size={36} color="#0a2472" />
+                                    </View>
+                                </LinearGradient>
+                                <View style={styles.logoGlow} />
                             </View>
 
-                            <Text style={styles.title}>Welcome Back</Text>
-                            <Text style={styles.subtitle}>Sign in to your account</Text>
+                            <Text style={styles.title}>Welcome Back! 🚗</Text>
+                            <Text style={styles.subtitle}>Sign in to continue your journey</Text>
 
-                            {/* Phone Number Input */}
+                            {/* Phone Number Input with enhanced styling */}
                             <View style={styles.inputContainer}>
-                                <View style={styles.phoneInputWrapper}>
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                    style={styles.phoneInputWrapper}
+                                >
                                     <Text style={styles.phonePrefix}>+250</Text>
                                     <Input
                                         style={styles.phoneInput}
@@ -98,13 +107,16 @@ export default function Login() {
                                         autoComplete="tel"
                                         textStyle={styles.inputText}
                                     />
-                                </View>
+                                </LinearGradient>
                                 <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
                             </View>
 
-                            {/* Password Input with Toggle */}
+                            {/* Password Input with enhanced styling */}
                             <View style={styles.inputContainer}>
-                                <View style={styles.passwordInputWrapper}>
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                    style={styles.passwordInputWrapper}
+                                >
                                     <Input
                                         style={styles.passwordInput}
                                         placeholder="Password"
@@ -122,29 +134,36 @@ export default function Login() {
                                         <Ionicons
                                             name={showPassword ? "eye-off" : "eye"}
                                             size={20}
-                                            color="#8F9BB3"
+                                            color="#0a2472"
                                         />
                                     </TouchableOpacity>
-                                </View>
+                                </LinearGradient>
                             </View>
 
-                            {/* Login Button */}
-                            <TouchableOpacity
+                            {/* Enhanced Login Button */}
+                            <LinearGradient
+                                colors={['#0a2472', '#1E90FF']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
                                 style={[
                                     styles.loginButton,
                                     (!contact_number || !password) && styles.loginButtonDisabled
                                 ]}
-                                onPress={handleLogin}
-                                disabled={!contact_number || !password}
-                                activeOpacity={0.8}
                             >
-                                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
-                                <Text style={styles.loginButtonText}>LOGIN</Text>
-                            </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.loginButtonTouchable}
+                                    onPress={handleLogin}
+                                    disabled={!contact_number || !password}
+                                    activeOpacity={0.8}
+                                >
+                                    <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
+                                    <Text style={styles.loginButtonText}>SIGN IN</Text>
+                                </TouchableOpacity>
+                            </LinearGradient>
 
-                            {/* Sign Up Link */}
+                            {/* Enhanced Sign Up Link */}
                             <Link href="/(auth)/signup" style={styles.link}>
-                                <Text style={styles.linkText}>Don't have an account? Sign up</Text>
+                                <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkHighlight}>Sign up</Text></Text>
                             </Link>
                         </View>
                     </ScrollView>
@@ -178,30 +197,48 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     logoCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        width: 90,
+        height: 90,
+        borderRadius: 45,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    logoInner: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    logoGlow: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        borderRadius: 45,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        opacity: 0.5,
     },
     title: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: 'bold',
         color: '#fff',
         textAlign: 'center',
         marginBottom: 8,
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
     },
     subtitle: {
         fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.8)',
+        color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
         marginBottom: 40,
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     inputContainer: {
         width: '100%',
@@ -210,15 +247,14 @@ const styles = StyleSheet.create({
     phoneInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
+        borderRadius: 16,
         paddingHorizontal: 16,
         paddingVertical: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 4,
     },
     phonePrefix: {
         fontSize: 16,
@@ -233,13 +269,12 @@ const styles = StyleSheet.create({
     },
     passwordInputWrapper: {
         position: 'relative',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        borderRadius: 16,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 4,
     },
     passwordInput: {
         backgroundColor: 'transparent',
@@ -255,39 +290,42 @@ const styles = StyleSheet.create({
     inputText: {
         fontSize: 16,
         color: '#0a2472',
+        fontWeight: '500',
     },
     phoneHint: {
         fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: 'rgba(255, 255, 255, 0.8)',
         marginTop: 8,
         marginLeft: 4,
     },
     loginButton: {
-        backgroundColor: '#fff',
+        borderRadius: 16,
+        marginTop: 20,
+        marginBottom: 30,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    loginButtonDisabled: {
+        opacity: 0.6,
+        shadowOpacity: 0.1,
+        elevation: 2,
+    },
+    loginButtonTouchable: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
         paddingHorizontal: 32,
-        borderRadius: 12,
-        marginTop: 20,
-        marginBottom: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 5,
+        borderRadius: 16,
         gap: 8,
-    },
-    loginButtonDisabled: {
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-        shadowOpacity: 0.05,
-        elevation: 2,
     },
     loginButtonText: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#0a2472',
+        color: '#fff',
     },
     link: {
         alignSelf: 'center',
@@ -296,5 +334,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: 'rgba(255, 255, 255, 0.9)',
         textDecorationLine: 'underline',
+    },
+    linkHighlight: {
+        fontWeight: 'bold',
+        color: '#1E90FF',
     },
 });

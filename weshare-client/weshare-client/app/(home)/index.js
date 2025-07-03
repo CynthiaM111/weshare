@@ -388,7 +388,7 @@ export default function HomeScreen() {
                         <View style={styles.searchCard}>
                             <View style={styles.inputGroup}>
                                 <View style={styles.inputContainer}>
-                                    <Ionicons name="location" size={20} color="#3b82f6" />
+                                    <Ionicons name="location" size={18} color="#3b82f6" />
                                     <TextInput
                                         ref={fromInputRef}
                                         style={styles.input}
@@ -421,12 +421,12 @@ export default function HomeScreen() {
 
                                 <View style={styles.inputDivider}>
                                     <View style={styles.dividerLine} />
-                                    <Ionicons name="arrow-down" size={16} color="#94a3b8" />
+                                    <Ionicons name="arrow-down" size={14} color="#94a3b8" />
                                     <View style={styles.dividerLine} />
                                 </View>
 
                                 <View style={styles.inputContainer}>
-                                    <Ionicons name="location" size={20} color="#ef4444" />
+                                    <Ionicons name="location" size={18} color="#ef4444" />
                                     <TextInput
                                         ref={toInputRef}
                                         style={styles.input}
@@ -480,7 +480,7 @@ export default function HomeScreen() {
                                         </View>
                                     ) : (
                                         <>
-                                            <Ionicons name="search" size={20} color="#fff" />
+                                            <Ionicons name="search" size={18} color="#fff" />
                                             <Text style={styles.searchButtonText}>Search Rides</Text>
                                         </>
                                     )}
@@ -490,56 +490,12 @@ export default function HomeScreen() {
                     </LinearGradient>
                 </View>
 
-                {/* Quick Actions */}
-                <View style={styles.quickActionsSection}>
-                    <Text style={styles.sectionTitle}>Quick Actions</Text>
-                    <View style={styles.quickActionsGrid}>
-                        <LinearGradient
-                            colors={['rgba(217, 119, 6, 0.1)', 'rgba(245, 158, 11, 0.1)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.quickActionGradient}
-                        >
-                            <TouchableOpacity
-                                style={styles.quickActionCard}
-                                onPress={handleBookPrivateRide}
-                                activeOpacity={0.8}
-                            >
-                                <View style={[styles.actionIcon, { backgroundColor: '#fef3c7' }]}>
-                                    <Ionicons name="car-sport" size={24} color="#d97706" />
-                                </View>
-                                <Text style={styles.actionTitle}>Book Private</Text>
-                                <Text style={styles.actionSubtitle}>VIP experience</Text>
-                            </TouchableOpacity>
-                        </LinearGradient>
-
-                        <LinearGradient
-                            colors={['rgba(37, 99, 235, 0.1)', 'rgba(59, 130, 246, 0.1)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.quickActionGradient}
-                        >
-                            <TouchableOpacity
-                                style={styles.quickActionCard}
-                                onPress={handleAddPrivateRide}
-                                activeOpacity={0.8}
-                            >
-                                <View style={[styles.actionIcon, { backgroundColor: '#dbeafe' }]}>
-                                    <Ionicons name="add-circle" size={24} color="#2563eb" />
-                                </View>
-                                <Text style={styles.actionTitle}>Offer Ride</Text>
-                                <Text style={styles.actionSubtitle}>Share your car</Text>
-                            </TouchableOpacity>
-                        </LinearGradient>
-                    </View>
-                </View>
-
                 {/* Recent Searches */}
                 {frequentSearches.length > 0 && (
                     <View style={styles.recentSearchesSection}>
                         <Text style={styles.sectionTitle}>Recent Searches</Text>
                         <View style={styles.recentSearchesList}>
-                            {frequentSearches.map((search, index) => (
+                            {frequentSearches.slice(0, 2).map((search, index) => (
                                 <TouchableOpacity
                                     key={index}
                                     style={styles.recentSearchItem}
@@ -562,6 +518,50 @@ export default function HomeScreen() {
                         </View>
                     </View>
                 )}
+
+                {/* Quick Actions */}
+                <View style={styles.quickActionsSection}>
+                    <Text style={styles.sectionTitle}>Quick Actions</Text>
+                    <View style={styles.quickActionsGrid}>
+                        <LinearGradient
+                            colors={['rgba(217, 119, 6, 0.1)', 'rgba(245, 158, 11, 0.1)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.quickActionGradient}
+                        >
+                            <TouchableOpacity
+                                style={styles.quickActionCard}
+                                onPress={handleBookPrivateRide}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[styles.actionIcon, { backgroundColor: '#fef3c7' }]}>
+                                    <Ionicons name="car-sport" size={16} color="#d97706" />
+                                </View>
+                                <Text style={styles.actionTitle}>Book Private</Text>
+                                <Text style={styles.actionSubtitle}>VIP experience</Text>
+                            </TouchableOpacity>
+                        </LinearGradient>
+
+                        <LinearGradient
+                            colors={['rgba(37, 99, 235, 0.1)', 'rgba(59, 130, 246, 0.1)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.quickActionGradient}
+                        >
+                            <TouchableOpacity
+                                style={styles.quickActionCard}
+                                onPress={handleAddPrivateRide}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[styles.actionIcon, { backgroundColor: '#dbeafe' }]}>
+                                    <Ionicons name="add-circle" size={16} color="#2563eb" />
+                                </View>
+                                <Text style={styles.actionTitle}>Offer Ride</Text>
+                                <Text style={styles.actionSubtitle}>Share your car</Text>
+                            </TouchableOpacity>
+                        </LinearGradient>
+                    </View>
+                </View>
 
                 {/* Tips Section */}
                 <View style={styles.tipsSection}>
@@ -658,19 +658,19 @@ export const styles = StyleSheet.create({
         paddingBottom: 100,
     },
     searchSection: {
-        marginBottom: 30,
+        marginBottom: 20,
     },
     sectionTitle: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: '700',
         color: '#1e293b',
-        marginBottom: 8,
+        marginBottom: 6,
     },
     sectionSubtitle: {
-        fontSize: 16,
+        fontSize: 14,
         color: '#64748b',
-        marginBottom: 20,
-        lineHeight: 22,
+        marginBottom: 16,
+        lineHeight: 20,
     },
     searchCardGradient: {
         borderRadius: 16,
@@ -684,36 +684,36 @@ export const styles = StyleSheet.create({
     searchCard: {
         backgroundColor: '#ffffff',
         borderRadius: 14,
-        padding: 20,
+        padding: 16,
         borderWidth: 1,
         borderColor: 'rgba(10, 36, 114, 0.1)',
     },
     inputGroup: {
-        marginBottom: 20,
+        marginBottom: 16,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
         backgroundColor: '#f8fafc',
-        borderRadius: 12,
-        marginBottom: 12,
+        borderRadius: 10,
+        marginBottom: 8,
         borderWidth: 1,
         borderColor: '#e2e8f0',
     },
     input: {
         flex: 1,
-        fontSize: 16,
+        fontSize: 15,
         color: '#1e293b',
-        marginLeft: 12,
+        marginLeft: 10,
         fontWeight: '500',
     },
     inputDivider: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
+        paddingVertical: 6,
+        paddingHorizontal: 14,
     },
     dividerLine: {
         flex: 1,
@@ -722,9 +722,9 @@ export const styles = StyleSheet.create({
     },
     suggestionsContainer: {
         backgroundColor: '#ffffff',
-        borderRadius: 12,
-        marginTop: 4,
-        marginBottom: 12,
+        borderRadius: 10,
+        marginTop: 2,
+        marginBottom: 8,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
@@ -736,7 +736,7 @@ export const styles = StyleSheet.create({
     suggestionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
+        padding: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#f1f5f9',
     },
@@ -745,13 +745,13 @@ export const styles = StyleSheet.create({
         marginRight: 12,
     },
     suggestionText: {
-        fontSize: 16,
+        fontSize: 15,
         color: '#1e293b',
-        marginLeft: 12,
+        marginLeft: 10,
         fontWeight: '500',
     },
     searchButtonGradient: {
-        borderRadius: 12,
+        borderRadius: 10,
         padding: 2,
         shadowColor: '#0a2472',
         shadowOffset: { width: 0, height: 4 },
@@ -761,8 +761,8 @@ export const styles = StyleSheet.create({
     },
     searchButton: {
         backgroundColor: 'transparent',
-        paddingVertical: 16,
-        borderRadius: 10,
+        paddingVertical: 14,
+        borderRadius: 8,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -786,57 +786,57 @@ export const styles = StyleSheet.create({
     },
     searchButtonText: {
         color: '#ffffff',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
-        marginLeft: 8,
+        marginLeft: 6,
     },
     quickActionsSection: {
-        marginBottom: 30,
+        marginBottom: 20,
     },
     quickActionsGrid: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 8,
     },
     quickActionGradient: {
         flex: 1,
-        borderRadius: 16,
-        padding: 2,
+        borderRadius: 12,
+        padding: 1.5,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
     quickActionCard: {
         backgroundColor: '#ffffff',
-        padding: 20,
-        borderRadius: 14,
+        padding: 12,
+        borderRadius: 10,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(0, 0, 0, 0.05)',
+        borderColor: 'rgba(0, 0, 0, 0.03)',
     },
     actionIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 6,
     },
     actionTitle: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: '600',
         color: '#1e293b',
-        marginBottom: 4,
+        marginBottom: 1,
         textAlign: 'center',
     },
     actionSubtitle: {
-        fontSize: 14,
+        fontSize: 11,
         color: '#64748b',
         textAlign: 'center',
     },
     recentSearchesSection: {
-        marginBottom: 30,
+        marginBottom: 20,
     },
     recentSearchesList: {
         gap: 12,
