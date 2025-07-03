@@ -38,22 +38,6 @@ export default function RidesScreen() {
         return response.data;
     });
 
-    const {
-        data: privateRides,
-        error: privateRidesError,
-        isLoading: isLoadingPrivateRides,
-        execute: fetchPrivateRides,
-        retry: retryFetchPrivateRides
-    } = useApi(async () => {
-        if (!user?.id || !user?.token) {
-            return;
-        }
-        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/rides/private`, {
-            headers: { Authorization: `Bearer ${user?.token}` },
-        });
-        return response.data;
-    });
-
     useEffect(() => {
         if (params.rides) {
             try {
@@ -70,7 +54,6 @@ export default function RidesScreen() {
     useEffect(() => {
         if (user?.id && user?.token) {
             fetchUserBookings();
-            fetchPrivateRides();
         }
     }, [user]);
 
@@ -83,13 +66,6 @@ export default function RidesScreen() {
                     // Only log warnings for actual errors, not NOT_FOUND
                     if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
                         console.warn('✅ Refreshed user bookings on focus');
-                    }
-                });
-
-                fetchPrivateRides().catch(error => {
-                    // Only log warnings for actual errors, not NOT_FOUND  
-                    if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
-                        console.warn('✅ Refreshed private rides on focus');
                     }
                 });
 
@@ -118,14 +94,6 @@ export default function RidesScreen() {
             } catch (error) {
                 if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
                     console.warn('✅ Refreshed user bookings during pull refresh');
-                }
-            }
-
-            try {
-                await fetchPrivateRides();
-            } catch (error) {
-                if (error.code !== 'NOT_FOUND' && error.response?.status !== 404) {
-                    console.warn('✅ Refreshed private rides during pull refresh');
                 }
             }
 
@@ -187,10 +155,6 @@ export default function RidesScreen() {
         router.push('/(rides)/booked');
     }, [router]);
 
-    const handlePrivatePress = useCallback(() => {
-        router.push('/(rides)/private');
-    }, [router]);
-
     useEffect(() => {
         if (bookingsError && bookingsError.statusCode !== 404) {
             Alert.alert(
@@ -209,25 +173,6 @@ export default function RidesScreen() {
             );
         }
     }, [bookingsError]);
-
-    useEffect(() => {
-        if (privateRidesError && privateRidesError.statusCode !== 404) {
-            Alert.alert(
-                'Error Loading Private Rides',
-                privateRidesError.userMessage || 'We encountered an error while loading your private rides. Please try again.',
-                [
-                    {
-                        text: 'Cancel',
-                        style: 'cancel'
-                    },
-                    {
-                        text: 'Retry',
-                        onPress: () => retryFetchPrivateRides()
-                    }
-                ]
-            );
-        }
-    }, [privateRidesError]);
 
     // Separate available rides and booked rides
     // Filter out missed rides from active bookings as they should not appear in search results
@@ -249,7 +194,6 @@ export default function RidesScreen() {
     const groupedBookedRides = useMemo(() => groupRidesByDate(bookedRidesFromSearch), [bookedRidesFromSearch]);
     const groupedFullRides = useMemo(() => groupRidesByDate(fullRides), [fullRides]);
     const allBookedRides = useMemo(() => groupRidesByDate((userBookings || []).filter(ride => ride.checkInStatus !== 'missed')), [userBookings]);
-    const groupedPrivateRides = useMemo(() => groupRidesByDate(privateRides || []), [privateRides]);
 
     const hasSearchResults = useMemo(() => (searchResults || []).length > 0, [searchResults]);
     const hasBookings = useMemo(() => (userBookings || []).filter(ride => ride.checkInStatus !== 'missed').length > 0, [userBookings]);
@@ -304,7 +248,7 @@ export default function RidesScreen() {
                 renderItem={null}
                 refreshControl={
                     <RefreshControl
-                        refreshing={isLoadingBookings || isLoadingPrivateRides}
+                        refreshing={isLoadingBookings}
                         onRefresh={onRefresh}
                         colors={['#3b82f6']}
                         tintColor='#3b82f6'
@@ -388,13 +332,6 @@ export default function RidesScreen() {
                                                 <Text style={styles.emptyResultButtonText}>My Bookings</Text>
                                             </TouchableOpacity>
                                         )}
-                                        <TouchableOpacity
-                                            style={styles.emptyResultButton}
-                                            onPress={handlePrivatePress}
-                                        >
-                                            <Ionicons name="car-sport" size={16} color="#1d4ed8" />
-                                            <Text style={styles.emptyResultButtonText}>My Rides</Text>
-                                        </TouchableOpacity>
                                     </View>
                                 )}
                             </View>
@@ -420,15 +357,6 @@ export default function RidesScreen() {
                                         >
                                             <Ionicons name="ticket" size={16} color="#3b82f6" />
                                             <Text style={styles.compactButtonText}>Bookings</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                    {user && (
-                                        <TouchableOpacity
-                                            style={styles.compactButton}
-                                            onPress={handlePrivatePress}
-                                        >
-                                            <Ionicons name="car-sport" size={16} color="#1d4ed8" />
-                                            <Text style={styles.compactButtonText}>My Rides</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -548,25 +476,6 @@ export default function RidesScreen() {
                                     >
                                         <Ionicons name="ticket" size={20} color="#fff" />
                                         <Text style={styles.bookedButtonText}>View Booked Rides</Text>
-                                    </TouchableOpacity>
-                                </LinearGradient>
-                            </View>
-                        )}
-
-                        {!hasSearched && user && (
-                            <View style={styles.actionButtonsContainer}>
-                                <LinearGradient
-                                    colors={['#1d4ed8', '#1e40af']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    style={styles.privateRidesButtonGradient}
-                                >
-                                    <TouchableOpacity
-                                        style={styles.privateRidesButton}
-                                        onPress={handlePrivatePress}
-                                    >
-                                        <Ionicons name="car-sport" size={20} color="#fff" />
-                                        <Text style={styles.privateRidesButtonText}>View Your Private Rides</Text>
                                     </TouchableOpacity>
                                 </LinearGradient>
                             </View>
@@ -807,30 +716,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     bookedButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700',
-        marginLeft: 8,
-    },
-    privateRidesButtonGradient: {
-        borderRadius: 16,
-        padding: 3,
-        shadowColor: '#1d4ed8',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 6,
-    },
-    privateRidesButton: {
-        backgroundColor: 'transparent',
-        paddingVertical: 18,
-        paddingHorizontal: 28,
-        borderRadius: 13,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    privateRidesButtonText: {
         color: '#fff',
         fontSize: 18,
         fontWeight: '700',

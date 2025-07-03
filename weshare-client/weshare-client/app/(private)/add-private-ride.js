@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useLocalSearchParams } from 'expo-router';
 import { useRef } from 'react';
+import CustomAlert from '../../components/CustomAlert';
 
 export default function AddPrivateRideScreen() {
     const router = useRouter();
@@ -28,9 +29,36 @@ export default function AddPrivateRideScreen() {
     const [rideId, setRideId] = useState(null);
     const [seats, setSeats] = useState('');
     const [price, setPrice] = useState('');
+    const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
+
+    // Custom alert state
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({
+        title: '',
+        message: '',
+        type: 'info',
+        buttons: []
+    });
+
     // Get ride data from route params if it exists
     const params = useLocalSearchParams();
     const hasInitialized = useRef(false);
+
+    // Helper function to show custom alert
+    const showAlert = (title, message, type = 'info', buttons = []) => {
+        setAlertConfig({
+            title,
+            message,
+            type,
+            buttons
+        });
+        setAlertVisible(true);
+    };
+
+    // Helper function to hide alert
+    const hideAlert = () => {
+        setAlertVisible(false);
+    };
 
     // Check if user is authenticated
     if (!user) {
@@ -72,6 +100,46 @@ export default function AddPrivateRideScreen() {
         );
     }
 
+    // Check if user is verified
+    if (!user.isVerified) {
+        return (
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <Ionicons name="arrow-back" size={24} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Add Private Ride</Text>
+                    </View>
+
+                    <View style={styles.loginPromptContainer}>
+                        <View style={styles.loginPromptCard}>
+                            <View style={styles.loginPromptIcon}>
+                                <Ionicons name="shield-checkmark" size={48} color="#0a2472" />
+                            </View>
+                            <Text style={styles.loginPromptTitle}>Verification Required</Text>
+                            <Text style={styles.loginPromptText}>
+                                Only verified drivers can post private rides. Please verify your account by completing the phone verification process.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.loginPromptButton}
+                                onPress={() => router.push('/(auth)/verify')}
+                            >
+                                <Ionicons name="shield-checkmark" size={16} color="#fff" />
+                                <Text style={styles.loginPromptButtonText}>VERIFY ACCOUNT</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
+        );
+    }
+
     useEffect(() => {
         if (params?.ride && !hasInitialized.current) {
             try {
@@ -85,6 +153,7 @@ export default function AddPrivateRideScreen() {
                 setEta(parsedRide.estimatedArrivalTime.toString());
                 setSeats(parsedRide.seats.toString());
                 setPrice(parsedRide.price.toString());
+                setWheelchairAccessible(parsedRide.wheelchairAccessible);
                 // Set date and time from departure_time
                 if (parsedRide.departure_time) {
                     const departureDate = new Date(parsedRide.departure_time);
@@ -121,7 +190,7 @@ export default function AddPrivateRideScreen() {
 
     const handleSubmit = async () => {
         if (!from || !to || !description || !eta || !licensePlate || !seats || price === '') {
-            Alert.alert('Error', 'Please fill in all required fields');
+            showAlert('Missing Information', 'Please fill in all required fields', 'warning');
             return;
         }
 
@@ -131,17 +200,17 @@ export default function AddPrivateRideScreen() {
         const numEta = parseInt(eta);
 
         if (isNaN(numSeats) || numSeats < 1) {
-            Alert.alert('Error', 'Please enter a valid number of seats (minimum 1)');
+            showAlert('Invalid Seats', 'Please enter a valid number of seats (minimum 1)', 'warning');
             return;
         }
 
         if (isNaN(numPrice) || numPrice < 0) {
-            Alert.alert('Error', 'Please enter a valid price (0 or higher)');
+            showAlert('Invalid Price', 'Please enter a valid price (0 or higher)', 'warning');
             return;
         }
 
         if (isNaN(numEta) || numEta < 1) {
-            Alert.alert('Error', 'Please enter a valid ETA in hours (minimum 1)');
+            showAlert('Invalid ETA', 'Please enter a valid ETA in hours (minimum 1)', 'warning');
             return;
         }
 
@@ -163,20 +232,19 @@ export default function AddPrivateRideScreen() {
                 licensePlate,
                 isPrivate: true,
                 seats: numSeats,
-                price: numPrice
+                price: numPrice,
+                wheelchairAccessible
             };
 
             await addPrivateRide(rideData);
-            Alert.alert(
-                'Success',
+            showAlert(
+                'Success!',
                 `Private ride ${isEditing ? 'updated' : 'added'} successfully`,
+                'success',
                 [
                     {
                         text: 'View My Rides',
-                        onPress: () => router.push({
-                            pathname: '/(rides)',
-                            params: { showPrivateRides: true }
-                        }),
+                        onPress: () => router.push('/(private)'),
                     },
                     {
                         text: 'OK',
@@ -186,13 +254,43 @@ export default function AddPrivateRideScreen() {
             );
         } catch (error) {
             console.error('Error submitting ride:', error);
-            const userMessage =
-                error?.userMessage || // Use formatted message if available
-                error?.response?.data?.error || // Fall back to raw backend message
-                `Failed to ${isEditing ? 'update' : 'add'} private ride. Please try again.`;
 
-            Alert.alert('Error', userMessage);
+            // Handle specific backend validation errors with user-friendly messages
+            let userMessage = 'An error occurred while processing your request.';
 
+            if (error?.response?.data?.error) {
+                const backendError = error.response.data.error;
+
+                // Map backend errors to user-friendly messages
+                switch (true) {
+                    case backendError.includes('verified drivers'):
+                        userMessage = 'Only verified drivers can post private rides. Please verify your account first by completing the phone verification process.';
+                        break;
+                    case backendError.includes('maximum limit of 5 rides'):
+                        userMessage = 'You have reached the daily limit of 5 rides. Please try again tomorrow.';
+                        break;
+                    case backendError.includes('already have a ride scheduled'):
+                        userMessage = 'You already have a ride scheduled for this time. Please choose a different time (minimum 30 minutes apart).';
+                        break;
+                    case backendError.includes('wait at least 30 minutes'):
+                        userMessage = 'Please wait at least 30 minutes between posting rides.';
+                        break;
+                    case backendError.includes('wheelchair-accessible'):
+                        userMessage = 'Please specify if your vehicle is wheelchair-accessible by selecting Yes or No.';
+                        break;
+                    case backendError.includes('within 30 minutes of departure'):
+                        userMessage = 'Cannot edit ride details within 30 minutes of departure. Please contact passengers directly if changes are needed.';
+                        break;
+                    default:
+                        userMessage = backendError;
+                }
+            } else if (error?.userMessage) {
+                userMessage = error.userMessage;
+            } else if (error?.message) {
+                userMessage = error.message;
+            }
+
+            showAlert('Error', userMessage, 'error');
         }
     };
 
@@ -225,7 +323,7 @@ export default function AddPrivateRideScreen() {
 
                         <View style={styles.formContainer}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>From</Text>
+                                <Text style={styles.label}>From <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
                                     value={from}
@@ -236,7 +334,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>To</Text>
+                                <Text style={styles.label}>To <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
                                     value={to}
@@ -247,7 +345,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Date</Text>
+                                <Text style={styles.label}>Date <Text style={styles.required}>*</Text></Text>
                                 <TouchableOpacity
                                     style={styles.dateTimeInput}
                                     onPress={() => setShowDatePicker(true)}
@@ -273,7 +371,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Time</Text>
+                                <Text style={styles.label}>Time <Text style={styles.required}>*</Text></Text>
                                 <TouchableOpacity
                                     style={styles.dateTimeInput}
                                     onPress={() => setShowTimePicker(true)}
@@ -299,7 +397,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Description</Text>
+                                <Text style={styles.label}>Description <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={[styles.input, styles.textArea]}
                                     value={description}
@@ -312,7 +410,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Estimated Time of Arrival</Text>
+                                <Text style={styles.label}>Estimated Time of Arrival <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
                                     value={eta}
@@ -323,7 +421,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Seats</Text>
+                                <Text style={styles.label}>Seats <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
                                     value={seats}
@@ -335,7 +433,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Price ($)</Text>
+                                <Text style={styles.label}>Price (RWF) <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
                                     value={price}
@@ -347,7 +445,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>License Plate</Text>
+                                <Text style={styles.label}>License Plate <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
                                     value={licensePlate}
@@ -356,6 +454,25 @@ export default function AddPrivateRideScreen() {
                                     placeholderTextColor="#666"
                                     returnKeyType="done"
                                 />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Wheelchair Accessible <Text style={styles.required}>*</Text></Text>
+                                <TouchableOpacity
+                                    style={styles.checkboxContainer}
+                                    onPress={() => setWheelchairAccessible(!wheelchairAccessible)}
+                                >
+                                    <View style={styles.checkbox}>
+                                        <Ionicons
+                                            name={wheelchairAccessible ? "checkmark-circle" : "ellipse-outline"}
+                                            size={24}
+                                            color="#0a2472"
+                                        />
+                                    </View>
+                                    <Text style={styles.checkboxText}>
+                                        {wheelchairAccessible ? "Yes, my vehicle is wheelchair-accessible" : "No, my vehicle is not wheelchair-accessible"}
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
 
                             <TouchableOpacity
@@ -373,6 +490,16 @@ export default function AddPrivateRideScreen() {
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
+
+            {/* Custom Alert - moved to root level */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                buttons={alertConfig.buttons}
+                onDismiss={hideAlert}
+            />
         </LinearGradient>
     );
 }
@@ -511,5 +638,25 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         marginLeft: 10,
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    checkbox: {
+        marginRight: 10,
+    },
+    checkboxText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    required: {
+        color: 'red',
+        fontWeight: 'bold',
     },
 }); 

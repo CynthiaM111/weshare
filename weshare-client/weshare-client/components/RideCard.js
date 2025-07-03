@@ -16,7 +16,8 @@ const RideCard = React.memo(({
     onShowQRCode,
     isCheckedIn,
     isPrivate,
-    onFinishRide
+    onFinishRide,
+    showDriverInfo
 }) => {
     // Ensure we have valid numbers for calculations
     const totalSeats = parseInt(ride.seats) || 1;
@@ -37,6 +38,24 @@ const RideCard = React.memo(({
         if (calculatedAvailableSeats <= totalSeats * 0.3) return 'Nearly Full';
         return 'Available';
     })();
+
+    // Helper function to get driver initials
+    const getDriverInitials = (name) => {
+        if (!name) return 'D';
+
+        // If it's an email, extract the part before @
+        const displayName = name.includes('@') ? name.split('@')[0] : name;
+
+        // Split by spaces and get first letters
+        const parts = displayName.split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        } else if (parts.length === 1) {
+            return parts[0][0].toUpperCase();
+        }
+
+        return 'D';
+    };
 
     // Determine status color with more distinguishable colors
     const getStatusColor = (status) => {
@@ -66,6 +85,27 @@ const RideCard = React.memo(({
             onPress={onPress}
             disabled={isFull && !isBooked}
         >
+            {/* Driver Information Section */}
+            {showDriverInfo && ride.driver && (
+                <View style={styles.driverSection}>
+                    <View style={styles.driverProfile}>
+                        <View style={styles.driverAvatar}>
+                            <Text style={styles.driverInitials}>
+                                {getDriverInitials(ride.driver.name || ride.driver.email)}
+                            </Text>
+                        </View>
+                        <View style={styles.driverDetails}>
+                            <Text style={styles.driverName}>
+                                {ride.driver.name || 'Driver'}
+                            </Text>
+                            <Text style={styles.driverEmail}>
+                                {ride.driver.email}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            )}
+
             <View style={styles.header}>
                 <View style={styles.titleContainer}>
                     <Text style={styles.title}>{ride.from} → {ride.to}</Text>
@@ -403,6 +443,50 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 14,
         marginLeft: 8,
+    },
+    driverSection: {
+        marginBottom: 12,
+        backgroundColor: '#f8f9fa',
+        padding: 12,
+        borderRadius: 6,
+        borderLeftWidth: 3,
+        borderLeftColor: '#4CAF50',
+    },
+    driverProfile: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    driverAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#4CAF50',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    driverDetails: {
+        marginLeft: 12,
+        flex: 1,
+    },
+    driverInitials: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'white',
+    },
+    driverName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#2c3e50',
+        marginBottom: 2,
+    },
+    driverEmail: {
+        fontSize: 12,
+        color: '#666',
     },
 });
 

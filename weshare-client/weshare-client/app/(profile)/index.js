@@ -228,6 +228,15 @@ export default function Profile() {
                                 <Text style={styles.menuItemText}>Help & Support</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => router.push('/(rides)/booked')}
+                            >
+                                <FontAwesome5 name="history" size={18} color="#0a2472" />
+                                <Text style={styles.menuItemText}>Ride History</Text>
+                                <FontAwesome5 name="chevron-right" size={16} color="#666" />
+                            </TouchableOpacity>
                         </View>
 
                         {/* Logout Button */}

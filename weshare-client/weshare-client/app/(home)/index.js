@@ -264,11 +264,11 @@ export default function HomeScreen() {
     }
 
     const handleAddPrivateRide = () => {
-        router.push('/(rides)/add-private-ride');
+        router.push('/(private)/add-private-ride');
     };
 
     const handleBookPrivateRide = () => {
-        router.push('/(rides)/private');
+        router.push('/(private)');
     };
 
     const renderSuggestionItem = ({ item, onSelect }) => (

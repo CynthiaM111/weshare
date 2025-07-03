@@ -211,7 +211,7 @@ function RootLayoutNav() {
           name="(rides)"
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="car-outline" size={size} color={color} />
+              <Ionicons name="bus-outline" size={size} color={color} />
             ),
             tabBarLabel: 'Rides',
             tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
@@ -220,17 +220,14 @@ function RootLayoutNav() {
                 <TouchableOpacity
                   {...props}
                   onPress={(e) => {
-                    // Check if we're currently on booked or private screens
+                    // Check if we're currently on booked screen
                     const isOnBookedScreen = currentRouteName === 'booked';
-                    const isOnPrivateScreen = currentRouteName === 'private';
 
-
-
-                    // Only allow navigation if we're NOT on these specific screens
-                    if (!isOnBookedScreen && !isOnPrivateScreen) {
+                    // Only allow navigation if we're NOT on the booked screen
+                    if (!isOnBookedScreen) {
                       onPress?.(e);
                     }
-                    // If we're on booked or private screens, do nothing (prevent navigation)
+                    // If we're on booked screen, do nothing (prevent navigation)
                   }}
                 >
                   {children}
@@ -240,12 +237,22 @@ function RootLayoutNav() {
           }}
         />
         <Tabs.Screen
+          name="(private)"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="car-outline" size={size} color={color} />
+            ),
+            tabBarLabel: 'Private',
+            tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
+          }}
+        />
+        <Tabs.Screen
           name="(history)"
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="square-outline" size={size} color={color} />
+              <Ionicons name="time-outline" size={size} color={color} />
             ),
-            tabBarLabel: 'Activity',
+            tabBarLabel: 'History',
           }}
         />
         <Tabs.Screen
@@ -257,6 +264,7 @@ function RootLayoutNav() {
             tabBarLabel: 'Profile',
           }}
         />
+        
         <Tabs.Screen
           name="(employee)"
           options={{

@@ -1,16 +1,11 @@
-// app/(rides)/_layout.js
 import { Stack } from 'expo-router';
-import { Button } from '@ui-kitten/components';
-import { useRouter } from 'expo-router';
 
-export default function RidesLayout() {
-    const router = useRouter();
-
+export default function PrivateLayout() {
     return (
         <Stack
             screenOptions={{
                 headerStyle: {
-                    backgroundColor: 'royalblue',
+                    backgroundColor: '#667eea',
                 },
                 headerTintColor: '#fff',
                 headerTitleStyle: {
@@ -22,25 +17,22 @@ export default function RidesLayout() {
             <Stack.Screen
                 name="index"
                 options={{
-                    title: 'Available Rides',
+                    title: 'Private Rides',
                     headerShown: false,
                 }}
             />
             <Stack.Screen
-                name="[id]"
+                name="add-private-ride"
                 options={{
                     headerShown: false,
                 }}
             />
             <Stack.Screen
-                name="booked"
+                name="private-history"
                 options={{
                     headerShown: false,
-                    title: 'Booked Rides',
-                    headerBackVisible: false,
-                    gestureEnabled: false,
                 }}
             />
         </Stack>
     );
-}
+} 

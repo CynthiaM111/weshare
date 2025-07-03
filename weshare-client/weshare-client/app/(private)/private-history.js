@@ -135,7 +135,7 @@ const PrivateHistoryScreen = () => {
                     onPress: () => {
                         setRepeatModalVisible(false);
                         setSelectedRideForRepeat(null);
-                        router.push('/(rides)/private');
+                        router.push('/(private)');
                     }
                 }
             ]);

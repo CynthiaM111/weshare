@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, SafeAreaView, TextInput, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
 // import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CustomAlert from '../../components/CustomAlert';
 
 export default function PrivateRidesScreen() {
     const router = useRouter();
@@ -24,47 +26,32 @@ export default function PrivateRidesScreen() {
     const [pinInput, setPinInput] = useState('');
     const [selectedRideForCompletion, setSelectedRideForCompletion] = useState(null);
     const [selectedPassenger, setSelectedPassenger] = useState(null);
+    const [recentSearches, setRecentSearches] = useState([]);
 
-    // Check if user is authenticated
-    if (!user) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Private Rides</Text>
-                        <View style={styles.headerPlaceholder} />
-                    </View>
+    // Custom alert state
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({
+        title: '',
+        message: '',
+        type: 'info',
+        buttons: []
+    });
 
-                    <View style={styles.loginPromptContainer}>
-                        <View style={styles.loginPromptCard}>
-                            <View style={styles.loginPromptIcon}>
-                                <FontAwesome5 name="lock" size={48} color="#0a2472" />
-                            </View>
-                            <Text style={styles.loginPromptTitle}>Login Required</Text>
-                            <Text style={styles.loginPromptText}>
-                                Please login to access private rides and book your journey.
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.loginPromptButton}
-                                onPress={() => router.push('/(auth)/login')}
-                            >
-                                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
-                                <Text style={styles.loginPromptButtonText}>LOGIN / SIGN UP</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
+    // Helper function to show custom alert
+    const showAlert = (title, message, type = 'info', buttons = []) => {
+        setAlertConfig({
+            title,
+            message,
+            type,
+            buttons
+        });
+        setAlertVisible(true);
+    };
+
+    // Helper function to hide alert
+    const hideAlert = () => {
+        setAlertVisible(false);
+    };
 
     // User's own private rides
     const {
@@ -109,9 +96,64 @@ export default function PrivateRidesScreen() {
         return response.data.rides || [];
     });
 
+    // Load recent searches
+    const loadRecentSearches = useCallback(async () => {
+        try {
+            const userId = user?.id;
+            if (!userId) {
+                setRecentSearches([]);
+                return;
+            }
+
+            const searches = await AsyncStorage.getItem(`privateRecentSearches_${userId}`);
+            if (searches) {
+                const parsedSearches = JSON.parse(searches);
+                // Sort by frequency and get top 4
+                const sortedSearches = Object.entries(parsedSearches)
+                    .sort(([, a], [, b]) => b.count - a.count)
+                    .slice(0, 4)
+                    .map(([key, value]) => ({
+                        from: value.from,
+                        to: value.to,
+                        count: value.count
+                    }));
+                setRecentSearches(sortedSearches);
+            } else {
+                setRecentSearches([]);
+            }
+        } catch (error) {
+            console.error('Error loading recent searches:', error);
+            setRecentSearches([]);
+        }
+    }, [user?.id]);
+
+    // Update recent searches
+    const updateRecentSearches = async (from, to) => {
+        try {
+            const userId = user?.id;
+            if (!userId) return;
+
+            const searches = await AsyncStorage.getItem(`privateRecentSearches_${userId}`);
+            const parsedSearches = searches ? JSON.parse(searches) : {};
+            const key = `${from}-${to}`;
+
+            if (parsedSearches[key]) {
+                parsedSearches[key].count += 1;
+            } else {
+                parsedSearches[key] = { from, to, count: 1 };
+            }
+
+            await AsyncStorage.setItem(`privateRecentSearches_${userId}`, JSON.stringify(parsedSearches));
+            loadRecentSearches();
+        } catch (error) {
+            console.error('Error updating recent searches:', error);
+        }
+    };
+
     useEffect(() => {
         if (user) {
             fetchPrivateRides();
+            loadRecentSearches();
         }
     }, [user]);
 
@@ -130,15 +172,20 @@ export default function PrivateRidesScreen() {
         }
     }, [searchFrom, searchTo, hasSearched]);
 
-    const handleSearch = async () => {
-        if (!searchFrom && !searchTo) {
-            Alert.alert('Search Required', 'Please enter at least a departure or destination location to search for rides.');
+    const handleSearch = async (prefilledFrom = searchFrom, prefilledTo = searchTo) => {
+        if (!prefilledFrom && !prefilledTo) {
+            showAlert('Search Required', 'Please enter at least a departure or destination location to search for rides.', 'warning');
             return;
         }
 
         try {
             setHasSearched(true);
-            await fetchAvailablePrivateRides({ from: searchFrom, to: searchTo });
+            await fetchAvailablePrivateRides({ from: prefilledFrom, to: prefilledTo });
+
+            // Update recent searches if both from and to are provided
+            if (prefilledFrom && prefilledTo) {
+                await updateRecentSearches(prefilledFrom, prefilledTo);
+            }
         } catch (error) {
             console.error('Search error:', error);
         }
@@ -148,6 +195,12 @@ export default function PrivateRidesScreen() {
         setSearchFrom('');
         setSearchTo('');
         setHasSearched(false);
+    };
+
+    const handleRecentSearchPress = (search) => {
+        setSearchFrom(search.from);
+        setSearchTo(search.to);
+        handleSearch(search.from, search.to);
     };
 
     const groupRidesByDate = (ridesToGroup) => {
@@ -183,9 +236,10 @@ export default function PrivateRidesScreen() {
     };
 
     const handleDeleteRide = async (rideId) => {
-        Alert.alert(
+        showAlert(
             "Delete Ride",
             "Are you sure you want to delete this ride?",
+            "warning",
             [
                 {
                     text: "Cancel",
@@ -196,15 +250,13 @@ export default function PrivateRidesScreen() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-
                             await axios.delete(`${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}`, {
                                 headers: { Authorization: `Bearer ${user.token}` },
                             });
                             // Refresh the rides list
                             fetchPrivateRides();
                         } catch (error) {
-
-                            Alert.alert("Error", "Failed to delete ride. Please try again.");
+                            showAlert("Error", "Failed to delete ride. Please try again.", "error");
                         }
                     }
                 }
@@ -214,7 +266,7 @@ export default function PrivateRidesScreen() {
 
     const handleEditRide = (ride) => {
         router.push({
-            pathname: '/(rides)/add-private-ride',
+            pathname: '/(private)/add-private-ride',
             params: {
                 ride: JSON.stringify(ride)
             }
@@ -229,7 +281,7 @@ export default function PrivateRidesScreen() {
 
     const submitPinCompletion = async () => {
         if (pinInput.length !== 6) {
-            Alert.alert('Invalid PIN', 'Please enter a 6-digit PIN');
+            showAlert('Invalid PIN', 'Please enter a 6-digit PIN', 'warning');
             return;
         }
 
@@ -256,7 +308,7 @@ export default function PrivateRidesScreen() {
             );
 
             const passengerName = selectedPassenger.userId?.name || selectedPassenger.userId?.email || 'the passenger';
-            Alert.alert('Success', `Ride completed for ${passengerName}`);
+            showAlert('Success', `Ride completed for ${passengerName}`, 'success');
 
             // Reset modal state
             setPinModalVisible(false);
@@ -273,15 +325,16 @@ export default function PrivateRidesScreen() {
             console.error('Error status:', error.response?.status);
 
             const errorMessage = error.response?.data?.error || 'Failed to complete ride with PIN';
-            Alert.alert('Error', errorMessage);
+            showAlert('Error', errorMessage, 'error');
         }
     };
 
     useEffect(() => {
         if (privateRidesError) {
-            Alert.alert(
+            showAlert(
                 'Error Loading Private Rides',
                 privateRidesError.userMessage || 'We encountered an error while loading your private rides. Please try again.',
+                'error',
                 [
                     {
                         text: 'Cancel',
@@ -298,9 +351,10 @@ export default function PrivateRidesScreen() {
 
     useEffect(() => {
         if (availableRidesError) {
-            Alert.alert(
+            showAlert(
                 'Error Loading Available Rides',
                 availableRidesError.userMessage || 'We encountered an error while loading available private rides. Please try again.',
+                'error',
                 [
                     {
                         text: 'Cancel',
@@ -314,6 +368,47 @@ export default function PrivateRidesScreen() {
             );
         }
     }, [availableRidesError]);
+
+    // Check if user is authenticated - moved after all hooks
+    if (!user) {
+        return (
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Private Rides</Text>
+                        <View style={styles.headerPlaceholder} />
+                    </View>
+
+                    <View style={styles.loginPromptContainer}>
+                        <View style={styles.loginPromptCard}>
+                            <View style={styles.loginPromptIcon}>
+                                <FontAwesome5 name="lock" size={48} color="#0a2472" />
+                            </View>
+                            <Text style={styles.loginPromptTitle}>Login Required</Text>
+                            <Text style={styles.loginPromptText}>
+                                Please login to access private rides and book your journey.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.loginPromptButton}
+                                onPress={() => router.push('/(auth)/login')}
+                            >
+                                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
+                                <Text style={styles.loginPromptButtonText}>LOGIN / SIGN UP</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
+        );
+    }
 
     const rides = Array.isArray(privateRides) ? privateRides : [];
     const availableRides = Array.isArray(availablePrivateRides) ? availablePrivateRides : [];
@@ -355,10 +450,10 @@ export default function PrivateRidesScreen() {
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Private Rides</Text>
                     <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={() => router.push('/(rides)/private-history')} style={styles.historyButton}>
+                        <TouchableOpacity onPress={() => router.push('/(private)/private-history')} style={styles.historyButton}>
                             <FontAwesome5 name="history" size={18} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => router.push('/(rides)/add-private-ride')} style={styles.addButton}>
+                        <TouchableOpacity onPress={() => router.push('/(private)/add-private-ride')} style={styles.addButton}>
                             <FontAwesome5 name="plus" size={20} color="#fff" />
                         </TouchableOpacity>
                     </View>
@@ -407,7 +502,7 @@ export default function PrivateRidesScreen() {
                                     <View style={styles.searchButtons}>
                                         <TouchableOpacity
                                             style={styles.searchButton}
-                                            onPress={handleSearch}
+                                            onPress={() => handleSearch()}
                                             disabled={isLoadingAvailableRides}
                                         >
                                             <Text style={styles.searchButtonText}>
@@ -425,6 +520,35 @@ export default function PrivateRidesScreen() {
                                     </View>
                                 </View>
                             </View>
+
+                            {/* Recent Searches Section */}
+                            {recentSearches.length > 0 && !hasSearched && (
+                                <View style={styles.recentSearchesSection}>
+                                    <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
+                                    <View style={styles.recentSearchesList}>
+                                        {recentSearches.map((search, index) => (
+                                            <TouchableOpacity
+                                                key={index}
+                                                style={styles.recentSearchItem}
+                                                onPress={() => handleRecentSearchPress(search)}
+                                                activeOpacity={0.8}
+                                            >
+                                                <View style={styles.recentSearchContent}>
+                                                    <View style={styles.routeInfo}>
+                                                        <Text style={styles.routeFrom}>{search.from}</Text>
+                                                        <Ionicons name="arrow-forward" size={16} color="#94a3b8" />
+                                                        <Text style={styles.routeTo}>{search.to}</Text>
+                                                    </View>
+                                                    <View style={styles.searchCount}>
+                                                        <Ionicons name="time-outline" size={14} color="#64748b" />
+                                                        <Text style={styles.countText}>{search.count} times</Text>
+                                                    </View>
+                                                </View>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
 
                             {/* Available Private Rides Section */}
                             {hasSearched && groupedAvailableRides.length > 0 && (
@@ -462,13 +586,8 @@ export default function PrivateRidesScreen() {
                                                                     availableSeats={availableSeats}
                                                                     statusDisplay={statusDisplay}
                                                                     isFull={availableSeats === 0}
+                                                                    showDriverInfo={true}
                                                                 />
-                                                                {ride.driver && (
-                                                                    <View style={styles.driverInfo}>
-                                                                        <FontAwesome5 name="user" size={12} color="#666" />
-                                                                        <Text style={styles.driverText}>Driver: {ride.driver.name || ride.driver.email}</Text>
-                                                                    </View>
-                                                                )}
                                                             </View>
                                                         );
                                                     })}
@@ -671,12 +790,6 @@ export default function PrivateRidesScreen() {
                                                                     statusDisplay={statusDisplay}
                                                                     isFull={availableSeats === 0}
                                                                 />
-                                                                {ride.driver && (
-                                                                    <View style={styles.driverInfo}>
-                                                                        <FontAwesome5 name="user" size={12} color="#666" />
-                                                                        <Text style={styles.driverText}>Driver: {ride.driver.name || ride.driver.email}</Text>
-                                                                    </View>
-                                                                )}
                                                             </View>
                                                         );
                                                     })}
@@ -802,7 +915,7 @@ export default function PrivateRidesScreen() {
                                     <Text style={styles.emptyText}>No private rides found</Text>
                                     <TouchableOpacity
                                         style={styles.addButton}
-                                        onPress={() => router.push('/(rides)/add-private-ride')}
+                                        onPress={() => router.push('/(private)/add-private-ride')}
                                     >
                                         <FontAwesome5 name="plus" size={16} color="#fff" style={styles.addIcon} />
                                         <Text style={styles.addButtonText}>Add Private Ride</Text>
@@ -863,6 +976,16 @@ export default function PrivateRidesScreen() {
                     </View>
                 </Modal>
             </SafeAreaView>
+
+            {/* Custom Alert - moved to root level */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                buttons={alertConfig.buttons}
+                onDismiss={hideAlert}
+            />
         </LinearGradient>
     );
 }
@@ -1435,5 +1558,72 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         marginLeft: 8,
+    },
+    recentSearchesSection: {
+        marginBottom: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 12,
+        overflow: 'hidden',
+        padding: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    recentSearchesTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    recentSearchesList: {
+        gap: 8,
+    },
+    recentSearchItem: {
+        backgroundColor: '#f8f9fa',
+        padding: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    recentSearchContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    routeInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    routeFrom: {
+        fontSize: 14,
+        color: '#1e293b',
+        fontWeight: '600',
+    },
+    routeTo: {
+        fontSize: 14,
+        color: '#1e293b',
+        fontWeight: '600',
+        marginLeft: 8,
+    },
+    searchCount: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    countText: {
+        fontSize: 12,
+        color: '#64748b',
+        marginLeft: 4,
+        fontWeight: '500',
     },
 }); 
