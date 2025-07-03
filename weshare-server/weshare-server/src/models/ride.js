@@ -97,6 +97,13 @@ const rideSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    wheelchairAccessible: {
+        type: Boolean,
+        required: function () {
+            return this.isPrivate;
+        },
+        default: false
+    },
     bookedBy: [{
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         checkInStatus: { type: String, enum: ['pending', 'checked-in', 'completed'], default: 'pending' },

@@ -156,6 +156,60 @@ const createRide = async (req, res) => {
                 return res.status(400).json({ error: 'Please enter the price per seat' });
             }
 
+            // Check if wheelchair accessibility is specified
+            if (req.body.wheelchairAccessible === undefined) {
+                return res.status(400).json({ error: 'Please specify if your vehicle is wheelchair-accessible (yes/no)' });
+            }
+
+            // Check if user is verified
+            const user = await User.findById(req.user.id);
+            if (!user || !user.isVerified) {
+                return res.status(403).json({ error: 'Only verified drivers can post private rides. Please verify your account first.' });
+            }
+
+            // Check maximum rides per day (5 rides)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const todayRidesCount = await Ride.countDocuments({
+                userId: req.user.id,
+                isPrivate: true,
+                created_at: { $gte: today, $lt: tomorrow }
+            });
+
+            if (todayRidesCount >= 5) {
+                return res.status(400).json({ error: 'You have reached the maximum limit of 5 rides per day. Please try again tomorrow.' });
+            }
+
+            // Check for duplicate rides on same date and time
+            const departureTime = new Date(`${date}T${time}`);
+            const timeWindowStart = new Date(departureTime.getTime() - 30 * 60 * 1000); // 30 minutes before
+            const timeWindowEnd = new Date(departureTime.getTime() + 30 * 60 * 1000); // 30 minutes after
+
+            const existingRide = await Ride.findOne({
+                userId: req.user.id,
+                isPrivate: true,
+                departure_time: { $gte: timeWindowStart, $lte: timeWindowEnd }
+            });
+
+            if (existingRide) {
+                return res.status(400).json({ error: 'You already have a ride scheduled for this date and time. Please choose a different time (minimum 30 minutes apart).' });
+            }
+
+            // Check 30-minute wait between rides
+            const thirtyMinutesAgo = new Date(currentTime.getTime() - 30 * 60 * 1000);
+            const recentRide = await Ride.findOne({
+                userId: req.user.id,
+                isPrivate: true,
+                created_at: { $gte: thirtyMinutesAgo }
+            });
+
+            if (recentRide) {
+                return res.status(400).json({ error: 'Please wait at least 30 minutes between posting rides.' });
+            }
+
             // Validate license plate format
             const plateRegex = /^[A-Z0-9]{2,7}$/;
             if (!plateRegex.test(licensePlate.trim().toUpperCase())) {
@@ -173,8 +227,6 @@ const createRide = async (req, res) => {
             if (isNaN(ridePrice) || ridePrice < 1 || ridePrice > 100) {
                 return res.status(400).json({ error: 'Please enter a valid price (minimum $1, maximum $100)' });
             }
-
-            const departureTime = new Date(`${date}T${time}`);
 
             // Enhanced date/time validation
             if (isNaN(departureTime.getTime())) {
@@ -213,6 +265,7 @@ const createRide = async (req, res) => {
                 estimatedArrivalTime: new Date(departureTime.getTime() + (parseInt(estimatedArrivalTime) * 60 * 60 * 1000)),
                 seats: seatCount,
                 price: ridePrice,
+                wheelchairAccessible: req.body.wheelchairAccessible,
                 userId: req.user.id,
                 categoryId: null,
                 agencyId: null
@@ -593,6 +646,29 @@ const updateRide = async (req, res) => {
         const { id } = req.params;
         const updates = req.body;
 
+        // Find the ride first to check restrictions
+        const ride = await Ride.findById(id);
+        if (!ride) {
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        // Check if user is the owner of the ride
+        if (ride.isPrivate && ride.userId.toString() !== req.user.id) {
+            return res.status(403).json({ error: 'You can only edit your own rides' });
+        }
+
+        // For private rides, check if it's within 30 minutes of departure
+        if (ride.isPrivate) {
+            const currentTime = new Date();
+            const thirtyMinutesBeforeDeparture = new Date(ride.departure_time.getTime() - 30 * 60 * 1000);
+
+            if (currentTime >= thirtyMinutesBeforeDeparture) {
+                return res.status(400).json({
+                    error: 'Cannot edit ride details within 30 minutes of departure time. Please contact passengers directly if changes are needed.'
+                });
+            }
+        }
+
         // Prevent updating booked_seats directly via this endpoint
         if ('booked_seats' in updates) {
             delete updates.booked_seats;
@@ -600,11 +676,11 @@ const updateRide = async (req, res) => {
 
         // If updating departure time, recalculate ETA
         if (updates.departure_time) {
-            const ride = await Ride.findById(id).populate('categoryId');
-            if (ride && ride.categoryId) {
+            const rideWithCategory = await Ride.findById(id).populate('categoryId');
+            if (rideWithCategory && rideWithCategory.categoryId) {
                 const departureTime = new Date(updates.departure_time);
                 const estimatedArrivalTime = new Date(departureTime);
-                estimatedArrivalTime.setHours(estimatedArrivalTime.getHours() + ride.categoryId.averageTime);
+                estimatedArrivalTime.setHours(estimatedArrivalTime.getHours() + rideWithCategory.categoryId.averageTime);
                 updates.estimatedArrivalTime = estimatedArrivalTime;
             }
         }
@@ -1908,7 +1984,7 @@ const getRideBookings = async (req, res) => {
             // For employees, check if they can access this ride based on their destination category
             const userDestinationCategoryId = req.user.destinationCategoryId?.toString();
             const rideCategoryId = ride.categoryId?._id?.toString();
-            
+
             console.log('Employee permission check:', {
                 userDestinationCategoryId,
                 rideCategoryId,
