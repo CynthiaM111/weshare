@@ -10,6 +10,7 @@ import destinationCategoryRoutes from './src/routes/destinationCategoryRoutes.js
 import messageRoutes from './src/routes/messageRoutes.js';
 import reminderRoutes from './src/routes/reminderRoutes.js';
 import bookingRoutes from './src/routes/bookingRoutes.js';
+import costSharingRoutes from './src/routes/costSharing.js';
 import cronService from './src/services/cronService.js';
 import { warmCache } from './src/controllers/rideController.js';
 
@@ -46,7 +47,7 @@ app.use('/api/agencies', agencyRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reminders', reminderRoutes);
-
+app.use('/api/cost', costSharingRoutes);
 // Start the reminder scheduler
 cronService.startReminderScheduler();
 

@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const messagingService = require('../services/messagingService');
 const ruleValidator = require('../Utilities/ruleValidator');
+const FuelCostCalculator = require('../Utilities/fuelCostCalculator');
 
 // Helper function to clear Redis cache
 const clearCache = async () => {
@@ -110,7 +111,13 @@ const createRide = async (req, res) => {
             categoryId,
             departure_time,       // ISO string (for public)
             seats,
-            price
+            price,
+            // New GPS-based fields
+            startLocation,
+            endLocation,
+            calculatedPrice,
+            fuelEfficiency,
+            pricePerLiter
         } = req.body;
 
         const currentTime = new Date();
@@ -127,11 +134,18 @@ const createRide = async (req, res) => {
         };
 
         if (isPrivate) {
+            // Handle both old and new location formats
+            const fromLocation = from || (startLocation ? startLocation.name : null);
+            const toLocation = to || (endLocation ? endLocation.name : null);
+            const finalPrice = price || calculatedPrice;
+            console.log("finalPrice", finalPrice);
+            console.log("calculatedPrice", calculatedPrice);
+
             // Validate required private ride fields with specific messages
-            if (!from) {
+            if (!fromLocation) {
                 return res.status(400).json({ error: 'Please enter a pickup location (from)' });
             }
-            if (!to) {
+            if (!toLocation) {
                 return res.status(400).json({ error: 'Please enter a destination (to)' });
             }
             if (!date) {
@@ -152,7 +166,7 @@ const createRide = async (req, res) => {
             if (!seats) {
                 return res.status(400).json({ error: 'Please specify the number of available seats' });
             }
-            if (!price) {
+            if (!finalPrice) {
                 return res.status(400).json({ error: 'Please enter the price per seat' });
             }
 
@@ -199,16 +213,16 @@ const createRide = async (req, res) => {
             }
 
             // Check 30-minute wait between rides
-            const thirtyMinutesAgo = new Date(currentTime.getTime() - 30 * 60 * 1000);
-            const recentRide = await Ride.findOne({
-                userId: req.user.id,
-                isPrivate: true,
-                created_at: { $gte: thirtyMinutesAgo }
-            });
+            // const thirtyMinutesAgo = new Date(currentTime.getTime() - 30 * 60 * 1000);
+            // const recentRide = await Ride.findOne({
+            //     userId: req.user.id,
+            //     isPrivate: true,
+            //     created_at: { $gte: thirtyMinutesAgo }
+            // });
 
-            if (recentRide) {
-                return res.status(400).json({ error: 'Please wait at least 30 minutes between posting rides.' });
-            }
+            // if (recentRide) {
+            //     return res.status(400).json({ error: 'Please wait at least 30 minutes between posting rides.' });
+            // }
 
             // Validate license plate format
             const plateRegex = /^[A-Z0-9]{2,7}$/;
@@ -223,9 +237,9 @@ const createRide = async (req, res) => {
             }
 
             // Validate price
-            const ridePrice = parseFloat(price);
-            if (isNaN(ridePrice) || ridePrice < 1 || ridePrice > 100) {
-                return res.status(400).json({ error: 'Please enter a valid price (minimum $1, maximum $100)' });
+            const validatedPrice = parseFloat(finalPrice);
+            if (isNaN(validatedPrice) || validatedPrice < 1 || validatedPrice > 100000) {
+                return res.status(400).json({ error: 'Please enter a valid price (minimum 1 RWF, maximum 100000 RWF)' });
             }
 
             // Enhanced date/time validation
@@ -259,12 +273,30 @@ const createRide = async (req, res) => {
 
             rideData = {
                 ...rideData,
-                from,
-                to,
+                from: fromLocation,
+                to: toLocation,
+                // Add GPS location data if available
+                ...(startLocation && {
+                    startLocation: {
+                        name: startLocation.name,
+                        latitude: startLocation.latitude,
+                        longitude: startLocation.longitude
+                    }
+                }),
+                ...(endLocation && {
+                    endLocation: {
+                        name: endLocation.name,
+                        latitude: endLocation.latitude,
+                        longitude: endLocation.longitude
+                    }
+                }),
                 departure_time: departureTime,
                 estimatedArrivalTime: new Date(departureTime.getTime() + (parseInt(estimatedArrivalTime) * 60 * 60 * 1000)),
                 seats: seatCount,
-                price: ridePrice,
+                price: validatedPrice,
+                // Add fuel efficiency and price per liter if available
+                ...(fuelEfficiency && { fuelEfficiency: parseFloat(fuelEfficiency) }),
+                ...(pricePerLiter && { pricePerLiter: parseFloat(pricePerLiter) }),
                 wheelchairAccessible: req.body.wheelchairAccessible,
                 userId: req.user.id,
                 categoryId: null,
@@ -350,6 +382,55 @@ const createRide = async (req, res) => {
 
         const ride = new Ride(rideData);
         await ride.save();
+
+        // Create fuel cost record for private rides with GPS coordinates and fuel parameters
+        if (isPrivate && startLocation && endLocation && fuelEfficiency && pricePerLiter) {
+            try {
+                
+                // Calculate distance and fuel cost
+                const distance = FuelCostCalculator.calculateDistance(
+                    startLocation.latitude,
+                    startLocation.longitude,
+                    endLocation.latitude,
+                    endLocation.longitude
+                );
+
+                const fuelLiters = FuelCostCalculator.calculateFuelConsumption(distance, parseFloat(fuelEfficiency));
+                const totalFuelCost = FuelCostCalculator.calculateFuelCost(fuelLiters, parseFloat(pricePerLiter));
+
+                // Create fuel cost record using the utility
+                await FuelCostCalculator.createFuelCostRecord({
+                    rideId: ride._id,
+                    startLocation: {
+                        latitude: startLocation.latitude,
+                        longitude: startLocation.longitude,
+                        address: startLocation.name || ''
+                    },
+                    endLocation: {
+                        latitude: endLocation.latitude,
+                        longitude: endLocation.longitude,
+                        address: endLocation.name || ''
+                    },
+                    distanceKm: distance,
+                    estimatedFuelLiters: fuelLiters,
+                    estimatedFuelCost: totalFuelCost,
+                    vehicleInfo: {
+                        fuelEfficiency: parseFloat(fuelEfficiency),
+                        fuelType: 'petrol',
+                        vehicleModel: ''
+                    },
+                    fuelPricePerLiter: parseFloat(pricePerLiter),
+                    driverId: req.user.id,
+                    status: 'estimated'
+                });
+
+                console.log(`Fuel cost record created for ride ${ride._id}`);
+            } catch (fuelError) {
+                console.error('Failed to create fuel cost record:', fuelError);
+                // Don't fail the ride creation if fuel cost record creation fails
+            }
+        }
+
         await clearCache();
 
         const rideWithStatus = {
