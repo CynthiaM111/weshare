@@ -34,6 +34,8 @@ export default function AddPrivateRideScreen() {
     const [pricePerLiter, setPricePerLiter] = useState('1700');
     const [calculatedPrice, setCalculatedPrice] = useState(null);
     const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
+    const [startLocationValid, setStartLocationValid] = useState(false);
+    const [endLocationValid, setEndLocationValid] = useState(false);
 
     // Custom alert state
     const [alertVisible, setAlertVisible] = useState(false);
@@ -121,6 +123,11 @@ export default function AddPrivateRideScreen() {
     });
 
     const handleSubmit = async () => {
+        if (!startLocationValid || !endLocationValid) {
+            showAlert('Invalid Locations', 'Please select valid locations from the suggestions for both pickup and destination.', 'warning');
+            return;
+        }
+
         if (!startLocation?.latitude || !endLocation?.latitude || !description || !eta || !licensePlate || !seats) {
             showAlert('Missing Information', 'Please fill in all required fields including GPS coordinates', 'warning');
             return;
@@ -154,10 +161,10 @@ export default function AddPrivateRideScreen() {
 
         // Pricing calculation is optional - if not available, use a default calculation
         let finalPrice = null;
-        console.log("calculatedPrice", calculatedPrice);
+
         if (calculatedPrice) {
             finalPrice = calculatedPrice.costSharing?.perPassengerCost;
-            console.log("[frontend] finalPrice", finalPrice);
+
         } else {
             // Simple fallback calculation
             const distance = 50; // Default distance in km
@@ -235,248 +242,335 @@ export default function AddPrivateRideScreen() {
         setCalculatedPrice(pricingData);
     };
 
-    return (
-        <LinearGradient
-            colors={['#0a2472', '#1E90FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.backgroundGradient}
-        >
-            <SafeAreaView style={styles.container}>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.keyboardAvoidingView}
-                >
-                    <ScrollView
-                        style={styles.scrollView}
-                        contentContainerStyle={styles.scrollContent}
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <View style={styles.header}>
-                            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                                <Ionicons name="arrow-back" size={24} color="#fff" />
-                            </TouchableOpacity>
-                            <Text style={styles.headerTitle}>
-                                {isEditing ? 'Edit Your Ride' : 'Add Your Ride'}
-                            </Text>
-                        </View>
+    const onTimeChange = (event, selectedTime) => {
+        setShowTimePicker(false);
+        if (selectedTime) {
+            setTime(selectedTime);
+        }
+    };
 
-                        <View style={styles.formContainer}>
-                            <View style={styles.infoSection}>
-                                <FontAwesome5 name="info-circle" size={16} color="#4CAF50" />
-                                <Text style={styles.infoText}>
-                                    Search for locations to automatically calculate pricing based on GPS coordinates and fuel costs
-                                </Text>
+    const onDateChange = (event, selectedDate) => {
+        setShowDatePicker(false);
+        if (selectedDate) {
+            setDate(selectedDate);
+        }
+    };
+
+    const formatDate = (date) => {
+        return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    const formatTime = (time) => {
+        return time.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.gradient}
+            >
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={styles.backButton}
+                    >
+                        <Ionicons name="arrow-back" size={24} color="#ffffff" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>
+                        {isEditing ? 'Edit Private Ride' : 'Create Private Ride'}
+                    </Text>
+                    <View style={styles.headerSpacer} />
+                </View>
+            </LinearGradient>
+
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardAvoidingView}
+            >
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.content}>
+                        {/* Location Section */}
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <FontAwesome5 name="map-marker-alt" size={20} color="#667eea" />
+                                <Text style={styles.sectionTitle}>Location Details</Text>
                             </View>
 
                             <LocationPicker
                                 value={startLocation}
                                 onLocationSelect={setStartLocation}
-                                placeholder="Search for departure location..."
-                                label="From"
+                                placeholder="Enter pickup location..."
+                                label="Pickup Location"
                                 required={true}
+                                onValidityChange={setStartLocationValid}
                             />
 
                             <LocationPicker
                                 value={endLocation}
                                 onLocationSelect={setEndLocation}
-                                placeholder="Search for destination..."
-                                label="To"
+                                placeholder="Enter destination..."
+                                label="Destination"
                                 required={true}
+                                onValidityChange={setEndLocationValid}
                             />
+                        </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Date <Text style={styles.required}>*</Text></Text>
+                        {/* Trip Details Section */}
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <FontAwesome5 name="calendar-alt" size={20} color="#667eea" />
+                                <Text style={styles.sectionTitle}>Trip Details</Text>
+                            </View>
+
+                            {/* Date and Time */}
+                            <View style={styles.row}>
                                 <TouchableOpacity
-                                    style={styles.dateTimeInput}
+                                    style={styles.dateTimeButton}
                                     onPress={() => setShowDatePicker(true)}
                                 >
-                                    <Text style={styles.dateTimeText}>
-                                        {date.toLocaleDateString()}
-                                    </Text>
-                                    <Ionicons name="calendar-outline" size={24} color="#0a2472" />
+                                    <FontAwesome5 name="calendar" size={16} color="#667eea" />
+                                    <Text style={styles.dateTimeText}>{formatDate(date)}</Text>
                                 </TouchableOpacity>
-                                {showDatePicker && (
-                                    <DateTimePicker
-                                        value={date}
-                                        mode="date"
-                                        display="default"
-                                        onChange={(event, selectedDate) => {
-                                            setShowDatePicker(false);
-                                            if (selectedDate) {
-                                                setDate(selectedDate);
-                                            }
-                                        }}
-                                    />
-                                )}
-                            </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Time <Text style={styles.required}>*</Text></Text>
                                 <TouchableOpacity
-                                    style={styles.dateTimeInput}
+                                    style={styles.dateTimeButton}
                                     onPress={() => setShowTimePicker(true)}
                                 >
-                                    <Text style={styles.dateTimeText}>
-                                        {time.toLocaleTimeString()}
-                                    </Text>
-                                    <Ionicons name="time-outline" size={24} color="#0a2472" />
+                                    <FontAwesome5 name="clock" size={16} color="#667eea" />
+                                    <Text style={styles.dateTimeText}>{formatTime(time)}</Text>
                                 </TouchableOpacity>
-                                {showTimePicker && (
-                                    <DateTimePicker
-                                        value={time}
-                                        mode="time"
-                                        display="default"
-                                        onChange={(event, selectedTime) => {
-                                            setShowTimePicker(false);
-                                            if (selectedTime) {
-                                                setTime(selectedTime);
-                                            }
-                                        }}
-                                    />
-                                )}
                             </View>
 
+                            {/* Description */}
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Description <Text style={styles.required}>*</Text></Text>
+                                <Text style={styles.label}>
+                                    Description <Text style={styles.required}>*</Text>
+                                </Text>
                                 <TextInput
-                                    style={[styles.input, styles.textArea]}
+                                    style={styles.textArea}
                                     value={description}
                                     onChangeText={setDescription}
-                                    placeholder="Describe your ride (e.g., type of car, amenities)"
-                                    placeholderTextColor="#666"
+                                    placeholder="Where are you meeting with the passenger(s)? (e.g., Kigali Heights Mall entrance, Remera bus stop, etc.)"
+                                    placeholderTextColor="#64748b"
                                     multiline
-                                    numberOfLines={4}
+                                    numberOfLines={3}
+                                    textAlignVertical="top"
                                 />
                             </View>
 
+                            {/* ETA */}
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Estimated Time of Arrival <Text style={styles.required}>*</Text></Text>
+                                <Text style={styles.label}>
+                                    Estimated Travel Time (hours) <Text style={styles.required}>*</Text>
+                                </Text>
                                 <TextInput
                                     style={styles.input}
                                     value={eta}
                                     onChangeText={setEta}
-                                    placeholder="e.g., 2 hours"
-                                    placeholderTextColor="#666"
-                                />
-                            </View>
-
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Seats <Text style={styles.required}>*</Text></Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={seats}
-                                    onChangeText={setSeats}
-                                    placeholder="Enter the number of seats"
-                                    placeholderTextColor="#666"
+                                    placeholder="e.g., 2"
+                                    placeholderTextColor="#64748b"
                                     keyboardType="numeric"
                                 />
                             </View>
+                        </View>
 
-                            <View style={styles.vehicleSettingsSection}>
-                                <Text style={styles.sectionTitle}>Vehicle Settings</Text>
-
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Fuel Efficiency (L/100km)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={fuelEfficiency}
-                                        onChangeText={setFuelEfficiency}
-                                        placeholder="e.g., 7.0"
-                                        placeholderTextColor="#666"
-                                        keyboardType="numeric"
-                                    />
-                                </View>
-
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Fuel Price (RWF/L)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={pricePerLiter}
-                                        onChangeText={setPricePerLiter}
-                                        placeholder="e.g., 1700"
-                                        placeholderTextColor="#666"
-                                        keyboardType="numeric"
-                                    />
-                                </View>
+                        {/* Vehicle Details Section */}
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <FontAwesome5 name="car" size={20} color="#667eea" />
+                                <Text style={styles.sectionTitle}>Vehicle Details</Text>
                             </View>
 
+                            {/* License Plate */}
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>License Plate <Text style={styles.required}>*</Text></Text>
+                                <Text style={styles.label}>
+                                    License Plate <Text style={styles.required}>*</Text>
+                                </Text>
                                 <TextInput
                                     style={styles.input}
                                     value={licensePlate}
                                     onChangeText={setLicensePlate}
-                                    placeholder="Enter your car's license plate"
-                                    placeholderTextColor="#666"
-                                    returnKeyType="done"
+                                    placeholder="e.g., RAA123A"
+                                    placeholderTextColor="#64748b"
+                                    autoCapitalize="characters"
+                                />
+                            </View>
+
+                            {/* Seats */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>
+                                    Available Seats <Text style={styles.required}>*</Text>
+                                </Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={seats}
+                                    onChangeText={setSeats}
+                                    placeholder="e.g., 3"
+                                    placeholderTextColor="#64748b"
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            {/* Wheelchair Accessible */}
+                            <View style={styles.checkboxGroup}>
+                                <TouchableOpacity
+                                    style={styles.checkbox}
+                                    onPress={() => setWheelchairAccessible(!wheelchairAccessible)}
+                                >
+                                    <View style={[styles.checkboxBox, wheelchairAccessible && styles.checkboxChecked]}>
+                                        {wheelchairAccessible && (
+                                            <FontAwesome5 name="check" size={12} color="#ffffff" />
+                                        )}
+                                    </View>
+                                    <Text style={styles.checkboxLabel}>Wheelchair Accessible</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Fuel Details Section */}
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <FontAwesome5 name="gas-pump" size={20} color="#667eea" />
+                                <Text style={styles.sectionTitle}>Fuel Details</Text>
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Fuel Efficiency (L/100km)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={fuelEfficiency}
+                                    onChangeText={setFuelEfficiency}
+                                    placeholder="e.g., 7.0"
+                                    placeholderTextColor="#64748b"
+                                    keyboardType="numeric"
                                 />
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Wheelchair Accessible</Text>
-                                <TouchableOpacity
-                                    style={styles.checkboxContainer}
-                                    onPress={() => setWheelchairAccessible(!wheelchairAccessible)}
-                                >
-                                    <View style={styles.checkbox}>
-                                        <Ionicons
-                                            name={wheelchairAccessible ? "checkmark-circle" : "ellipse-outline"}
-                                            size={24}
-                                            color="#0a2472"
-                                        />
-                                    </View>
-                                    <Text style={styles.checkboxText}>
-                                        {wheelchairAccessible ? "Yes, my vehicle is wheelchair-accessible" : "No, my vehicle is not wheelchair-accessible"}
-                                    </Text>
-                                </TouchableOpacity>
+                                <Text style={styles.label}>Fuel Price (RWF/L)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={pricePerLiter}
+                                    onChangeText={setPricePerLiter}
+                                    placeholder="e.g., 1700"
+                                    placeholderTextColor="#64748b"
+                                    keyboardType="numeric"
+                                />
                             </View>
-
-                            {/* Pricing Preview */}
-                            <PricingPreview
-                                startLocation={startLocation}
-                                endLocation={endLocation}
-                                seats={parseInt(seats) || 0}
-                                fuelEfficiency={parseFloat(fuelEfficiency) || 7.0}
-                                pricePerLiter={parseFloat(pricePerLiter) || 1700}
-                                onPriceCalculated={handlePriceCalculated}
-                            />
-
-                            <TouchableOpacity
-                                style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-                                onPress={handleSubmit}
-                                disabled={isLoading}
-                            >
-                                <Text style={styles.submitButtonText}>
-                                    {isLoading
-                                        ? (isEditing ? 'Updating Ride...' : 'Adding Ride...')
-                                        : (isEditing ? 'Update Your Ride' : 'Add Your Ride')}
-                                </Text>
-                            </TouchableOpacity>
                         </View>
-                    </ScrollView>
-                </KeyboardAvoidingView>
 
-                <CustomAlert
-                    visible={alertVisible}
-                    title={alertConfig.title}
-                    message={alertConfig.message}
-                    type={alertConfig.type}
-                    buttons={alertConfig.buttons}
-                    onClose={() => setAlertVisible(false)}
+                        {/* Pricing Preview */}
+                        {startLocation && endLocation && seats && fuelEfficiency && pricePerLiter && (
+                            <View style={styles.section}>
+                                <View style={styles.sectionHeader}>
+                                    <FontAwesome5 name="calculator" size={20} color="#667eea" />
+                                    <Text style={styles.sectionTitle}>Pricing Preview</Text>
+                                </View>
+                                <PricingPreview
+                                    startLocation={startLocation}
+                                    endLocation={endLocation}
+                                    seats={seats}
+                                    fuelEfficiency={fuelEfficiency}
+                                    pricePerLiter={pricePerLiter}
+                                    onPriceCalculated={handlePriceCalculated}
+                                    pricing={calculatedPrice}
+                                />
+                            </View>
+                        )}
+
+                        {/* Submit Button */}
+                        <TouchableOpacity
+                            style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+                            onPress={handleSubmit}
+                            disabled={isLoading}
+                        >
+                            <Text style={styles.submitButtonText}>
+                                {isLoading ? 'Creating...' : (isEditing ? 'Update Ride' : 'Create Ride')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+
+            {/* Date Picker */}
+            {showDatePicker && (
+                <DateTimePicker
+                    value={date}
+                    mode="date"
+                    display="default"
+                    onChange={onDateChange}
+                    minimumDate={new Date()}
                 />
-            </SafeAreaView>
-        </LinearGradient>
+            )}
+
+            {/* Time Picker */}
+            {showTimePicker && (
+                <DateTimePicker
+                    value={time}
+                    mode="time"
+                    display="default"
+                    onChange={onTimeChange}
+                />
+            )}
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                buttons={alertConfig.buttons}
+            />
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#f8fafc',
     },
-    backgroundGradient: {
+    gradient: {
+        paddingTop: 20,
+        paddingBottom: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+    },
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 15,
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#ffffff',
         flex: 1,
+    },
+    headerSpacer: {
+        width: 40,
     },
     keyboardAvoidingView: {
         flex: 1,
@@ -488,42 +582,56 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 40,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 20,
+    content: {
+        gap: 20,
     },
-    backButton: {
-        marginRight: 15,
-    },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    formContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 12,
+    section: {
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
         padding: 20,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowRadius: 8,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
     },
-    infoSection: {
+    sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#e8f5e8',
-        padding: 12,
-        borderRadius: 8,
+        marginBottom: 20,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1e293b',
+        marginLeft: 12,
+    },
+    row: {
+        flexDirection: 'row',
+        gap: 12,
         marginBottom: 20,
     },
-    infoText: {
-        marginLeft: 8,
-        fontSize: 14,
-        color: '#2c3e50',
+    dateTimeButton: {
         flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    dateTimeText: {
+        fontSize: 16,
+        color: '#475569',
+        marginLeft: 8,
+        fontWeight: '500',
     },
     inputGroup: {
         marginBottom: 20,
@@ -531,83 +639,101 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#0a2472',
+        color: '#374151',
         marginBottom: 8,
     },
     required: {
-        color: '#e53e3e',
+        color: '#ef4444',
     },
     input: {
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        padding: 12,
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        padding: 16,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: '#e2e8f0',
         fontSize: 16,
-        color: '#333',
+        color: '#1f2937',
     },
     textArea: {
         height: 100,
         textAlignVertical: 'top',
-    },
-    dateTimeInput: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    dateTimeText: {
-        fontSize: 16,
-        color: '#333',
-    },
-    vehicleSettingsSection: {
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
         padding: 16,
-        borderRadius: 8,
-        marginBottom: 20,
-        borderLeftWidth: 3,
-        borderLeftColor: '#4CAF50',
-    },
-    sectionTitle: {
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#0a2472',
-        marginBottom: 16,
+        color: '#1f2937',
     },
-    checkboxContainer: {
+    checkboxGroup: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        padding: 12,
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        padding: 16,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: '#e2e8f0',
     },
     checkbox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    checkboxBox: {
+        width: 24,
+        height: 24,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: '#d1d5db',
+        justifyContent: 'center',
+        alignItems: 'center',
         marginRight: 12,
     },
-    checkboxText: {
+    checkboxChecked: {
+        backgroundColor: '#667eea',
+        borderColor: '#667eea',
+    },
+    checkboxLabel: {
         fontSize: 16,
-        color: '#333',
+        color: '#374151',
         flex: 1,
     },
     submitButton: {
-        backgroundColor: '#0a2472',
-        paddingVertical: 15,
-        borderRadius: 8,
+        backgroundColor: '#667eea',
+        paddingVertical: 18,
+        paddingHorizontal: 32,
+        borderRadius: 16,
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: 20,
+        shadowColor: '#667eea',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
     },
     submitButtonDisabled: {
-        backgroundColor: 'rgba(10, 36, 114, 0.7)',
+        backgroundColor: '#9ca3af',
+        shadowOpacity: 0.1,
     },
     submitButtonText: {
-        color: '#fff',
+        color: '#ffffff',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    // LocationPicker specific styles
+    locationPickerContainer: {
+        marginBottom: 20,
+    },
+    locationPickerInput: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    locationPickerLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#374151',
+        marginBottom: 8,
     },
 }); 

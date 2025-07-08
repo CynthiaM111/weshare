@@ -5,12 +5,9 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    ActivityIndicator,
-    Alert,
     ScrollView
 } from 'react-native';
-import { FontAwesome5, Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 const LocationPicker = ({
     value,
@@ -18,14 +15,14 @@ const LocationPicker = ({
     placeholder = "Search for a location...",
     label = "Location",
     required = false,
-    style = {}
+    style = {},
+    onValidityChange
 }) => {
-    const [searchQuery, setSearchQuery] = useState(value?.name || '');
-    const [isLoading, setIsLoading] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
-    const [currentLocation, setCurrentLocation] = useState(null);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [searchTimeout, setSearchTimeout] = useState(null);
+    const [isValidLocation, setIsValidLocation] = useState(false);
 
     // Comprehensive list of common locations in Rwanda with GPS coordinates
     const commonLocations = [
@@ -60,10 +57,10 @@ const LocationPicker = ({
         { name: 'Kibuye (Karongi)', latitude: -2.0603, longitude: 29.3478, category: 'Southern' },
         { name: 'Cyangugu', latitude: -2.4846, longitude: 28.9075, category: 'Southern' },
         { name: 'Gisenyi (Rubavu)', latitude: -1.7028, longitude: 29.2564, category: 'Southern' },
-        { name: 'Ruhengeri (Musanze)', latitude: -1.4998, longitude: 29.6344, category: 'Southern' },
-        { name: 'Byumba (Gicumbi)', latitude: -1.5763, longitude: 30.0675, category: 'Southern' },
+        { name: 'Ruhengeri (Musanze)', latitude: -1.4998, longitude: 29.6344, category: 'Northern' },
+        { name: 'Byumba (Gicumbi)', latitude: -1.5763, longitude: 30.0675, category: 'Northern' },
         { name: 'Kibungo (Ngoma)', latitude: -2.0744, longitude: 29.7569, category: 'Southern' },
-        { name: 'Rwamagana', latitude: -1.9485, longitude: 30.0597, category: 'Southern' },
+        { name: 'Rwamagana', latitude: -1.9485, longitude: 30.0597, category: 'Eastern' },
         { name: 'Kayonza', latitude: -1.9485, longitude: 30.0597, category: 'Southern' },
         { name: 'Kirehe', latitude: -2.0744, longitude: 29.7569, category: 'Southern' },
         { name: 'Ngoma', latitude: -2.0744, longitude: 29.7569, category: 'Southern' },
@@ -227,8 +224,12 @@ const LocationPicker = ({
     ];
 
     useEffect(() => {
-        if (value) {
-            setSearchQuery(value.name || '');
+        if (value && value.name) {
+            setSearchQuery(value.name);
+            setIsValidLocation(true);
+        } else {
+            setSearchQuery('');
+            setIsValidLocation(false);
         }
     }, [value]);
 
@@ -241,47 +242,12 @@ const LocationPicker = ({
         };
     }, [searchTimeout]);
 
-    const getCurrentLocation = async () => {
-        try {
-            setIsLoading(true);
-
-            // Request location permissions
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert(
-                    'Location Permission Required',
-                    'Please enable location access to use this feature.',
-                    [{ text: 'OK' }]
-                );
-                return;
-            }
-
-            // Get current location
-            const location = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
-
-            const currentLocationData = {
-                name: 'Current Location',
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                category: 'Current'
-            };
-
-            setCurrentLocation(currentLocationData);
-            return currentLocationData;
-        } catch (error) {
-            console.error('Error getting current location:', error);
-            Alert.alert(
-                'Location Error',
-                'Unable to get your current location. Please search for a location instead.',
-                [{ text: 'OK' }]
-            );
-            return null;
-        } finally {
-            setIsLoading(false);
+    // Notify parent of validity changes
+    useEffect(() => {
+        if (onValidityChange) {
+            onValidityChange(isValidLocation);
         }
-    };
+    }, [isValidLocation, onValidityChange]);
 
     // Simple search function
     const searchLocations = (query) => {
@@ -297,16 +263,11 @@ const LocationPicker = ({
         const filtered = commonLocations.filter(location => {
             const nameMatch = location.name.toLowerCase().includes(searchTerm);
             const categoryMatch = location.category.toLowerCase().includes(searchTerm);
-            
+
             return nameMatch || categoryMatch;
         });
 
         console.log('Filtered results:', filtered.length);
-
-        // Add current location if available
-        if (currentLocation) {
-            filtered.unshift(currentLocation);
-        }
 
         setSuggestions(filtered);
         setShowSuggestions(filtered.length > 0);
@@ -316,6 +277,7 @@ const LocationPicker = ({
         setSearchQuery(location.name);
         setShowSuggestions(false);
         setSuggestions([]);
+        setIsValidLocation(true);
 
         const locationData = {
             name: location.name,
@@ -328,6 +290,7 @@ const LocationPicker = ({
 
     const handleInputChange = (text) => {
         setSearchQuery(text);
+        setIsValidLocation(false); // Mark as invalid when user types
 
         // Clear previous timeout
         if (searchTimeout) {
@@ -342,20 +305,14 @@ const LocationPicker = ({
         setSearchTimeout(timeout);
     };
 
-    const handleInputFocus = async () => {
-        // Get current location when input is focused
-        if (!currentLocation) {
-            await getCurrentLocation();
-        }
-
+    const handleInputFocus = () => {
         // Show initial suggestions
         if (searchQuery.trim()) {
             searchLocations(searchQuery);
         } else {
-            // Show current location and some popular locations
-            const initialSuggestions = currentLocation ? [currentLocation] : [];
-            const popularLocations = commonLocations.slice(0, 5);
-            setSuggestions([...initialSuggestions, ...popularLocations]);
+            // Show popular locations
+            const popularLocations = commonLocations.slice(0, 8);
+            setSuggestions(popularLocations);
             setShowSuggestions(true);
         }
     };
@@ -368,19 +325,31 @@ const LocationPicker = ({
 
             <View style={styles.inputContainer}>
                 <TextInput
-                    style={styles.locationInput}
+                    style={[
+                        styles.locationInput,
+                        !isValidLocation && searchQuery && styles.invalidInput
+                    ]}
                     value={searchQuery}
                     onChangeText={handleInputChange}
                     onFocus={handleInputFocus}
                     placeholder={placeholder}
-                    placeholderTextColor="#666"
+                    placeholderTextColor="#64748b"
+                    editable={true}
                 />
-                {isLoading && (
-                    <View style={styles.loadingIndicator}>
-                        <ActivityIndicator size="small" color="#4CAF50" />
-                    </View>
-                )}
+                <TouchableOpacity
+                    style={styles.searchButton}
+                    onPress={handleInputFocus}
+                >
+                    <FontAwesome5 name="search" size={16} color="#667eea" />
+                </TouchableOpacity>
             </View>
+
+            {/* Invalid location warning */}
+            {!isValidLocation && searchQuery && (
+                <Text style={styles.invalidText}>
+                    Please select a location from the suggestions below
+                </Text>
+            )}
 
             {/* Suggestions List */}
             {showSuggestions && suggestions.length > 0 && (
@@ -403,17 +372,13 @@ const LocationPicker = ({
                                     activeOpacity={0.7}
                                 >
                                     <View style={styles.suggestionIcon}>
-                                        {item.name === 'Current Location' ? (
-                                            <FontAwesome5 name="location-arrow" size={16} color="#4CAF50" />
-                                        ) : (
-                                            <FontAwesome5 name="map-marker-alt" size={16} color="#666" />
-                                        )}
+                                        <FontAwesome5 name="map-marker-alt" size={16} color="#667eea" />
                                     </View>
                                     <View style={styles.suggestionContent}>
                                         <Text style={styles.suggestionName}>{item.name}</Text>
                                         <Text style={styles.suggestionCategory}>{item.category}</Text>
                                     </View>
-                                    <FontAwesome5 name="chevron-right" size={12} color="#666" />
+                                    <FontAwesome5 name="chevron-right" size={12} color="#94a3b8" />
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
@@ -433,62 +398,67 @@ const LocationPicker = ({
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: 16,
+        marginBottom: 20,
         position: 'relative',
         zIndex: 1,
     },
     label: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#0a2472',
+        color: '#374151',
         marginBottom: 8,
     },
     required: {
-        color: '#e53e3e',
+        color: '#ef4444',
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         position: 'relative',
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
     },
     locationInput: {
         flex: 1,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
+        padding: 16,
         fontSize: 16,
-        color: '#333',
+        color: '#1f2937',
+        backgroundColor: 'transparent',
+        borderWidth: 0,
     },
-    loadingIndicator: {
-        position: 'absolute',
-        right: 12,
-        padding: 4,
+    searchButton: {
+        padding: 16,
+        borderLeftWidth: 1,
+        borderLeftColor: '#e2e8f0',
+        backgroundColor: '#f8fafc',
+        borderTopRightRadius: 12,
+        borderBottomRightRadius: 12,
     },
     suggestionsContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 8,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
         marginTop: 4,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: '#e2e8f0',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        maxHeight: 200,
+        shadowRadius: 8,
+        elevation: 4,
+        maxHeight: 250,
         zIndex: 1000,
     },
     suggestionsList: {
-        maxHeight: 200,
+        maxHeight: 250,
     },
     suggestionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
+        padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        borderBottomColor: '#f1f5f9',
     },
     suggestionIcon: {
         marginRight: 12,
@@ -499,29 +469,30 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     suggestionName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 2,
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#1f2937',
+        marginBottom: 4,
     },
     suggestionCategory: {
-        fontSize: 12,
-        color: '#666',
-        fontStyle: 'italic',
+        fontSize: 14,
+        color: '#64748b',
+        fontWeight: '400',
     },
     noResultsContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 8,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
         marginTop: 4,
-        padding: 16,
+        padding: 20,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: '#e2e8f0',
         justifyContent: 'center',
         alignItems: 'center',
     },
     noResultsText: {
-        color: '#666',
-        fontSize: 14,
+        color: '#64748b',
+        fontSize: 16,
+        fontWeight: '500',
     },
     overlay: {
         position: 'absolute',
@@ -531,6 +502,15 @@ const styles = StyleSheet.create({
         bottom: 0,
         backgroundColor: 'transparent',
         zIndex: 999,
+    },
+    invalidInput: {
+        borderColor: '#ef4444',
+        borderWidth: 2,
+    },
+    invalidText: {
+        color: '#ef4444',
+        fontSize: 14,
+        marginTop: 8,
     },
 });
 

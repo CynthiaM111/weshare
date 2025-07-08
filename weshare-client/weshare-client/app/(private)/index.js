@@ -10,6 +10,7 @@ import { useApi } from '../../hooks/useApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomAlert from '../../components/CustomAlert';
+import LocationPicker from '../../components/LocationPicker';
 
 export default function PrivateRidesScreen() {
     const router = useRouter();
@@ -453,7 +454,7 @@ export default function PrivateRidesScreen() {
                         <TouchableOpacity onPress={() => router.push('/(private)/private-history')} style={styles.historyButton}>
                             <FontAwesome5 name="history" size={18} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => router.push('/add-private-ride')} style={styles.addButton}>
+                        <TouchableOpacity onPress={() => router.push('/(private)/add-private-ride')} style={styles.addButton}>
                             <FontAwesome5 name="plus" size={20} color="#fff" />
                         </TouchableOpacity>
                     </View>
@@ -477,25 +478,23 @@ export default function PrivateRidesScreen() {
                             <View style={styles.searchSection}>
                                 <Text style={styles.searchTitle}>Search Available Private Rides</Text>
                                 <View style={styles.searchContainer}>
-                                    <View style={styles.inputRow}>
+                                    <View style={styles.inputColumn}>
                                         <View style={styles.inputWrapper}>
-                                            <Ionicons name="location-outline" size={16} color="#666" />
-                                            <TextInput
-                                                style={styles.searchInput}
+                                            <LocationPicker
+                                                value={searchFrom ? { name: searchFrom } : null}
+                                                onLocationSelect={(location) => setSearchFrom(location.name)}
                                                 placeholder="From..."
-                                                value={searchFrom}
-                                                onChangeText={setSearchFrom}
-                                                placeholderTextColor="#999"
+                                                label=""
+                                                style={styles.locationPickerStyle}
                                             />
                                         </View>
                                         <View style={styles.inputWrapper}>
-                                            <Ionicons name="location" size={16} color="#666" />
-                                            <TextInput
-                                                style={styles.searchInput}
+                                            <LocationPicker
+                                                value={searchTo ? { name: searchTo } : null}
+                                                onLocationSelect={(location) => setSearchTo(location.name)}
                                                 placeholder="To..."
-                                                value={searchTo}
-                                                onChangeText={setSearchTo}
-                                                placeholderTextColor="#999"
+                                                label=""
+                                                style={styles.locationPickerStyle}
                                             />
                                         </View>
                                     </View>
@@ -915,7 +914,7 @@ export default function PrivateRidesScreen() {
                                     <Text style={styles.emptyText}>No private rides found</Text>
                                     <TouchableOpacity
                                         style={styles.addButton}
-                                        onPress={() => router.push('/add-private-ride')}
+                                        onPress={() => router.push('/(private)/add-private-ride')}
                                     >
                                         <FontAwesome5 name="plus" size={16} color="#fff" style={styles.addIcon} />
                                         <Text style={styles.addButtonText}>Add Private Ride</Text>
@@ -1199,19 +1198,13 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         padding: 15,
     },
-    inputRow: {
-        flexDirection: 'row',
+    inputColumn: {
+        flexDirection: 'column',
         gap: 10,
     },
     inputWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
         flex: 1,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
+        marginBottom: 10,
     },
     searchInput: {
         flex: 1,
@@ -1625,5 +1618,9 @@ const styles = StyleSheet.create({
         color: '#64748b',
         marginLeft: 4,
         fontWeight: '500',
+    },
+    locationPickerStyle: {
+        marginBottom: 0,
+        flex: 1,
     },
 }); 
