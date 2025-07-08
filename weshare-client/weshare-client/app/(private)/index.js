@@ -453,7 +453,7 @@ export default function PrivateRidesScreen() {
                         <TouchableOpacity onPress={() => router.push('/(private)/private-history')} style={styles.historyButton}>
                             <FontAwesome5 name="history" size={18} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => router.push('/(private)/add-private-ride')} style={styles.addButton}>
+                        <TouchableOpacity onPress={() => router.push('/add-private-ride')} style={styles.addButton}>
                             <FontAwesome5 name="plus" size={20} color="#fff" />
                         </TouchableOpacity>
                     </View>
@@ -915,7 +915,7 @@ export default function PrivateRidesScreen() {
                                     <Text style={styles.emptyText}>No private rides found</Text>
                                     <TouchableOpacity
                                         style={styles.addButton}
-                                        onPress={() => router.push('/(private)/add-private-ride')}
+                                        onPress={() => router.push('/add-private-ride')}
                                     >
                                         <FontAwesome5 name="plus" size={16} color="#fff" style={styles.addIcon} />
                                         <Text style={styles.addButtonText}>Add Private Ride</Text>

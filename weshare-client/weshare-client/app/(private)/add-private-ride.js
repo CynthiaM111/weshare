@@ -7,17 +7,19 @@ import { useApi } from '../../hooks/useApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
 import { useLocalSearchParams } from 'expo-router';
 import { useRef } from 'react';
 import CustomAlert from '../../components/CustomAlert';
+import LocationPicker from '../../components/LocationPicker';
+import PricingPreview from '../../components/PricingPreview';
 
 export default function AddPrivateRideScreen() {
     const router = useRouter();
     const { user } = useAuth();
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
+    const [startLocation, setStartLocation] = useState(null);
+    const [endLocation, setEndLocation] = useState(null);
     const [date, setDate] = useState(new Date());
     const [time, setTime] = useState(new Date());
     const [description, setDescription] = useState('');
@@ -28,7 +30,9 @@ export default function AddPrivateRideScreen() {
     const [isEditing, setIsEditing] = useState(false);
     const [rideId, setRideId] = useState(null);
     const [seats, setSeats] = useState('');
-    const [price, setPrice] = useState('');
+    const [fuelEfficiency, setFuelEfficiency] = useState('7.0');
+    const [pricePerLiter, setPricePerLiter] = useState('1700');
+    const [calculatedPrice, setCalculatedPrice] = useState(null);
     const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
 
     // Custom alert state
@@ -44,101 +48,15 @@ export default function AddPrivateRideScreen() {
     const params = useLocalSearchParams();
     const hasInitialized = useRef(false);
 
-    // Helper function to show custom alert
     const showAlert = (title, message, type = 'info', buttons = []) => {
         setAlertConfig({
             title,
             message,
             type,
-            buttons
+            buttons: buttons.length > 0 ? buttons : [{ text: 'OK', onPress: () => setAlertVisible(false) }]
         });
         setAlertVisible(true);
     };
-
-    // Helper function to hide alert
-    const hideAlert = () => {
-        setAlertVisible(false);
-    };
-
-    // Check if user is authenticated
-    if (!user) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <Ionicons name="arrow-back" size={24} color="#fff" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Add Private Ride</Text>
-                    </View>
-
-                    <View style={styles.loginPromptContainer}>
-                        <View style={styles.loginPromptCard}>
-                            <View style={styles.loginPromptIcon}>
-                                <Ionicons name="car-sport" size={48} color="#0a2472" />
-                            </View>
-                            <Text style={styles.loginPromptTitle}>Login Required</Text>
-                            <Text style={styles.loginPromptText}>
-                                Please login to create and share your private rides with other travelers.
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.loginPromptButton}
-                                onPress={() => router.push('/(auth)/login')}
-                            >
-                                <Ionicons name="log-in" size={16} color="#fff" />
-                                <Text style={styles.loginPromptButtonText}>LOGIN / SIGN UP</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
-
-    // Check if user is verified
-    if (!user.isVerified) {
-        return (
-            <LinearGradient
-                colors={['#0a2472', '#1E90FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backgroundGradient}
-            >
-                <SafeAreaView style={styles.container}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <Ionicons name="arrow-back" size={24} color="#fff" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Add Private Ride</Text>
-                    </View>
-
-                    <View style={styles.loginPromptContainer}>
-                        <View style={styles.loginPromptCard}>
-                            <View style={styles.loginPromptIcon}>
-                                <Ionicons name="shield-checkmark" size={48} color="#0a2472" />
-                            </View>
-                            <Text style={styles.loginPromptTitle}>Verification Required</Text>
-                            <Text style={styles.loginPromptText}>
-                                Only verified drivers can post private rides. Please verify your account by completing the phone verification process.
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.loginPromptButton}
-                                onPress={() => router.push('/(auth)/verify')}
-                            >
-                                <Ionicons name="shield-checkmark" size={16} color="#fff" />
-                                <Text style={styles.loginPromptButtonText}>VERIFY ACCOUNT</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </SafeAreaView>
-            </LinearGradient>
-        );
-    }
 
     useEffect(() => {
         if (params?.ride && !hasInitialized.current) {
@@ -146,14 +64,28 @@ export default function AddPrivateRideScreen() {
                 const parsedRide = JSON.parse(params.ride);
                 setIsEditing(true);
                 setRideId(parsedRide._id);
-                setFrom(parsedRide.from);
-                setTo(parsedRide.to);
+
+                // Set locations if they exist
+                if (parsedRide.startLocation) {
+                    setStartLocation(parsedRide.startLocation);
+                } else if (parsedRide.from) {
+                    setStartLocation({ name: parsedRide.from });
+                }
+
+                if (parsedRide.endLocation) {
+                    setEndLocation(parsedRide.endLocation);
+                } else if (parsedRide.to) {
+                    setEndLocation({ name: parsedRide.to });
+                }
+
                 setDescription(parsedRide.description);
                 setLicensePlate(parsedRide.licensePlate);
                 setEta(parsedRide.estimatedArrivalTime.toString());
                 setSeats(parsedRide.seats.toString());
-                setPrice(parsedRide.price.toString());
+                setFuelEfficiency(parsedRide.fuelEfficiency?.toString() || '7.0');
+                setPricePerLiter(parsedRide.pricePerLiter?.toString() || '1700');
                 setWheelchairAccessible(parsedRide.wheelchairAccessible);
+
                 // Set date and time from departure_time
                 if (parsedRide.departure_time) {
                     const departureDate = new Date(parsedRide.departure_time);
@@ -189,29 +121,50 @@ export default function AddPrivateRideScreen() {
     });
 
     const handleSubmit = async () => {
-        if (!from || !to || !description || !eta || !licensePlate || !seats || price === '') {
-            showAlert('Missing Information', 'Please fill in all required fields', 'warning');
+        if (!startLocation?.latitude || !endLocation?.latitude || !description || !eta || !licensePlate || !seats) {
+            showAlert('Missing Information', 'Please fill in all required fields including GPS coordinates', 'warning');
             return;
         }
 
         // Validate numeric fields
         const numSeats = parseInt(seats);
-        const numPrice = parseFloat(price);
         const numEta = parseInt(eta);
+        const numFuelEfficiency = parseFloat(fuelEfficiency);
+        const numPricePerLiter = parseFloat(pricePerLiter);
 
         if (isNaN(numSeats) || numSeats < 1) {
             showAlert('Invalid Seats', 'Please enter a valid number of seats (minimum 1)', 'warning');
             return;
         }
 
-        if (isNaN(numPrice) || numPrice < 0) {
-            showAlert('Invalid Price', 'Please enter a valid price (0 or higher)', 'warning');
-            return;
-        }
-
         if (isNaN(numEta) || numEta < 1) {
             showAlert('Invalid ETA', 'Please enter a valid ETA in hours (minimum 1)', 'warning');
             return;
+        }
+
+        if (isNaN(numFuelEfficiency) || numFuelEfficiency < 1) {
+            showAlert('Invalid Fuel Efficiency', 'Please enter a valid fuel efficiency (minimum 1 L/100km)', 'warning');
+            return;
+        }
+
+        if (isNaN(numPricePerLiter) || numPricePerLiter < 1) {
+            showAlert('Invalid Fuel Price', 'Please enter a valid fuel price (minimum 1 RWF/L)', 'warning');
+            return;
+        }
+
+        // Pricing calculation is optional - if not available, use a default calculation
+        let finalPrice = null;
+        console.log("calculatedPrice", calculatedPrice);
+        if (calculatedPrice) {
+            finalPrice = calculatedPrice.costSharing?.perPassengerCost;
+            console.log("[frontend] finalPrice", finalPrice);
+        } else {
+            // Simple fallback calculation
+            const distance = 50; // Default distance in km
+            const fuelLiters = (distance * numFuelEfficiency) / 100;
+            const totalFuelCost = fuelLiters * numPricePerLiter;
+            const passengerShare = totalFuelCost * 0.75; // 75% for passengers
+            finalPrice = passengerShare / numSeats;
         }
 
         try {
@@ -223,8 +176,16 @@ export default function AddPrivateRideScreen() {
             });
 
             const rideData = {
-                from,
-                to,
+                startLocation: {
+                    name: startLocation.name,
+                    latitude: startLocation.latitude,
+                    longitude: startLocation.longitude
+                },
+                endLocation: {
+                    name: endLocation.name,
+                    latitude: endLocation.latitude,
+                    longitude: endLocation.longitude
+                },
                 date: formattedDate,
                 time: formattedTime,
                 description,
@@ -232,14 +193,16 @@ export default function AddPrivateRideScreen() {
                 licensePlate,
                 isPrivate: true,
                 seats: numSeats,
-                price: numPrice,
+                fuelEfficiency: numFuelEfficiency,
+                pricePerLiter: numPricePerLiter,
+                price: finalPrice,
                 wheelchairAccessible
             };
 
             await addPrivateRide(rideData);
             showAlert(
                 'Success!',
-                `Private ride ${isEditing ? 'updated' : 'added'} successfully`,
+                `Private ride ${isEditing ? 'updated' : 'added'} successfully with automatic pricing`,
                 'success',
                 [
                     {
@@ -254,36 +217,10 @@ export default function AddPrivateRideScreen() {
             );
         } catch (error) {
             console.error('Error submitting ride:', error);
-
-            // Handle specific backend validation errors with user-friendly messages
-            let userMessage = 'An error occurred while processing your request.';
+            let userMessage = 'An unexpected error occurred';
 
             if (error?.response?.data?.error) {
-                const backendError = error.response.data.error;
-
-                // Map backend errors to user-friendly messages
-                switch (true) {
-                    case backendError.includes('verified drivers'):
-                        userMessage = 'Only verified drivers can post private rides. Please verify your account first by completing the phone verification process.';
-                        break;
-                    case backendError.includes('maximum limit of 5 rides'):
-                        userMessage = 'You have reached the daily limit of 5 rides. Please try again tomorrow.';
-                        break;
-                    case backendError.includes('already have a ride scheduled'):
-                        userMessage = 'You already have a ride scheduled for this time. Please choose a different time (minimum 30 minutes apart).';
-                        break;
-                    case backendError.includes('wait at least 30 minutes'):
-                        userMessage = 'Please wait at least 30 minutes between posting rides.';
-                        break;
-                    case backendError.includes('wheelchair-accessible'):
-                        userMessage = 'Please specify if your vehicle is wheelchair-accessible by selecting Yes or No.';
-                        break;
-                    case backendError.includes('within 30 minutes of departure'):
-                        userMessage = 'Cannot edit ride details within 30 minutes of departure. Please contact passengers directly if changes are needed.';
-                        break;
-                    default:
-                        userMessage = backendError;
-                }
+                userMessage = error.response.data.error;
             } else if (error?.userMessage) {
                 userMessage = error.userMessage;
             } else if (error?.message) {
@@ -292,6 +229,10 @@ export default function AddPrivateRideScreen() {
 
             showAlert('Error', userMessage, 'error');
         }
+    };
+
+    const handlePriceCalculated = (pricingData) => {
+        setCalculatedPrice(pricingData);
     };
 
     return (
@@ -322,27 +263,28 @@ export default function AddPrivateRideScreen() {
                         </View>
 
                         <View style={styles.formContainer}>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>From <Text style={styles.required}>*</Text></Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={from}
-                                    onChangeText={setFrom}
-                                    placeholder="Enter departure location"
-                                    placeholderTextColor="#666"
-                                />
+                            <View style={styles.infoSection}>
+                                <FontAwesome5 name="info-circle" size={16} color="#4CAF50" />
+                                <Text style={styles.infoText}>
+                                    Search for locations to automatically calculate pricing based on GPS coordinates and fuel costs
+                                </Text>
                             </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>To <Text style={styles.required}>*</Text></Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={to}
-                                    onChangeText={setTo}
-                                    placeholder="Enter destination"
-                                    placeholderTextColor="#666"
-                                />
-                            </View>
+                            <LocationPicker
+                                value={startLocation}
+                                onLocationSelect={setStartLocation}
+                                placeholder="Search for departure location..."
+                                label="From"
+                                required={true}
+                            />
+
+                            <LocationPicker
+                                value={endLocation}
+                                onLocationSelect={setEndLocation}
+                                placeholder="Search for destination..."
+                                label="To"
+                                required={true}
+                            />
 
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>Date <Text style={styles.required}>*</Text></Text>
@@ -432,16 +374,32 @@ export default function AddPrivateRideScreen() {
                                 />
                             </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Price (RWF) <Text style={styles.required}>*</Text></Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={price}
-                                    onChangeText={setPrice}
-                                    placeholder="Enter the price (0 for negotiable)"
-                                    placeholderTextColor="#666"
-                                    keyboardType="numeric"
-                                />
+                            <View style={styles.vehicleSettingsSection}>
+                                <Text style={styles.sectionTitle}>Vehicle Settings</Text>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Fuel Efficiency (L/100km)</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={fuelEfficiency}
+                                        onChangeText={setFuelEfficiency}
+                                        placeholder="e.g., 7.0"
+                                        placeholderTextColor="#666"
+                                        keyboardType="numeric"
+                                    />
+                                </View>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Fuel Price (RWF/L)</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={pricePerLiter}
+                                        onChangeText={setPricePerLiter}
+                                        placeholder="e.g., 1700"
+                                        placeholderTextColor="#666"
+                                        keyboardType="numeric"
+                                    />
+                                </View>
                             </View>
 
                             <View style={styles.inputGroup}>
@@ -457,7 +415,7 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Wheelchair Accessible <Text style={styles.required}>*</Text></Text>
+                                <Text style={styles.label}>Wheelchair Accessible</Text>
                                 <TouchableOpacity
                                     style={styles.checkboxContainer}
                                     onPress={() => setWheelchairAccessible(!wheelchairAccessible)}
@@ -475,6 +433,16 @@ export default function AddPrivateRideScreen() {
                                 </TouchableOpacity>
                             </View>
 
+                            {/* Pricing Preview */}
+                            <PricingPreview
+                                startLocation={startLocation}
+                                endLocation={endLocation}
+                                seats={parseInt(seats) || 0}
+                                fuelEfficiency={parseFloat(fuelEfficiency) || 7.0}
+                                pricePerLiter={parseFloat(pricePerLiter) || 1700}
+                                onPriceCalculated={handlePriceCalculated}
+                            />
+
                             <TouchableOpacity
                                 style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
                                 onPress={handleSubmit}
@@ -489,17 +457,16 @@ export default function AddPrivateRideScreen() {
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
-            </SafeAreaView>
 
-            {/* Custom Alert - moved to root level */}
-            <CustomAlert
-                visible={alertVisible}
-                title={alertConfig.title}
-                message={alertConfig.message}
-                type={alertConfig.type}
-                buttons={alertConfig.buttons}
-                onDismiss={hideAlert}
-            />
+                <CustomAlert
+                    visible={alertVisible}
+                    title={alertConfig.title}
+                    message={alertConfig.message}
+                    type={alertConfig.type}
+                    buttons={alertConfig.buttons}
+                    onClose={() => setAlertVisible(false)}
+                />
+            </SafeAreaView>
         </LinearGradient>
     );
 }
@@ -544,6 +511,20 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
+    infoSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#e8f5e8',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 20,
+    },
+    infoText: {
+        marginLeft: 8,
+        fontSize: 14,
+        color: '#2c3e50',
+        flex: 1,
+    },
     inputGroup: {
         marginBottom: 20,
     },
@@ -552,6 +533,9 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#0a2472',
         marginBottom: 8,
+    },
+    required: {
+        color: '#e53e3e',
     },
     input: {
         backgroundColor: '#fff',
@@ -580,6 +564,37 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#333',
     },
+    vehicleSettingsSection: {
+        backgroundColor: '#f8f9fa',
+        padding: 16,
+        borderRadius: 8,
+        marginBottom: 20,
+        borderLeftWidth: 3,
+        borderLeftColor: '#4CAF50',
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginBottom: 16,
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    checkbox: {
+        marginRight: 12,
+    },
+    checkboxText: {
+        fontSize: 16,
+        color: '#333',
+        flex: 1,
+    },
     submitButton: {
         backgroundColor: '#0a2472',
         paddingVertical: 15,
@@ -593,70 +608,6 @@ const styles = StyleSheet.create({
     submitButtonText: {
         color: '#fff',
         fontSize: 18,
-        fontWeight: 'bold',
-    },
-    loginPromptContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    loginPromptCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 12,
-        padding: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    loginPromptIcon: {
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    loginPromptTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#0a2472',
-        marginBottom: 10,
-    },
-    loginPromptText: {
-        color: '#333',
-        marginBottom: 20,
-    },
-    loginPromptButton: {
-        backgroundColor: '#0a2472',
-        paddingVertical: 15,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    loginPromptButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginLeft: 10,
-    },
-    checkboxContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    checkbox: {
-        marginRight: 10,
-    },
-    checkboxText: {
-        fontSize: 16,
-        color: '#333',
-    },
-    required: {
-        color: 'red',
         fontWeight: 'bold',
     },
 }); 

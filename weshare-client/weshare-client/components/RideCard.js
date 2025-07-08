@@ -2,7 +2,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
+import CostSharingBreakdown from './CostSharingBreakdown';
 
 const RideCard = React.memo(({
     ride,
@@ -19,10 +20,12 @@ const RideCard = React.memo(({
     onFinishRide,
     showDriverInfo
 }) => {
+    const [showCostBreakdown, setShowCostBreakdown] = useState(false);
+
     // Ensure we have valid numbers for calculations
     const totalSeats = parseInt(ride.seats) || 1;
     const bookedSeats = parseInt(ride.booked_seats) || 0;
-    const ridePrice = parseFloat(ride.price) || 0;
+    const ridePrice = parseFloat(ride.price) || parseFloat(ride.calculatedPrice) || 0;
 
     // Calculate available seats if not provided
     const calculatedAvailableSeats = availableSeats !== undefined
@@ -79,169 +82,238 @@ const RideCard = React.memo(({
 
     const statusColor = getStatusColor(calculatedStatusDisplay);
 
+    const toggleCostBreakdown = () => {
+        setShowCostBreakdown(!showCostBreakdown);
+    };
+
+    // Get location names for display
+    const getLocationName = (location) => {
+        if (typeof location === 'string') {
+            return location;
+        }
+        if (location?.name) {
+            return location.name;
+        }
+        if (location?.latitude && location?.longitude) {
+            return `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+        }
+        return 'Unknown Location';
+    };
+
+    const fromLocation = getLocationName(ride.startLocation || ride.from);
+    const toLocation = getLocationName(ride.endLocation || ride.to);
+
     return (
-        <TouchableOpacity
-            style={[styles.card, isFull && styles.fullCard]}
-            onPress={onPress}
-            disabled={isFull && !isBooked}
-        >
-            {/* Driver Information Section */}
-            {showDriverInfo && ride.driver && (
-                <View style={styles.driverSection}>
-                    <View style={styles.driverProfile}>
-                        <View style={styles.driverAvatar}>
-                            <Text style={styles.driverInitials}>
-                                {getDriverInitials(ride.driver.name || ride.driver.email)}
-                            </Text>
+        <View style={styles.cardContainer}>
+            <TouchableOpacity
+                style={[styles.card, isFull && styles.fullCard]}
+                onPress={onPress}
+                disabled={isFull && !isBooked}
+            >
+                {/* Driver Information Section */}
+                {showDriverInfo && ride.driver && (
+                    <View style={styles.driverSection}>
+                        <View style={styles.driverProfile}>
+                            <View style={styles.driverAvatar}>
+                                <Text style={styles.driverInitials}>
+                                    {getDriverInitials(ride.driver.name || ride.driver.email)}
+                                </Text>
+                            </View>
+                            <View style={styles.driverDetails}>
+                                <Text style={styles.driverName}>
+                                    {ride.driver.name || 'Driver'}
+                                </Text>
+                                <Text style={styles.driverEmail}>
+                                    {ride.driver.email}
+                                </Text>
+                            </View>
                         </View>
-                        <View style={styles.driverDetails}>
-                            <Text style={styles.driverName}>
-                                {ride.driver.name || 'Driver'}
-                            </Text>
-                            <Text style={styles.driverEmail}>
-                                {ride.driver.email}
-                            </Text>
+                    </View>
+                )}
+
+                <View style={styles.header}>
+                    <View style={styles.titleContainer}>
+                        <Text style={styles.title}>{fromLocation} → {toLocation}</Text>
+                        {ride.agencyId && (
+                            <View style={styles.agencyBadge}>
+                                <FontAwesome5 name="building" size={12} color="#2196F3" />
+                                <Text style={styles.agencyBadgeText}>
+                                    {typeof ride.agencyId === 'object' && ride.agencyId.name
+                                        ? ride.agencyId.name
+                                        : 'Agency'}
+                                </Text>
+                            </View>
+                        )}
+                        {ride.agencyId && typeof ride.agencyId === 'object' && ride.agencyId.email && (
+                            <Text style={styles.agencyEmail}>{ride.agencyId.email}</Text>
+                        )}
+                    </View>
+                    <View style={styles.badgeContainer}>
+                        {isBooked && (
+                            <Text style={styles.bookedTag}>Booked</Text>
+                        )}
+                        {isCheckedIn && (
+                            <Text style={styles.checkedInTag}>Checked In</Text>
+                        )}
+                    </View>
+                </View>
+
+                <View style={styles.detailsContainer}>
+                    <View style={styles.detailItem}>
+                        <View style={styles.detailHeader}>
+                            <FontAwesome5 name="bus-alt" size={14} color="#2196F3" />
+                            <Text style={styles.detailLabel}>Dep.</Text>
                         </View>
+                        <Text style={styles.detailValue}>{format(new Date(ride.departure_time), 'PPP p')}</Text>
                     </View>
-                </View>
-            )}
 
-            <View style={styles.header}>
-                <View style={styles.titleContainer}>
-                    <Text style={styles.title}>{ride.from} → {ride.to}</Text>
-                    {ride.agencyId && (
-                        <View style={styles.agencyBadge}>
-                            <FontAwesome5 name="building" size={12} color="#2196F3" />
-                            <Text style={styles.agencyBadgeText}>
-                                {typeof ride.agencyId === 'object' && ride.agencyId.name
-                                    ? ride.agencyId.name
-                                    : 'Agency'}
-                            </Text>
+                    <View style={styles.detailItem}>
+                        <View style={styles.detailHeader}>
+                            <FontAwesome5 name="clock" size={14} color="#FF9800" />
+                            <Text style={styles.detailLabel}>ETA</Text>
                         </View>
+                        <Text style={styles.detailValue}>{format(new Date(ride.estimatedArrivalTime), 'PPP p')}</Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                        <View style={styles.detailHeader}>
+                            <FontAwesome5 name="users" size={14} color="#9C27B0" />
+                            <Text style={styles.detailLabel}>Available Seats</Text>
+                        </View>
+                        <Text style={styles.detailValue}>{calculatedAvailableSeats} / {totalSeats}</Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                        <View style={styles.detailHeader}>
+                            <FontAwesome5 name="info-circle" size={14} color={statusColor} />
+                            <Text style={styles.detailLabel}>Status</Text>
+                        </View>
+                        <Text style={[styles.detailValue, { color: statusColor, fontWeight: 'bold' }]}>
+                            {calculatedStatusDisplay}
+                        </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                        <View style={styles.detailHeader}>
+                            <FontAwesome5 name="money-bill-wave" size={14} color="#4CAF50" />
+                            <Text style={styles.detailLabel}>Price</Text>
+                        </View>
+                        <Text style={[styles.detailValue, styles.priceValue]}>
+                            {ridePrice.toLocaleString()} RWF
+                        </Text>
+                        {ride.calculatedPrice && (
+                            <Text style={styles.calculatedPriceText}>per seat (calculated)</Text>
+                        )}
+                    </View>
+                </View>
+
+                {/* GPS Coordinates Info for Private Rides */}
+                {isPrivate && (ride.startLocation || ride.endLocation) && (
+                    <View style={styles.gpsSection}>
+                        <View style={styles.gpsSectionHeader}>
+                            <FontAwesome5 name="map-marker-alt" size={16} color="#607D8B" />
+                            <Text style={styles.gpsSectionTitle}>GPS Coordinates</Text>
+                        </View>
+                        {ride.startLocation && (
+                            <View style={styles.coordinateRow}>
+                                <Text style={styles.coordinateLabel}>From:</Text>
+                                <Text style={styles.coordinateValue}>
+                                    {ride.startLocation.latitude?.toFixed(4)}, {ride.startLocation.longitude?.toFixed(4)}
+                                </Text>
+                            </View>
+                        )}
+                        {ride.endLocation && (
+                            <View style={styles.coordinateRow}>
+                                <Text style={styles.coordinateLabel}>To:</Text>
+                                <Text style={styles.coordinateValue}>
+                                    {ride.endLocation.latitude?.toFixed(4)}, {ride.endLocation.longitude?.toFixed(4)}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* Vehicle Information */}
+                {ride.licensePlate && (
+                    <View style={styles.vehicleSection}>
+                        <View style={styles.vehicleSectionHeader}>
+                            <FontAwesome5 name="car" size={16} color="#607D8B" />
+                            <Text style={styles.vehicleSectionTitle}>Vehicle</Text>
+                        </View>
+                        <View style={styles.licensePlateContainer}>
+                            <Text style={styles.licensePlateText}>{ride.licensePlate}</Text>
+                        </View>
+                        {/* Show fuel efficiency if available */}
+                        {ride.fuelEfficiency && (
+                            <Text style={styles.fuelInfo}>
+                                Fuel Efficiency: {ride.fuelEfficiency} L/100km
+                            </Text>
+                        )}
+                    </View>
+                )}
+
+                {/* Show description for private rides */}
+                {isPrivate && ride.description && (
+                    <View style={styles.privateSection}>
+                        <View style={styles.privateSectionHeader}>
+                            <FontAwesome5 name="info-circle" size={16} color="#4CAF50" />
+                            <Text style={styles.privateSectionTitle}>Ride Details</Text>
+                        </View>
+                        <Text style={styles.privateSectionContent}>{ride.description}</Text>
+                    </View>
+                )}
+
+                <View style={styles.buttonContainer}>
+                    {isBooked && !isCheckedIn && isPrivate && (
+                        <TouchableOpacity
+                            style={styles.finishRideButton}
+                            onPress={onFinishRide}
+                        >
+                            <FontAwesome5 name="flag-checkered" size={16} color="white" />
+                            <Text style={styles.finishRideButtonText}>Finish Ride</Text>
+                        </TouchableOpacity>
                     )}
-                    {ride.agencyId && typeof ride.agencyId === 'object' && ride.agencyId.email && (
-                        <Text style={styles.agencyEmail}>{ride.agencyId.email}</Text>
+                    {isBooked && !isCheckedIn && !isPrivate && (
+                        <TouchableOpacity
+                            style={styles.qrButton}
+                            onPress={onShowQRCode}
+                        >
+                            <FontAwesome5 name="qrcode" size={16} color="white" />
+                            <Text style={styles.qrButtonText}>Show QR Code</Text>
+                        </TouchableOpacity>
+                    )}
+                    {showCancelButton && isBooked && !isCheckedIn && (
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={onCancelBooking}
+                        >
+                            <FontAwesome5 name="times" size={16} color="white" />
+                            <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                        </TouchableOpacity>
                     )}
                 </View>
-                <View style={styles.badgeContainer}>
-                    {isBooked && (
-                        <Text style={styles.bookedTag}>Booked</Text>
-                    )}
-                    {isCheckedIn && (
-                        <Text style={styles.checkedInTag}>Checked In</Text>
-                    )}
-                </View>
-            </View>
+            </TouchableOpacity>
 
-            <View style={styles.detailsContainer}>
-                <View style={styles.detailItem}>
-                    <View style={styles.detailHeader}>
-                        <FontAwesome5 name="bus-alt" size={14} color="#2196F3" />
-                        <Text style={styles.detailLabel}>Dep.</Text>
-                    </View>
-                    <Text style={styles.detailValue}>{format(new Date(ride.departure_time), 'PPP p')}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <View style={styles.detailHeader}>
-                        <FontAwesome5 name="clock" size={14} color="#FF9800" />
-                        <Text style={styles.detailLabel}>ETA</Text>
-                    </View>
-                    <Text style={styles.detailValue}>{format(new Date(ride.estimatedArrivalTime), 'PPP p')}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <View style={styles.detailHeader}>
-                        <FontAwesome5 name="users" size={14} color="#9C27B0" />
-                        <Text style={styles.detailLabel}>Available Seats</Text>
-                    </View>
-                    <Text style={styles.detailValue}>{calculatedAvailableSeats} / {totalSeats}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <View style={styles.detailHeader}>
-                        <FontAwesome5 name="info-circle" size={14} color={statusColor} />
-                        <Text style={styles.detailLabel}>Status</Text>
-                    </View>
-                    <Text style={[styles.detailValue, { color: statusColor, fontWeight: 'bold' }]}>
-                        {calculatedStatusDisplay}
-                    </Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <View style={styles.detailHeader}>
-                        <FontAwesome5 name="money-bill-wave" size={14} color="#4CAF50" />
-                        <Text style={styles.detailLabel}>Price</Text>
-                    </View>
-                    <Text style={[styles.detailValue, styles.priceValue]}>
-                        {ridePrice} RWF
-                    </Text>
-                </View>
-            </View>
-
-            {/* Show license plate for all rides */}
-            {ride.licensePlate && (
-                <View style={styles.vehicleSection}>
-                    <View style={styles.vehicleSectionHeader}>
-                        <FontAwesome5 name="car" size={16} color="#607D8B" />
-                        <Text style={styles.vehicleSectionTitle}>Vehicle</Text>
-                    </View>
-                    <View style={styles.licensePlateContainer}>
-                        <Text style={styles.licensePlateText}>{ride.licensePlate}</Text>
-                    </View>
-                </View>
+            {/* Cost Sharing Breakdown for Private Rides */}
+            {isPrivate && (
+                <CostSharingBreakdown
+                    ride={ride}
+                    isExpanded={showCostBreakdown}
+                    onToggle={toggleCostBreakdown}
+                />
             )}
-
-            {/* Show description for private rides */}
-            {isPrivate && ride.description && (
-                <View style={styles.privateSection}>
-                    <View style={styles.privateSectionHeader}>
-                        <FontAwesome5 name="info-circle" size={16} color="#4CAF50" />
-                        <Text style={styles.privateSectionTitle}>Ride Details</Text>
-                    </View>
-                    <Text style={styles.privateSectionContent}>{ride.description}</Text>
-                </View>
-            )}
-
-            <View style={styles.buttonContainer}>
-                {isBooked && !isCheckedIn && isPrivate && (
-                    <TouchableOpacity
-                        style={styles.finishRideButton}
-                        onPress={onFinishRide}
-                    >
-                        <FontAwesome5 name="flag-checkered" size={16} color="white" />
-                        <Text style={styles.finishRideButtonText}>Finish Ride</Text>
-                    </TouchableOpacity>
-                )}
-                {isBooked && !isCheckedIn && !isPrivate && (
-                    <TouchableOpacity
-                        style={styles.qrButton}
-                        onPress={onShowQRCode}
-                    >
-                        <FontAwesome5 name="qrcode" size={16} color="white" />
-                        <Text style={styles.qrButtonText}>Show QR Code</Text>
-                    </TouchableOpacity>
-                )}
-                {showCancelButton && isBooked && !isCheckedIn && (
-                    <TouchableOpacity
-                        style={styles.cancelButton}
-                        onPress={onCancelBooking}
-                    >
-                        <FontAwesome5 name="times" size={16} color="white" />
-                        <Text style={styles.cancelButtonText}>Cancel Booking</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-        </TouchableOpacity>
+        </View>
     );
 });
 
 const styles = StyleSheet.create({
+    cardContainer: {
+        marginBottom: 12,
+    },
     card: {
         backgroundColor: 'white',
         padding: 16,
         borderRadius: 8,
-        marginBottom: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -340,6 +412,50 @@ const styles = StyleSheet.create({
         color: '#4CAF50',
         fontSize: 16,
     },
+    calculatedPriceText: {
+        fontSize: 10,
+        color: '#666',
+        fontStyle: 'italic',
+        textAlign: 'right',
+        marginTop: 2,
+    },
+    gpsSection: {
+        marginBottom: 12,
+        backgroundColor: '#f8f9fa',
+        padding: 12,
+        borderRadius: 6,
+        borderLeftWidth: 3,
+        borderLeftColor: '#607D8B',
+    },
+    gpsSectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    gpsSectionTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#2c3e50',
+        marginLeft: 8,
+    },
+    coordinateRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+        paddingLeft: 24,
+    },
+    coordinateLabel: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '500',
+    },
+    coordinateValue: {
+        fontSize: 12,
+        color: '#2c3e50',
+        fontFamily: 'monospace',
+        fontWeight: '600',
+    },
     vehicleSection: {
         marginBottom: 12,
         backgroundColor: '#f8f9fa',
@@ -363,6 +479,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingLeft: 24,
+        marginBottom: 4,
     },
     licensePlateText: {
         fontSize: 16,
@@ -376,6 +493,12 @@ const styles = StyleSheet.create({
         borderColor: '#4CAF50',
         letterSpacing: 1,
         fontFamily: 'monospace',
+    },
+    fuelInfo: {
+        fontSize: 12,
+        color: '#666',
+        paddingLeft: 24,
+        fontStyle: 'italic',
     },
     buttonContainer: {
         flexDirection: 'row',

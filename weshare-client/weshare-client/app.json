@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.cynthiam.weshare",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Allow WeShare to access your location while using the app.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow WeShare to access your location."
       }
     },
     "android": {
@@ -20,7 +22,12 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.cynthiam.weshare"
+      "package": "com.cynthiam.weshare",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +36,13 @@
     },
     "plugins": [
       "expo-router",
-      
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow WeShare to access your location.",
+          "locationWhenInUsePermission": "Allow WeShare to access your location while using the app."
+        }
+      ],
       [
         "expo-splash-screen",
         {
