@@ -180,7 +180,23 @@ class RuleValidator {
         }
 
         for (const [key, expectedValue] of Object.entries(allowedConditions)) {
-            const actualValue = this.getContextValue(key, context);
+            let actualValue;
+
+            // Handle special cases for booking creation
+            switch (key) {
+                case 'user_not_already_booked':
+                    actualValue = !context.user_already_booked;
+                    break;
+                case 'user_booking_limit_not_reached':
+                    actualValue = !context.user_booking_limit_reached;
+                    break;
+                case 'no_time_conflict':
+                    actualValue = !context.time_conflict;
+                    break;
+                default:
+                    actualValue = this.getContextValue(key, context);
+            }
+
             const isAllowed = this.compareValues(actualValue, expectedValue);
 
             if (!isAllowed) {
@@ -432,8 +448,27 @@ class RuleValidator {
      * @returns {Object} - The context object
      */
     createBookingCreationContext(ride, user, userBookings = []) {
-        const userAlreadyBooked = ride.bookedBy && ride.bookedBy.some(b => b.userId.toString() === user.id);
+        // Check if user is already booked on this ride (only consider active bookings)
+        const userAlreadyBooked = ride.bookedBy && ride.bookedBy.some(b =>
+            b.userId.toString() === user.id &&
+            b.checkInStatus !== 'completed' &&
+            b.checkInStatus !== 'canceled'
+        );
         const userBookingLimitReached = userBookings.length >= 5;
+
+        // Debug logging
+        console.log('createBookingCreationContext debug:', {
+            rideId: ride._id,
+            userId: user.id,
+            userAlreadyBooked,
+            rideBookedBy: ride.bookedBy?.map(b => ({
+                userId: b.userId.toString(),
+                userIdType: typeof b.userId,
+                checkInStatus: b.checkInStatus
+            })),
+            userBookingsCount: userBookings.length,
+            userBookingLimitReached
+        });
 
         // Check for time conflicts (bookings within 2 hours of this ride's departure)
         const rideDeparture = new Date(ride.departure_time);

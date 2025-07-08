@@ -386,7 +386,7 @@ const createRide = async (req, res) => {
         // Create fuel cost record for private rides with GPS coordinates and fuel parameters
         if (isPrivate && startLocation && endLocation && fuelEfficiency && pricePerLiter) {
             try {
-                
+
                 // Calculate distance and fuel cost
                 const distance = FuelCostCalculator.calculateDistance(
                     startLocation.latitude,
@@ -946,15 +946,19 @@ const bookRide = async (req, res) => {
             });
         }
 
-        // Get user's existing bookings
+        // Get user's existing bookings (excluding completed and canceled ones)
         const userBookings = await Ride.find({
             'bookedBy.userId': userId,
+            'bookedBy.checkInStatus': { $nin: ['completed', 'canceled'] },
             departure_time: { $gte: new Date() }
         }).select('departure_time');
 
         // Validate booking creation against business rules
         const context = ruleValidator.createBookingCreationContext(ride, req.user, userBookings);
+
+
         const validationResult = ruleValidator.validateAction('booking', 'create', context);
+        
 
         if (!validationResult.isValid) {
             return res.status(400).json({
