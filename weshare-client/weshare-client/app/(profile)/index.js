@@ -7,12 +7,40 @@ import { useState, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi';
 // import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
+import PhotoPicker from '../../components/PhotoPicker';
+import { uploadProfilePhoto, deleteProfilePhoto } from '../../utils/photoUpload';
 
 export default function Profile() {
-    const { user, logout } = useAuth();
+    const { user, logout, updateUser } = useAuth();
     const router = useRouter();
     const [agencyName, setAgencyName] = useState('');
     const [destinationCategory, setDestinationCategory] = useState('');
+    const [driverProfile, setDriverProfile] = useState(null);
+    const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [hasError, setHasError] = useState(false);
+
+    // Add error boundary for component
+    useEffect(() => {
+        // Component mounted successfully
+    }, []);
+
+    // Show error state if something went wrong
+    if (hasError) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>Something went wrong loading your profile.</Text>
+                    <TouchableOpacity
+                        style={styles.retryButton}
+                        onPress={() => setHasError(false)}
+                    >
+                        <Text style={styles.retryButtonText}>Retry</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     const {
         error: agencyError,
@@ -40,11 +68,157 @@ export default function Profile() {
         return { agency: agencyRes.data, category };
     });
 
+    // Fetch driver profile
+    useEffect(() => {
+        const fetchDriverProfile = async () => {
+            try {
+                if (!user?.token) {
+                    return;
+                }
+
+                const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/driver-verification/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setDriverProfile(data);
+                }
+            } catch (error) {
+                // Silently handle errors for driver profile fetch
+            }
+        };
+
+        fetchDriverProfile();
+    }, [user]);
+
     useEffect(() => {
         if (user?.role === 'agency_employee' && user.agencyId && user.destinationCategoryId) {
             fetchAgencyDetails();
         }
     }, [user]);
+
+    // Handle photo upload
+    const handlePhotoSelected = async (photo) => {
+        if (!user?.token) {
+            Alert.alert('Error', 'You must be logged in to upload a photo');
+            return;
+        }
+
+        setIsUploadingPhoto(true);
+
+        // Immediately show the local photo for better UX
+        updateUser({ ...user, photoUrl: photo.uri });
+
+        try {
+            // Upload photo to Firebase Storage in background
+            const photoURL = await uploadProfilePhoto(photo.uri, user.id);
+
+            // Update with Firebase URL once upload is complete
+            updateUser({ ...user, photoUrl: photoURL });
+
+            // Try to update backend
+            try {
+                // Try the user update endpoint first
+                const response = await axios.put(
+                    `${process.env.EXPO_PUBLIC_API_URL}/auth/user`,
+                    { photoUrl: photoURL },
+                    {
+                        headers: { Authorization: `Bearer ${user.token}` }
+                    }
+                );
+
+                if (response.status === 200) {
+                    Alert.alert('Success', 'Profile photo updated successfully!');
+                } else {
+                    throw new Error('Failed to update profile');
+                }
+            } catch (error) {
+                if (error.response?.status === 404) {
+                    // Try alternative endpoint
+                    try {
+                        const response = await axios.put(
+                            `${process.env.EXPO_PUBLIC_API_URL}/users/profile`,
+                            { photoUrl: photoURL },
+                            {
+                                headers: { Authorization: `Bearer ${user.token}` }
+                            }
+                        );
+
+                        if (response.status === 200) {
+                            Alert.alert('Success', 'Profile photo updated successfully!');
+                        } else {
+                            throw new Error('Failed to update profile');
+                        }
+                    } catch (altError) {
+                        // Backend update failed, but photo is uploaded and local state is updated
+                        Alert.alert(
+                            'Photo Uploaded',
+                            'Photo uploaded but profile update failed. Photo will be saved locally.',
+                            [{ text: 'OK' }]
+                        );
+                    }
+                } else {
+                    // Backend update failed, but photo is uploaded and local state is updated
+                    Alert.alert(
+                        'Photo Uploaded',
+                        'Photo uploaded but profile update failed. Photo will be saved locally.',
+                        [{ text: 'OK' }]
+                    );
+                }
+            }
+        } catch (error) {
+            // If Firebase upload fails, revert to original state
+            updateUser({ ...user, photoUrl: user.photoUrl });
+            Alert.alert('Error', 'Failed to upload photo. Please try again.');
+        } finally {
+            setIsUploadingPhoto(false);
+        }
+    };
+
+    // Handle photo removal
+    const handleRemovePhoto = async () => {
+        Alert.alert(
+            'Remove Photo',
+            'Are you sure you want to remove your profile photo?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Remove',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            // Delete from Firebase Storage if exists
+                            if (user?.photoUrl) {
+                                await deleteProfilePhoto(user.photoUrl);
+                            }
+
+                            // Update backend
+                            const response = await axios.put(
+                                `${process.env.EXPO_PUBLIC_API_URL}/auth/profile`,
+                                { photoUrl: null },
+                                {
+                                    headers: { Authorization: `Bearer ${user.token}` }
+                                }
+                            );
+
+                            if (response.status === 200) {
+                                // Update local user state
+                                updateUser({ ...user, photoUrl: null });
+                                Alert.alert('Success', 'Profile photo removed successfully!');
+                            } else {
+                                throw new Error('Failed to remove photo');
+                            }
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to remove photo. Please try again.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
 
     const handleLogin = () => {
         router.push('/(auth)/login');
@@ -141,7 +315,11 @@ export default function Profile() {
                     <View style={styles.profileCard}>
                         {/* Profile Header */}
                         <View style={styles.profileHeader}>
-                            <View style={styles.avatarContainer}>
+                            <TouchableOpacity
+                                style={styles.avatarContainer}
+                                onPress={() => setPhotoPickerVisible(true)}
+                                disabled={isUploadingPhoto}
+                            >
                                 {user?.photoUrl ? (
                                     <Image source={{ uri: user.photoUrl }} style={styles.avatarImage} />
                                 ) : (
@@ -149,7 +327,30 @@ export default function Profile() {
                                         <Text style={styles.avatarText}>{getInitials()}</Text>
                                     </View>
                                 )}
-                            </View>
+
+                                {/* Camera icon overlay */}
+                                <View style={styles.cameraOverlay}>
+                                    <FontAwesome5
+                                        name="camera"
+                                        size={16}
+                                        color="#fff"
+                                    />
+                                </View>
+
+                                {/* Upload indicator */}
+                                {isUploadingPhoto && (
+                                    <View style={styles.uploadOverlay}>
+                                        <FontAwesome5
+                                            name="spinner"
+                                            size={20}
+                                            color="#fff"
+                                        />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+
+                           
+
                             <View style={styles.userInfo}>
                                 <Text style={styles.userName}>{user.name}</Text>
                                 <Text style={styles.userEmail}> {user.contact_number}</Text>
@@ -200,14 +401,66 @@ export default function Profile() {
                             </View>
                         )}
 
+                        {/* Driver Verification Status */}
+                        <View style={styles.verificationSection}>
+                            <View style={styles.sectionDivider} />
+                            <Text style={styles.sectionTitle}>Driver Verification</Text>
+
+                            {driverProfile?.verifiedDriver ? (
+                                <View style={styles.verificationCard}>
+                                    <View style={styles.verificationHeader}>
+                                        <FontAwesome5 name="check-circle" size={20} color="#4CAF50" />
+                                        <Text style={styles.verificationStatus}>Verified Driver</Text>
+                                    </View>
+                                    <View style={styles.verificationInfo}>
+                                        <Text style={styles.verificationText}>
+                                            You are verified as a driver and can post private rides.
+                                        </Text>
+                                        <Text style={styles.verificationDetails}>
+                                            License Plate: {driverProfile.driverProfile.vehicleLicensePlate}
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={styles.verificationButton}
+                                        onPress={() => router.push('/(auth)/driver-verification')}
+                                    >
+                                        <FontAwesome5 name="edit" size={16} color="#fff" />
+                                        <Text style={styles.verificationButtonText}>Edit Driver Profile</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <View style={styles.verificationCard}>
+                                    <View style={styles.verificationHeader}>
+                                        <FontAwesome5 name="clock" size={20} color="#FF9800" />
+                                        <Text style={styles.verificationStatus}>Not Verified</Text>
+                                    </View>
+                                    <View style={styles.verificationInfo}>
+                                        <Text style={styles.verificationText}>
+                                            Complete driver verification to start posting private rides and earn money.
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={styles.verificationButton}
+                                        onPress={() => router.push('/(auth)/driver-verification')}
+                                    >
+                                        <FontAwesome5 name="user-check" size={16} color="#fff" />
+                                        <Text style={styles.verificationButtonText}>Complete Verification</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+
                         {/* Menu Options */}
                         <View style={styles.menuSection}>
                             <View style={styles.sectionDivider} />
                             <Text style={styles.sectionTitle}>Account</Text>
 
-                            <TouchableOpacity style={styles.menuItem}>
-                                <FontAwesome5 name="user-edit" size={18} color="#0a2472" />
-                                <Text style={styles.menuItemText}>Edit Profile</Text>
+                            <TouchableOpacity style={styles.menuItem}
+                                onPress={() => router.push('/(auth)/driver-verification')}
+                            >
+
+                                <FontAwesome5 name="car" size={18} color="#0a2472" />
+                                <Text style={styles.menuItemText}>Driver Verification</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
 
@@ -250,6 +503,11 @@ export default function Profile() {
                     </View>
                 </ScrollView>
             </SafeAreaView>
+            <PhotoPicker
+                visible={photoPickerVisible}
+                onClose={() => setPhotoPickerVisible(false)}
+                onPhotoSelected={handlePhotoSelected}
+            />
         </LinearGradient>
     );
 }
@@ -352,6 +610,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     avatarContainer: {
+        position: 'relative', // Needed for overlay positioning
         marginRight: 16,
     },
     avatarImage: {
@@ -375,6 +634,53 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         color: '#fff',
+    },
+    cameraOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 15,
+        width: 30,
+        height: 30,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    uploadOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 15,
+        width: 30,
+        height: 30,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    photoActions: {
+        position: 'absolute',
+        top: -5,
+        right: -5,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 4,
+        flexDirection: 'row',
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    photoActionButton: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#f8f9fa',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     userInfo: {
         flex: 1,
@@ -492,6 +798,87 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     logoutButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    // Verification Section
+    verificationSection: {
+        marginBottom: 20,
+    },
+    verificationCard: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    verificationHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    verificationStatus: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+        marginLeft: 8,
+    },
+    verificationInfo: {
+        marginBottom: 16,
+    },
+    verificationText: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 4,
+    },
+    verificationDetails: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+    },
+    verificationButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+        elevation: 3,
+    },
+    verificationButtonText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    // Error Styles
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f0f0f0',
+        padding: 20,
+    },
+    errorText: {
+        fontSize: 18,
+        color: '#333',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    retryButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 12,
+        paddingHorizontal: 25,
+        borderRadius: 8,
+    },
+    retryButtonText: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#fff',

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
@@ -115,9 +115,16 @@ const RideCard = React.memo(({
                     <View style={styles.driverSection}>
                         <View style={styles.driverProfile}>
                             <View style={styles.driverAvatar}>
-                                <Text style={styles.driverInitials}>
-                                    {getDriverInitials(ride.driver.name || ride.driver.email)}
-                                </Text>
+                                {ride.driver.photoUrl ? (
+                                    <Image
+                                        source={{ uri: ride.driver.photoUrl }}
+                                        style={styles.driverAvatarImage}
+                                    />
+                                ) : (
+                                    <Text style={styles.driverInitials}>
+                                        {getDriverInitials(ride.driver.name || ride.driver.email)}
+                                    </Text>
+                                )}
                             </View>
                             <View style={styles.driverDetails}>
                                 <Text style={styles.driverName}>
@@ -591,6 +598,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+    },
+    driverAvatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 20,
     },
     driverDetails: {
         marginLeft: 12,

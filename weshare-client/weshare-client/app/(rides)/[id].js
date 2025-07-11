@@ -225,9 +225,20 @@ export default function RideDetails() {
 
                         {/* Agency Info */}
                         <View style={styles.agencyCard}>
-                            <FontAwesome5 name="building" size={16} color="#6c757d" />
-                            <Text style={styles.agencyLabel}>Operated by</Text>
-                            <Text style={styles.agencyName}>{ride.agencyId?.name || 'Unknown Agency'}</Text>
+                            <FontAwesome5
+                                name={ride.isPrivate ? "user" : "building"}
+                                size={16}
+                                color="#6c757d"
+                            />
+                            <Text style={styles.agencyLabel}>
+                                {ride.isPrivate ? 'Driver' : 'Operated by'}
+                            </Text>
+                            <Text style={styles.agencyName}>
+                                {ride.isPrivate
+                                    ? (ride.userId?.name || 'Unknown Driver')
+                                    : (ride.agencyId?.name || 'Unknown Agency')
+                                }
+                            </Text>
                         </View>
                     </View>
 

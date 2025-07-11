@@ -10,6 +10,76 @@ import { ApplicationProvider } from '@ui-kitten/components';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ErrorProvider, useError } from './context/ErrorContext';
 
+// Custom Profile Tab Icon with verification badge
+function ProfileTabIcon({ color, size, focused }) {
+  const { user } = useAuth();
+  const [driverProfile, setDriverProfile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchDriverProfile = async () => {
+      if (!user?.token) return;
+
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/driver-verification/profile`, {
+          headers: {
+            'Authorization': `Bearer ${user.token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setDriverProfile(data);
+        }
+      } catch (error) {
+        console.error('Error fetching driver profile for tab badge:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDriverProfile();
+  }, [user]);
+
+  // Determine badge color based on verification status
+  const getBadgeColor = () => {
+    if (isLoading) return null; // No badge while loading
+    if (driverProfile?.verifiedDriver) {
+      return '#4CAF50'; // Green for verified
+    } else {
+      return '#FF5252'; // Red for unverified
+    }
+  };
+
+  const badgeColor = getBadgeColor();
+
+  return (
+    <View style={{ position: 'relative' }}>
+      <Ionicons
+        name={focused ? "person" : "person-outline"}
+        size={size}
+        color={color}
+      />
+      {badgeColor && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -2,
+            right: -2,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: badgeColor,
+            borderWidth: 1,
+            borderColor: '#fff',
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
 // Wrap your app with providers and error boundary
 export default function RootLayout() {
   return (
@@ -291,11 +361,7 @@ function RootLayoutNav() {
           name="(profile)"
           options={{
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? "person" : "person-outline"}
-                size={size}
-                color={color}
-              />
+              <ProfileTabIcon color={color} size={size} focused={focused} />
             ),
             tabBarLabel: 'Profile',
           }}
@@ -341,7 +407,12 @@ function RootLayoutNav() {
           name="(auth)/index"
           options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
         />
+        <Tabs.Screen
+          name="(auth)/driver-verification"
+          options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
+        />
       </Tabs>
+
 
       {/* Overlay for loading or splash screen */}
       {(showSplash || loading) && (

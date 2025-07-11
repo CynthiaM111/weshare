@@ -44,7 +44,8 @@ export const AuthProvider = ({ children }) => {
                 token: data.token,
                 agencyId: data.agencyId,
                 destinationCategoryId: data.destinationCategoryId,
-                isVerified: data.isVerified
+                isVerified: data.isVerified,
+                photoUrl: data.photoUrl
             };
             console.log('[LOGIN API] Created user data:', userData);
 
@@ -254,6 +255,22 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // Update user data (for profile updates)
+    const updateUser = async (updatedUserData) => {
+        try {
+            // Update local state
+            setUser(updatedUserData);
+
+            // Update AsyncStorage
+            await AsyncStorage.setItem('userData', JSON.stringify(updatedUserData));
+
+            console.log('[AUTH CONTEXT] User data updated:', updatedUserData);
+        } catch (error) {
+            console.error('Error updating user data:', error);
+            // Don't throw error as this is not critical
+        }
+    };
+
     // Auto-logout on session expiry
     const handleSessionExpiry = () => {
         logout();
@@ -280,6 +297,7 @@ export const AuthProvider = ({ children }) => {
             login: loginApi.execute,
             signup: signupApi.execute,
             logout,
+            updateUser,
             handleSessionExpiry,
             checkAuth: checkAuthApi.execute,
             loginError: loginApi.error,

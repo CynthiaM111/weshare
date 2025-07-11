@@ -102,6 +102,37 @@ export default function AddPrivateRideScreen() {
         }
     }, [params?.ride]);
 
+    // Fetch driver verification data to prefill license plate for new rides
+    useEffect(() => {
+        const fetchDriverProfile = async () => {
+            // Only fetch if we're not editing and user is logged in
+            if (isEditing || !user?.token) return;
+
+            try {
+                const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/driver-verification/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Driver profile data for license plate prefill:', data);
+
+                    // Prefill license plate if driver is verified and license plate is not already set
+                    if (data?.verifiedDriver && data?.driverProfile?.vehicleLicensePlate && !licensePlate) {
+                        setLicensePlate(data.driverProfile.vehicleLicensePlate);
+                        console.log('Prefilled license plate:', data.driverProfile.vehicleLicensePlate);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching driver profile for license plate prefill:', error);
+            }
+        };
+
+        fetchDriverProfile();
+    }, [user, isEditing, licensePlate]);
+
     const { execute: addPrivateRide, isLoading } = useApi(async (rideData) => {
         const url = isEditing
             ? `${process.env.EXPO_PUBLIC_API_URL}/rides/${rideId}`
