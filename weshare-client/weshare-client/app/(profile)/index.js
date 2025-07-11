@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Image, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Image, Alert, Modal } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { useApi } from '../../hooks/useApi';
 // import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 import PhotoPicker from '../../components/PhotoPicker';
+import CustomAlert from '../../components/CustomAlert';
 import { uploadProfilePhoto, deleteProfilePhoto } from '../../utils/photoUpload';
 
 export default function Profile() {
@@ -17,8 +18,24 @@ export default function Profile() {
     const [destinationCategory, setDestinationCategory] = useState('');
     const [driverProfile, setDriverProfile] = useState(null);
     const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
+    const [photoOptionsVisible, setPhotoOptionsVisible] = useState(false);
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
     const [hasError, setHasError] = useState(false);
+
+    // Custom Alert State
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({
+        title: '',
+        message: '',
+        type: 'info',
+        buttons: []
+    });
+
+    // Custom Alert Helper Function
+    const showAlert = (title, message, type = 'info', buttons = []) => {
+        setAlertConfig({ title, message, type, buttons });
+        setAlertVisible(true);
+    };
 
     // Add error boundary for component
     useEffect(() => {
@@ -103,7 +120,7 @@ export default function Profile() {
     // Handle photo upload
     const handlePhotoSelected = async (photo) => {
         if (!user?.token) {
-            Alert.alert('Error', 'You must be logged in to upload a photo');
+            showAlert('Error', 'You must be logged in to upload a photo', 'error');
             return;
         }
 
@@ -131,7 +148,7 @@ export default function Profile() {
                 );
 
                 if (response.status === 200) {
-                    Alert.alert('Success', 'Profile photo updated successfully!');
+                    showAlert('Success', 'Profile photo updated successfully!', 'success');
                 } else {
                     throw new Error('Failed to update profile');
                 }
@@ -148,31 +165,31 @@ export default function Profile() {
                         );
 
                         if (response.status === 200) {
-                            Alert.alert('Success', 'Profile photo updated successfully!');
+                            showAlert('Success', 'Profile photo updated successfully!', 'success');
                         } else {
                             throw new Error('Failed to update profile');
                         }
                     } catch (altError) {
                         // Backend update failed, but photo is uploaded and local state is updated
-                        Alert.alert(
+                        showAlert(
                             'Photo Uploaded',
                             'Photo uploaded but profile update failed. Photo will be saved locally.',
-                            [{ text: 'OK' }]
+                            'warning'
                         );
                     }
                 } else {
                     // Backend update failed, but photo is uploaded and local state is updated
-                    Alert.alert(
+                    showAlert(
                         'Photo Uploaded',
                         'Photo uploaded but profile update failed. Photo will be saved locally.',
-                        [{ text: 'OK' }]
+                        'warning'
                     );
                 }
             }
         } catch (error) {
             // If Firebase upload fails, revert to original state
             updateUser({ ...user, photoUrl: user.photoUrl });
-            Alert.alert('Error', 'Failed to upload photo. Please try again.');
+            showAlert('Error', 'Failed to upload photo. Please try again.', 'error');
         } finally {
             setIsUploadingPhoto(false);
         }
@@ -180,39 +197,74 @@ export default function Profile() {
 
     // Handle photo removal
     const handleRemovePhoto = async () => {
-        Alert.alert(
+        showAlert(
             'Remove Photo',
             'Are you sure you want to remove your profile photo?',
+            'warning',
             [
-                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                    onPress: () => setAlertVisible(false)
+                },
                 {
                     text: 'Remove',
                     style: 'destructive',
                     onPress: async () => {
+                        setAlertVisible(false);
                         try {
                             // Delete from Firebase Storage if exists
                             if (user?.photoUrl) {
                                 await deleteProfilePhoto(user.photoUrl);
                             }
 
-                            // Update backend
-                            const response = await axios.put(
-                                `${process.env.EXPO_PUBLIC_API_URL}/auth/profile`,
-                                { photoUrl: null },
-                                {
-                                    headers: { Authorization: `Bearer ${user.token}` }
-                                }
-                            );
+                            // Update backend - try the correct endpoint first
+                            try {
+                                const response = await axios.put(
+                                    `${process.env.EXPO_PUBLIC_API_URL}/auth/user`,
+                                    { photoUrl: null },
+                                    {
+                                        headers: { Authorization: `Bearer ${user.token}` }
+                                    }
+                                );
 
-                            if (response.status === 200) {
-                                // Update local user state
-                                updateUser({ ...user, photoUrl: null });
-                                Alert.alert('Success', 'Profile photo removed successfully!');
-                            } else {
-                                throw new Error('Failed to remove photo');
+                                if (response.status === 200) {
+                                    // Update local user state
+                                    updateUser({ ...user, photoUrl: null });
+                                    showAlert('Success', 'Profile photo removed successfully!', 'success');
+                                } else {
+                                    throw new Error('Failed to remove photo');
+                                }
+                            } catch (error) {
+                                // Try alternative endpoint if first one fails
+                                try {
+                                    const response = await axios.put(
+                                        `${process.env.EXPO_PUBLIC_API_URL}/users/profile`,
+                                        { photoUrl: null },
+                                        {
+                                            headers: { Authorization: `Bearer ${user.token}` }
+                                        }
+                                    );
+
+                                    if (response.status === 200) {
+                                        // Update local user state
+                                        updateUser({ ...user, photoUrl: null });
+                                        showAlert('Success', 'Profile photo removed successfully!', 'success');
+                                    } else {
+                                        throw new Error('Failed to remove photo');
+                                    }
+                                } catch (altError) {
+                                    // If both endpoints fail, still update local state since Firebase deletion succeeded
+                                    updateUser({ ...user, photoUrl: null });
+                                    showAlert(
+                                        'Photo Removed',
+                                        'Photo removed locally but backend update failed. Photo will be removed from your profile.',
+                                        'info'
+                                    );
+                                }
                             }
                         } catch (error) {
-                            Alert.alert('Error', 'Failed to remove photo. Please try again.');
+                            showAlert('Error', 'Failed to remove photo. Please try again.', 'error');
                         }
                     }
                 }
@@ -225,18 +277,23 @@ export default function Profile() {
     };
 
     const handleLogout = () => {
-        Alert.alert(
+        showAlert(
             "Logout",
             "Are you sure you want to logout?",
+            'warning',
             [
                 {
                     text: "Cancel",
-                    style: "cancel"
+                    style: "cancel",
+                    onPress: () => setAlertVisible(false)
                 },
                 {
                     text: "Logout",
                     style: "destructive",
-                    onPress: logout
+                    onPress: () => {
+                        setAlertVisible(false);
+                        logout();
+                    }
                 }
             ]
         );
@@ -251,10 +308,25 @@ export default function Profile() {
 
     useEffect(() => {
         if (agencyError) {
-            Alert.alert('Error Loading Profile Details', agencyError.userMessage || 'We encountered an error while loading your profile details. Please try again.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Retry', onPress: retryFetchAgency }
-            ]);
+            showAlert(
+                'Error Loading Profile Details',
+                agencyError.userMessage || 'We encountered an error while loading your profile details. Please try again.',
+                'error',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        onPress: () => setAlertVisible(false)
+                    },
+                    {
+                        text: 'Retry',
+                        onPress: () => {
+                            setAlertVisible(false);
+                            retryFetchAgency();
+                        }
+                    }
+                ]
+            );
         }
     }, [agencyError]);
 
@@ -317,7 +389,7 @@ export default function Profile() {
                         <View style={styles.profileHeader}>
                             <TouchableOpacity
                                 style={styles.avatarContainer}
-                                onPress={() => setPhotoPickerVisible(true)}
+                                onPress={() => setPhotoOptionsVisible(true)}
                                 disabled={isUploadingPhoto}
                             >
                                 {user?.photoUrl ? (
@@ -349,7 +421,7 @@ export default function Profile() {
                                 )}
                             </TouchableOpacity>
 
-                           
+
 
                             <View style={styles.userInfo}>
                                 <Text style={styles.userName}>{user.name}</Text>
@@ -507,6 +579,72 @@ export default function Profile() {
                 visible={photoPickerVisible}
                 onClose={() => setPhotoPickerVisible(false)}
                 onPhotoSelected={handlePhotoSelected}
+            />
+
+            {/* Photo Options Modal */}
+            <Modal
+                visible={photoOptionsVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setPhotoOptionsVisible(false)}
+            >
+                <View style={styles.overlay}>
+                    <View style={styles.modal}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Profile Photo</Text>
+                            <TouchableOpacity onPress={() => setPhotoOptionsVisible(false)} style={styles.closeButton}>
+                                <FontAwesome5 name="times" size={20} color="#666" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalOptions}>
+                            <TouchableOpacity
+                                style={styles.modalOption}
+                                onPress={() => {
+                                    setPhotoOptionsVisible(false);
+                                    setPhotoPickerVisible(true);
+                                }}
+                            >
+                                <View style={styles.modalOptionIcon}>
+                                    <FontAwesome5 name="images" size={24} color="#667eea" />
+                                </View>
+                                <Text style={styles.modalOptionText}>Change Photo</Text>
+                            </TouchableOpacity>
+
+                            {user?.photoUrl && (
+                                <TouchableOpacity
+                                    style={[styles.modalOption, styles.removeOption]}
+                                    onPress={() => {
+                                        setPhotoOptionsVisible(false);
+                                        handleRemovePhoto();
+                                    }}
+                                >
+                                    <View style={[styles.modalOptionIcon, styles.removeIcon]}>
+                                        <FontAwesome5 name="trash" size={24} color="#dc3545" />
+                                    </View>
+                                    <Text style={[styles.modalOptionText, styles.removeText]}>Remove Photo</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={() => setPhotoOptionsVisible(false)}
+                        >
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertVisible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                buttons={alertConfig.buttons}
+                onDismiss={() => setAlertVisible(false)}
             />
         </LinearGradient>
     );
@@ -882,5 +1020,87 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: '#fff',
+    },
+    // Overlay Styles
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modal: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 20,
+        paddingBottom: 40,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1e293b',
+    },
+    closeButton: {
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: '#f1f5f9',
+    },
+    modalOptions: {
+        gap: 15,
+    },
+    modalOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 15,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    modalOptionIcon: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: '#e0e7ff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 15,
+    },
+    modalOptionText: {
+        fontSize: 16,
+        color: '#374151',
+        fontWeight: '500',
+    },
+    removeOption: {
+        backgroundColor: '#fef2f2',
+        borderColor: '#fecaca',
+    },
+    removeIcon: {
+        backgroundColor: '#fee2e2',
+    },
+    removeText: {
+        color: '#dc2626',
+    },
+    modalCancelButton: {
+        marginTop: 20,
+        padding: 15,
+        backgroundColor: '#dc3545',
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#c82333',
+    },
+    modalCancelText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#ffffff',
     },
 });

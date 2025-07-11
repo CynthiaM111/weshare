@@ -1,9 +1,23 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { pickImage } from '../utils/photoUpload';
+import CustomAlert from './CustomAlert';
 
 export default function PhotoPicker({ visible, onClose, onPhotoSelected }) {
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({
+        title: '',
+        message: '',
+        type: 'info',
+        buttons: []
+    });
+
+    const showAlert = (title, message, type = 'info', buttons = []) => {
+        setAlertConfig({ title, message, type, buttons });
+        setAlertVisible(true);
+    };
+
     const handlePickImage = async () => {
         try {
             const result = await pickImage();
@@ -12,7 +26,7 @@ export default function PhotoPicker({ visible, onClose, onPhotoSelected }) {
             }
             onClose();
         } catch (error) {
-            Alert.alert('Error', error.message || 'Failed to pick image');
+            showAlert('Error', error.message || 'Failed to pick image', 'error');
         }
     };
 
@@ -46,6 +60,14 @@ export default function PhotoPicker({ visible, onClose, onPhotoSelected }) {
                     </TouchableOpacity>
                 </View>
             </View>
+            <CustomAlert
+                visible={alertVisible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                buttons={alertConfig.buttons}
+                onDismiss={() => setAlertVisible(false)}
+            />
         </Modal>
     );
 }

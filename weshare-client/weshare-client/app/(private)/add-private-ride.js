@@ -154,6 +154,26 @@ export default function AddPrivateRideScreen() {
     });
 
     const handleSubmit = async () => {
+        // Check if user has a profile picture
+        if (!user?.photoUrl) {
+            showAlert(
+                'Profile Picture Required',
+                'Please add a profile picture before creating a ride. This helps passengers identify you as their driver.',
+                'warning',
+                [
+                    {
+                        text: 'Add Profile Picture',
+                        onPress: () => router.push('/(profile)'),
+                    },
+                    {
+                        text: 'Cancel',
+                        onPress: () => setAlertVisible(false),
+                    }
+                ]
+            );
+            return;
+        }
+
         if (!startLocationValid || !endLocationValid) {
             showAlert('Invalid Locations', 'Please select valid locations from the suggestions for both pickup and destination.', 'warning');
             return;

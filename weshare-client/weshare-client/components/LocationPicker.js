@@ -24,203 +24,89 @@ const LocationPicker = ({
     const [searchTimeout, setSearchTimeout] = useState(null);
     const [isValidLocation, setIsValidLocation] = useState(false);
 
-    // Comprehensive list of common locations in Rwanda with GPS coordinates
+    // Simplified list of Rwanda's 30 districts and popular places
     const commonLocations = [
-        // Kigali City
-        { name: 'Kigali City Center', latitude: -1.9441, longitude: 30.0619, category: 'Kigali' },
-        { name: 'Kimironko', latitude: -1.9365, longitude: 30.1300, category: 'Kigali' },
-        { name: 'Kigali Heights', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Remera', latitude: -1.9536, longitude: 30.1125, category: 'Kigali' },
-        { name: 'Gisozi', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kacyiru', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kibagabaga', latitude: -1.9365, longitude: 30.1300, category: 'Kigali' },
-        { name: 'Kicukiro', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Nyarutarama', latitude: -1.9365, longitude: 30.1300, category: 'Kigali' },
-        { name: 'Kiyovu', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kabeza', latitude: -1.9365, longitude: 30.1300, category: 'Kigali' },
-        { name: 'Kanombe', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kigali International Airport', latitude: -1.9686, longitude: 30.1395, category: 'Kigali' },
-        { name: 'Kigali Convention Centre', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kigali Genocide Memorial', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kigali Heights Mall', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kigali City Tower', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kigali Business Centre', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kigali Innovation City', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
-        { name: 'Kigali Free Zone', latitude: -1.9485, longitude: 30.0597, category: 'Kigali' },
+        // Kigali City Districts
+        { name: 'Kigali City Center', latitude: -1.9441, longitude: 30.0619 },
+        { name: 'Kimironko', latitude: -1.9365, longitude: 30.1300 },
+        { name: 'Remera', latitude: -1.9536, longitude: 30.1125 },
+        { name: 'Gisozi', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kacyiru', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kibagabaga', latitude: -1.9365, longitude: 30.1300 },
+        { name: 'Kicukiro', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Nyarutarama', latitude: -1.9365, longitude: 30.1300 },
+        { name: 'Kiyovu', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kabeza', latitude: -1.9365, longitude: 30.1300 },
+        { name: 'Kanombe', latitude: -1.9485, longitude: 30.0597 },
 
-        // Southern Province
-        { name: 'Butare (Huye)', latitude: -2.5966, longitude: 29.7394, category: 'Southern' },
-        { name: 'Nyanza', latitude: -2.3518, longitude: 29.7414, category: 'Southern' },
-        { name: 'Gikongoro', latitude: -2.4634, longitude: 29.5739, category: 'Southern' },
-        { name: 'Gitarama (Muhanga)', latitude: -2.0744, longitude: 29.7569, category: 'Southern' },
-        { name: 'Ruhango', latitude: -2.3518, longitude: 29.7414, category: 'Southern' },
-        { name: 'Kibuye (Karongi)', latitude: -2.0603, longitude: 29.3478, category: 'Southern' },
-        { name: 'Cyangugu', latitude: -2.4846, longitude: 28.9075, category: 'Southern' },
-        { name: 'Gisenyi (Rubavu)', latitude: -1.7028, longitude: 29.2564, category: 'Southern' },
-        { name: 'Ruhengeri (Musanze)', latitude: -1.4998, longitude: 29.6344, category: 'Northern' },
-        { name: 'Byumba (Gicumbi)', latitude: -1.5763, longitude: 30.0675, category: 'Northern' },
-        { name: 'Kibungo (Ngoma)', latitude: -2.0744, longitude: 29.7569, category: 'Southern' },
-        { name: 'Rwamagana', latitude: -1.9485, longitude: 30.0597, category: 'Eastern' },
-        { name: 'Kayonza', latitude: -1.9485, longitude: 30.0597, category: 'Southern' },
-        { name: 'Kirehe', latitude: -2.0744, longitude: 29.7569, category: 'Southern' },
-        { name: 'Ngoma', latitude: -2.0744, longitude: 29.7569, category: 'Southern' },
+        // Northern Province Districts
+        { name: 'Musanze', latitude: -1.4998, longitude: 29.6344 },
+        { name: 'Gicumbi', latitude: -1.5763, longitude: 30.0675 },
+        { name: 'Burera', latitude: -1.4998, longitude: 29.6344 },
+        { name: 'Rulindo', latitude: -1.5763, longitude: 30.0675 },
 
-        // Western Province
-        { name: 'Gisenyi (Rubavu)', latitude: -1.7028, longitude: 29.2564, category: 'Western' },
-        { name: 'Kibuye (Karongi)', latitude: -2.0603, longitude: 29.3478, category: 'Western' },
-        { name: 'Cyangugu', latitude: -2.4846, longitude: 28.9075, category: 'Western' },
-        { name: 'Ruhengeri (Musanze)', latitude: -1.4998, longitude: 29.6344, category: 'Western' },
-        { name: 'Gitarama (Muhanga)', latitude: -2.0744, longitude: 29.7569, category: 'Western' },
-        { name: 'Byumba (Gicumbi)', latitude: -1.5763, longitude: 30.0675, category: 'Western' },
-        { name: 'Kibungo (Ngoma)', latitude: -2.0744, longitude: 29.7569, category: 'Western' },
-        { name: 'Rwamagana', latitude: -1.9485, longitude: 30.0597, category: 'Western' },
-        { name: 'Kayonza', latitude: -1.9485, longitude: 30.0597, category: 'Western' },
-        { name: 'Kirehe', latitude: -2.0744, longitude: 29.7569, category: 'Western' },
-        { name: 'Ngoma', latitude: -2.0744, longitude: 29.7569, category: 'Western' },
+        // Eastern Province Districts
+        { name: 'Rwamagana', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kayonza', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kirehe', latitude: -2.0744, longitude: 29.7569 },
+        { name: 'Ngoma', latitude: -2.0744, longitude: 29.7569 },
+        { name: 'Gatsibo', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Nyagatare', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Bugesera', latitude: -2.0744, longitude: 29.7569 },
 
-        // Eastern Province
-        { name: 'Kibungo (Ngoma)', latitude: -2.0744, longitude: 29.7569, category: 'Eastern' },
-        { name: 'Rwamagana', latitude: -1.9485, longitude: 30.0597, category: 'Eastern' },
-        { name: 'Kayonza', latitude: -1.9485, longitude: 30.0597, category: 'Eastern' },
-        { name: 'Kirehe', latitude: -2.0744, longitude: 29.7569, category: 'Eastern' },
-        { name: 'Ngoma', latitude: -2.0744, longitude: 29.7569, category: 'Eastern' },
-        { name: 'Gatsibo', latitude: -1.9485, longitude: 30.0597, category: 'Eastern' },
-        { name: 'Nyagatare', latitude: -1.9485, longitude: 30.0597, category: 'Eastern' },
-        { name: 'Bugesera', latitude: -2.0744, longitude: 29.7569, category: 'Eastern' },
+        // Southern Province Districts
+        { name: 'Huye', latitude: -2.5966, longitude: 29.7394 },
+        { name: 'Nyanza', latitude: -2.3518, longitude: 29.7414 },
+        { name: 'Gisagara', latitude: -2.4634, longitude: 29.5739 },
+        { name: 'Muhanga', latitude: -2.0744, longitude: 29.7569 },
+        { name: 'Ruhango', latitude: -2.3518, longitude: 29.7414 },
+        { name: 'Karongi', latitude: -2.0603, longitude: 29.3478 },
+        { name: 'Rutsiro', latitude: -2.0603, longitude: 29.3478 },
+        { name: 'Nyamasheke', latitude: -2.4846, longitude: 28.9075 },
 
-        // Northern Province
-        { name: 'Ruhengeri (Musanze)', latitude: -1.4998, longitude: 29.6344, category: 'Northern' },
-        { name: 'Byumba (Gicumbi)', latitude: -1.5763, longitude: 30.0675, category: 'Northern' },
-        { name: 'Gitarama (Muhanga)', latitude: -2.0744, longitude: 29.7569, category: 'Northern' },
-        { name: 'Kibungo (Ngoma)', latitude: -2.0744, longitude: 29.7569, category: 'Northern' },
-        { name: 'Rwamagana', latitude: -1.9485, longitude: 30.0597, category: 'Northern' },
-        { name: 'Kayonza', latitude: -1.9485, longitude: 30.0597, category: 'Northern' },
-        { name: 'Kirehe', latitude: -2.0744, longitude: 29.7569, category: 'Northern' },
-        { name: 'Ngoma', latitude: -2.0744, longitude: 29.7569, category: 'Northern' },
+        // Western Province Districts
+        { name: 'Rubavu', latitude: -1.7028, longitude: 29.2564 },
+        { name: 'Ngororero', latitude: -1.7028, longitude: 29.2564 },
+        { name: 'Rusizi', latitude: -2.4846, longitude: 28.9075 },
+        { name: 'Nyabihu', latitude: -1.7028, longitude: 29.2564 },
 
-        // Universities and Educational Institutions
-        { name: 'University of Rwanda - College of Science and Technology', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-        { name: 'University of Rwanda - College of Business and Economics', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-        { name: 'University of Rwanda - College of Medicine and Health Sciences', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-        { name: 'University of Rwanda - College of Agriculture, Animal Sciences and Veterinary Medicine', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-        { name: 'Kigali Institute of Science and Technology (KIST)', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-        { name: 'Kigali Institute of Education (KIE)', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-        { name: 'Kigali Institute of Management (KIM)', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-        { name: 'Kigali Institute of Health (KIH)', latitude: -1.9485, longitude: 30.0597, category: 'Education' },
-
-        // Hospitals and Medical Centers
-        { name: 'King Faisal Hospital', latitude: -1.9485, longitude: 30.0597, category: 'Healthcare' },
-        { name: 'Kigali University Teaching Hospital (CHUK)', latitude: -1.9485, longitude: 30.0597, category: 'Healthcare' },
-        { name: 'Rwanda Military Hospital', latitude: -1.9485, longitude: 30.0597, category: 'Healthcare' },
-        { name: 'Kibagabaga Hospital', latitude: -1.9365, longitude: 30.1300, category: 'Healthcare' },
-        { name: 'Kanombe Military Hospital', latitude: -1.9485, longitude: 30.0597, category: 'Healthcare' },
-
-        // Shopping Centers and Malls
-        { name: 'Kigali Heights Mall', latitude: -1.9485, longitude: 30.0597, category: 'Shopping' },
-        { name: 'Kigali City Tower', latitude: -1.9485, longitude: 30.0597, category: 'Shopping' },
-        { name: 'Kigali Business Centre', latitude: -1.9485, longitude: 30.0597, category: 'Shopping' },
-        { name: 'Kigali Innovation City', latitude: -1.9485, longitude: 30.0597, category: 'Shopping' },
-        { name: 'Kigali Free Zone', latitude: -1.9485, longitude: 30.0597, category: 'Shopping' },
-
-        // Government Buildings
-        { name: 'Parliament of Rwanda', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Finance', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Health', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Education', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Infrastructure', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Agriculture', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Trade and Industry', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Foreign Affairs', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Defense', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Justice', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Local Government', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Youth and Sports', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Environment', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of ICT and Innovation', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Gender and Family Promotion', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Public Service and Labour', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Emergency Management', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of National Unity and Civic Engagement', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Cabinet Affairs', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-        { name: 'Ministry of Public Service and Labour', latitude: -1.9485, longitude: 30.0597, category: 'Government' },
-
-        // Banks and Financial Institutions
-        { name: 'Bank of Kigali', latitude: -1.9485, longitude: 30.0597, category: 'Finance' },
-        { name: 'Rwanda Development Bank', latitude: -1.9485, longitude: 30.0597, category: 'Finance' },
-        { name: 'Rwanda Social Security Board', latitude: -1.9485, longitude: 30.0597, category: 'Finance' },
-        { name: 'Rwanda Revenue Authority', latitude: -1.9485, longitude: 30.0597, category: 'Finance' },
-        { name: 'Rwanda Stock Exchange', latitude: -1.9485, longitude: 30.0597, category: 'Finance' },
-        { name: 'Rwanda Central Bank', latitude: -1.9485, longitude: 30.0597, category: 'Finance' },
-
-        // Hotels and Accommodation
-        { name: 'Kigali Serena Hotel', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Radisson Blu Hotel & Convention Centre', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Marriott Hotel Kigali', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Hilton Garden Inn Kigali', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Hotel des Mille Collines', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Kigali Marriott Hotel', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Kigali Serena Hotel', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Radisson Blu Hotel & Convention Centre', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Marriott Hotel Kigali', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Hilton Garden Inn Kigali', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Hotel des Mille Collines', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-        { name: 'Kigali Marriott Hotel', latitude: -1.9485, longitude: 30.0597, category: 'Accommodation' },
-
-        // Restaurants and Entertainment
-        { name: 'Kigali Convention Centre', latitude: -1.9485, longitude: 30.0597, category: 'Entertainment' },
-        { name: 'Kigali Genocide Memorial', latitude: -1.9485, longitude: 30.0597, category: 'Entertainment' },
-        { name: 'Kigali Heights Mall', latitude: -1.9485, longitude: 30.0597, category: 'Entertainment' },
-        { name: 'Kigali City Tower', latitude: -1.9485, longitude: 30.0597, category: 'Entertainment' },
-        { name: 'Kigali Business Centre', latitude: -1.9485, longitude: 30.0597, category: 'Entertainment' },
-        { name: 'Kigali Innovation City', latitude: -1.9485, longitude: 30.0597, category: 'Entertainment' },
-        { name: 'Kigali Free Zone', latitude: -1.9485, longitude: 30.0597, category: 'Entertainment' },
-
-        // Transportation Hubs
-        { name: 'Kigali International Airport', latitude: -1.9686, longitude: 30.1395, category: 'Transport' },
-        { name: 'Kigali Bus Station', latitude: -1.9485, longitude: 30.0597, category: 'Transport' },
-        { name: 'Kigali Central Bus Station', latitude: -1.9485, longitude: 30.0597, category: 'Transport' },
-        { name: 'Kigali Taxi Park', latitude: -1.9485, longitude: 30.0597, category: 'Transport' },
-        { name: 'Kigali Motorcycle Taxi Park', latitude: -1.9485, longitude: 30.0597, category: 'Transport' },
-
-        // Parks and Recreation
-        { name: 'Kigali Genocide Memorial', latitude: -1.9485, longitude: 30.0597, category: 'Recreation' },
-        { name: 'Kigali Convention Centre', latitude: -1.9485, longitude: 30.0597, category: 'Recreation' },
-        { name: 'Kigali Heights Mall', latitude: -1.9485, longitude: 30.0597, category: 'Recreation' },
-        { name: 'Kigali City Tower', latitude: -1.9485, longitude: 30.0597, category: 'Recreation' },
-        { name: 'Kigali Business Centre', latitude: -1.9485, longitude: 30.0597, category: 'Recreation' },
-        { name: 'Kigali Innovation City', latitude: -1.9485, longitude: 30.0597, category: 'Recreation' },
-        { name: 'Kigali Free Zone', latitude: -1.9485, longitude: 30.0597, category: 'Recreation' },
-
-        // Religious Sites
-        { name: 'Kigali Genocide Memorial', latitude: -1.9485, longitude: 30.0597, category: 'Religious' },
-        { name: 'Kigali Convention Centre', latitude: -1.9485, longitude: 30.0597, category: 'Religious' },
-        { name: 'Kigali Heights Mall', latitude: -1.9485, longitude: 30.0597, category: 'Religious' },
-        { name: 'Kigali City Tower', latitude: -1.9485, longitude: 30.0597, category: 'Religious' },
-        { name: 'Kigali Business Centre', latitude: -1.9485, longitude: 30.0597, category: 'Religious' },
-        { name: 'Kigali Innovation City', latitude: -1.9485, longitude: 30.0597, category: 'Religious' },
-        { name: 'Kigali Free Zone', latitude: -1.9485, longitude: 30.0597, category: 'Religious' },
-
-        // Industrial and Business Areas
-        { name: 'Kigali Free Zone', latitude: -1.9485, longitude: 30.0597, category: 'Industrial' },
-        { name: 'Kigali Innovation City', latitude: -1.9485, longitude: 30.0597, category: 'Industrial' },
-        { name: 'Kigali Business Centre', latitude: -1.9485, longitude: 30.0597, category: 'Industrial' },
-        { name: 'Kigali City Tower', latitude: -1.9485, longitude: 30.0597, category: 'Industrial' },
-        { name: 'Kigali Heights Mall', latitude: -1.9485, longitude: 30.0597, category: 'Industrial' },
-        { name: 'Kigali Convention Centre', latitude: -1.9485, longitude: 30.0597, category: 'Industrial' },
-        { name: 'Kigali Genocide Memorial', latitude: -1.9485, longitude: 30.0597, category: 'Industrial' },
-        { name: 'Kigali International Airport', latitude: -1.9686, longitude: 30.1395, category: 'Industrial' },
-
-        // Residential Areas
-        { name: 'Kimironko', latitude: -1.9365, longitude: 30.1300, category: 'Residential' },
-        { name: 'Remera', latitude: -1.9536, longitude: 30.1125, category: 'Residential' },
-        { name: 'Gisozi', latitude: -1.9485, longitude: 30.0597, category: 'Residential' },
-        { name: 'Kacyiru', latitude: -1.9485, longitude: 30.0597, category: 'Residential' },
-        { name: 'Kibagabaga', latitude: -1.9365, longitude: 30.1300, category: 'Residential' },
-        { name: 'Kicukiro', latitude: -1.9485, longitude: 30.0597, category: 'Residential' },
-        { name: 'Nyarutarama', latitude: -1.9365, longitude: 30.1300, category: 'Residential' },
-        { name: 'Kiyovu', latitude: -1.9485, longitude: 30.0597, category: 'Residential' },
-        { name: 'Kabeza', latitude: -1.9365, longitude: 30.1300, category: 'Residential' },
-        { name: 'Kanombe', latitude: -1.9485, longitude: 30.0597, category: 'Residential' },
+        // Popular Places and Landmarks
+        { name: 'Kigali International Airport', latitude: -1.9686, longitude: 30.1395 },
+        { name: 'Kigali Convention Centre', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Genocide Memorial', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Heights Mall', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali City Tower', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Business Centre', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Innovation City', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Free Zone', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'King Faisal Hospital', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali University Teaching Hospital (CHUK)', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Rwanda Military Hospital', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kibagabaga Hospital', latitude: -1.9365, longitude: 30.1300 },
+        { name: 'Kanombe Military Hospital', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'University of Rwanda - College of Science and Technology', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'University of Rwanda - College of Business and Economics', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'University of Rwanda - College of Medicine and Health Sciences', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Institute of Science and Technology (KIST)', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Institute of Education (KIE)', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Institute of Management (KIM)', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Institute of Health (KIH)', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Parliament of Rwanda', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Bank of Kigali', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Rwanda Development Bank', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Rwanda Social Security Board', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Rwanda Revenue Authority', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Rwanda Stock Exchange', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Rwanda Central Bank', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Serena Hotel', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Radisson Blu Hotel & Convention Centre', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Marriott Hotel Kigali', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Hilton Garden Inn Kigali', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Hotel des Mille Collines', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Bus Station', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Central Bus Station', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Taxi Park', latitude: -1.9485, longitude: 30.0597 },
+        { name: 'Kigali Motorcycle Taxi Park', latitude: -1.9485, longitude: 30.0597 },
     ];
 
     useEffect(() => {
@@ -258,16 +144,14 @@ const LocationPicker = ({
         }
 
         const searchTerm = query.toLowerCase();
-        console.log('Searching for:', searchTerm);
+        
 
         const filtered = commonLocations.filter(location => {
             const nameMatch = location.name.toLowerCase().includes(searchTerm);
-            const categoryMatch = location.category.toLowerCase().includes(searchTerm);
-
-            return nameMatch || categoryMatch;
+            return nameMatch;
         });
 
-        console.log('Filtered results:', filtered.length);
+
 
         setSuggestions(filtered);
         setShowSuggestions(filtered.length > 0);
@@ -376,7 +260,6 @@ const LocationPicker = ({
                                     </View>
                                     <View style={styles.suggestionContent}>
                                         <Text style={styles.suggestionName}>{item.name}</Text>
-                                        <Text style={styles.suggestionCategory}>{item.category}</Text>
                                     </View>
                                     <FontAwesome5 name="chevron-right" size={12} color="#94a3b8" />
                                 </TouchableOpacity>
@@ -472,12 +355,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
         color: '#1f2937',
-        marginBottom: 4,
-    },
-    suggestionCategory: {
-        fontSize: 14,
-        color: '#64748b',
-        fontWeight: '400',
     },
     noResultsContainer: {
         backgroundColor: '#ffffff',
