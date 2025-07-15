@@ -17,7 +17,6 @@ const RideCard = React.memo(({
     onShowQRCode,
     isCheckedIn,
     isPrivate,
-    onFinishRide,
     showDriverInfo
 }) => {
     const [showCostBreakdown, setShowCostBreakdown] = useState(false);
@@ -271,15 +270,6 @@ const RideCard = React.memo(({
                 )}
 
                 <View style={styles.buttonContainer}>
-                    {isBooked && !isCheckedIn && isPrivate && (
-                        <TouchableOpacity
-                            style={styles.finishRideButton}
-                            onPress={onFinishRide}
-                        >
-                            <FontAwesome5 name="flag-checkered" size={16} color="white" />
-                            <Text style={styles.finishRideButtonText}>Finish Ride</Text>
-                        </TouchableOpacity>
-                    )}
                     {isBooked && !isCheckedIn && !isPrivate && (
                         <TouchableOpacity
                             style={styles.qrButton}
@@ -561,18 +551,6 @@ const styles = StyleSheet.create({
         color: '#34495e',
         lineHeight: 20,
         paddingLeft: 24,
-    },
-    finishRideButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#4CAF50',
-        padding: 10,
-        borderRadius: 6,
-    },
-    finishRideButtonText: {
-        color: 'white',
-        fontSize: 14,
-        marginLeft: 8,
     },
     driverSection: {
         marginBottom: 12,

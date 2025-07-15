@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomAlert from '../../components/CustomAlert';
 import LocationPicker from '../../components/LocationPicker';
+import * as Location from 'expo-location';
 
 export default function PrivateRidesScreen() {
     const router = useRouter();
@@ -25,10 +26,6 @@ export default function PrivateRidesScreen() {
     const [searchFrom, setSearchFrom] = useState('');
     const [searchTo, setSearchTo] = useState('');
     const [hasSearched, setHasSearched] = useState(false);
-    const [pinModalVisible, setPinModalVisible] = useState(false);
-    const [pinInput, setPinInput] = useState('');
-    const [selectedRideForCompletion, setSelectedRideForCompletion] = useState(null);
-    const [selectedPassenger, setSelectedPassenger] = useState(null);
     const [recentSearches, setRecentSearches] = useState([]);
 
     // New state for driver ride detail modal
@@ -373,58 +370,117 @@ export default function PrivateRidesScreen() {
         });
     };
 
-    const handleCompleteRideWithPin = (ride, passenger) => {
-        setSelectedRideForCompletion(ride);
-        setSelectedPassenger(passenger);
-        setPinModalVisible(true);
-    };
-
-    const submitPinCompletion = async () => {
-        if (pinInput.length !== 6) {
-            showAlert('Invalid PIN', 'Please enter a 6-digit PIN', 'warning');
-            return;
-        }
-
+    // GPS-based ride completion functions
+    const handleStartRide = async (ride) => {
         try {
-            // Get the correct passenger user ID
-            const passengerUserId = selectedPassenger.userId._id || selectedPassenger.userId;
+            // Request location permissions
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                showAlert(
+                    'Location Permission Required',
+                    'Please enable location access to start the ride.',
+                    'warning'
+                );
+                return;
+            }
 
-            console.log('Submitting PIN completion:', {
-                rideId: selectedRideForCompletion._id,
-                pin: pinInput,
-                passengerUserId: passengerUserId,
-                passenger: selectedPassenger
+            // Get current location
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.High,
             });
 
+            const { latitude, longitude } = location.coords;
+
+            // Call API to start ride
             const response = await axios.post(
-                `${process.env.EXPO_PUBLIC_API_URL}/rides/${selectedRideForCompletion._id}/complete-with-pin`,
+                `${process.env.EXPO_PUBLIC_API_URL}/rides/${ride._id}/start`,
                 {
-                    pin: pinInput,
-                    passengerUserId: passengerUserId
+                    latitude,
+                    longitude
                 },
                 {
                     headers: { Authorization: `Bearer ${user.token}` },
                 }
             );
 
-            const passengerName = selectedPassenger.userId?.name || selectedPassenger.userId?.email || 'the passenger';
-            showAlert('Success', `Ride completed for ${passengerName}`, 'success');
-
-            // Reset modal state
-            setPinModalVisible(false);
-            setPinInput('');
-            setSelectedRideForCompletion(null);
-            setSelectedPassenger(null);
+            // Show warning if location is far from origin
+            if (response.data.warning) {
+                showAlert(
+                    'Location Warning',
+                    response.data.warning,
+                    'warning'
+                );
+            } else {
+                showAlert(
+                    'Ride Started',
+                    'Your ride has been started successfully.',
+                    'success'
+                );
+            }
 
             // Refresh the rides list
             fetchPrivateRides();
 
         } catch (error) {
-            console.error('Error completing ride with PIN:', error);
-            console.error('Error response:', error.response?.data);
-            console.error('Error status:', error.response?.status);
+            console.error('Error starting ride:', error);
+            const errorMessage = error.response?.data?.error || 'Failed to start ride. Please try again.';
+            showAlert('Error', errorMessage, 'error');
+        }
+    };
 
-            const errorMessage = error.response?.data?.error || 'Failed to complete ride with PIN';
+    const handleFinishRide = async (ride) => {
+        try {
+            // Request location permissions
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                showAlert(
+                    'Location Permission Required',
+                    'Please enable location access to finish the ride.',
+                    'warning'
+                );
+                return;
+            }
+
+            // Get current location
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.High,
+            });
+
+            const { latitude, longitude } = location.coords;
+
+            // Call API to finish ride
+            const response = await axios.post(
+                `${process.env.EXPO_PUBLIC_API_URL}/rides/${ride._id}/finish`,
+                {
+                    latitude,
+                    longitude
+                },
+                {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                }
+            );
+
+            // Show warning if location is far from destination
+            if (response.data.warning) {
+                showAlert(
+                    'Location Warning',
+                    response.data.warning,
+                    'warning'
+                );
+            } else {
+                showAlert(
+                    'Ride Completed',
+                    `Ride completed successfully for ${response.data.completedPassengers} passenger(s).`,
+                    'success'
+                );
+            }
+
+            // Refresh the rides list
+            fetchPrivateRides();
+
+        } catch (error) {
+            console.error('Error finishing ride:', error);
+            const errorMessage = error.response?.data?.error || 'Failed to finish ride. Please try again.';
             showAlert('Error', errorMessage, 'error');
         }
     };
@@ -761,6 +817,8 @@ export default function PrivateRidesScreen() {
                                                                         <DriverRideCard
                                                                             ride={ride}
                                                                             onPress={() => handleRideCardPress(ride)}
+                                                                            onStartRide={() => handleStartRide(ride)}
+                                                                            onFinishRide={() => handleFinishRide(ride)}
                                                                         />
                                                                         <TouchableOpacity
                                                                             style={styles.optionsButton}
@@ -873,57 +931,6 @@ export default function PrivateRidesScreen() {
                             </View>
                         }
                     />
-
-                    {/* PIN Modal */}
-                    <Modal
-                        visible={pinModalVisible}
-                        animationType="slide"
-                        transparent={true}
-                        onRequestClose={() => setPinModalVisible(false)}
-                    >
-                        <View style={styles.modalContainer}>
-                            <View style={styles.modalContent}>
-                                <FontAwesome5 name="key" size={48} color="#4CAF50" style={styles.modalIcon} />
-                                <Text style={styles.modalTitle}>Complete Ride with PIN</Text>
-                                <Text style={styles.pinSubtitle}>
-                                    {selectedPassenger ?
-                                        `Enter the PIN provided by ${selectedPassenger.userId?.name || selectedPassenger.userId?.email || 'the passenger'}` :
-                                        'Enter the PIN provided by the passenger'
-                                    }
-                                </Text>
-                                <TextInput
-                                    style={styles.pinInput}
-                                    value={pinInput}
-                                    onChangeText={setPinInput}
-                                    placeholder="Enter 6-digit PIN"
-                                    placeholderTextColor="#999"
-                                    keyboardType="numeric"
-                                    maxLength={6}
-                                    autoFocus={true}
-                                />
-                                <View style={styles.modalButtons}>
-                                    <TouchableOpacity
-                                        style={styles.cancelModalButton}
-                                        onPress={() => {
-                                            setPinModalVisible(false);
-                                            setPinInput('');
-                                            setSelectedRideForCompletion(null);
-                                            setSelectedPassenger(null);
-                                        }}
-                                    >
-                                        <Text style={styles.cancelModalButtonText}>Cancel</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.submitPinButton, pinInput.length !== 6 && styles.disabledButton]}
-                                        onPress={submitPinCompletion}
-                                        disabled={pinInput.length !== 6}
-                                    >
-                                        <Text style={styles.submitPinButtonText}>Complete Ride</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </View>
-                    </Modal>
 
                     {/* Ride Options Modal */}
                     <Modal
@@ -1338,54 +1345,12 @@ const styles = StyleSheet.create({
         color: '#0a2472',
         marginBottom: 10,
     },
-    pinSubtitle: {
-        color: '#666',
-        fontSize: 14,
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-    pinInput: {
-        width: '100%',
-        padding: 15,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 5,
-        marginBottom: 20,
-        fontSize: 18,
-        textAlign: 'center',
-        letterSpacing: 5,
-    },
     modalButtons: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         width: '100%',
         gap: 10,
-    },
-    cancelModalButton: {
-        backgroundColor: '#dc3545',
-        padding: 12,
-        borderRadius: 5,
-        flex: 1,
-        alignItems: 'center',
-    },
-    cancelModalButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    submitPinButton: {
-        backgroundColor: '#4CAF50',
-        padding: 12,
-        borderRadius: 5,
-        flex: 1,
-        alignItems: 'center',
-    },
-    submitPinButtonText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '600',
-        marginLeft: 4,
     },
     disabledButton: {
         backgroundColor: '#ccc',
@@ -1508,20 +1473,6 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         marginTop: 4,
         paddingLeft: 22,
-    },
-    completePinButton: {
-        backgroundColor: '#4CAF50',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    completePinButtonText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '600',
-        marginLeft: 4,
     },
     // Login prompt styles
     loginPromptContainer: {
