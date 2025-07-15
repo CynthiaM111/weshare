@@ -20,7 +20,7 @@ export default function PrivateRidesScreen() {
     const [expandedSections, setExpandedSections] = useState({
         available: true,
         myRides: true,
-        completed: true,
+        myBookings: true,
     });
     const [searchFrom, setSearchFrom] = useState('');
     const [searchTo, setSearchTo] = useState('');
@@ -525,16 +525,14 @@ export default function PrivateRidesScreen() {
         (ride.bookedBy && ride.bookedBy.length > 0 && ride.allPassengersCompleted)
     );
 
-    const pastRides = rides.filter(ride =>
-        new Date(ride.departure_time) < currentDate &&
-        ride.computedStatus !== 'completed' &&
-        !(ride.bookedBy && ride.bookedBy.length > 0 && ride.allPassengersCompleted)
-    );
-
     const groupedActiveRides = groupRidesByDate(activeRides);
     const groupedCompletedRides = groupRidesByDate(completedRides);
-    const groupedPastRides = groupRidesByDate(pastRides);
     const groupedAvailableRides = groupRidesByDate(availableRides);
+
+    // Function to navigate to bookings screen
+    const handleViewBookings = () => {
+        router.push('/(rides)/booked');
+    };
 
     return (
         <>
@@ -551,6 +549,9 @@ export default function PrivateRidesScreen() {
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>Private Rides</Text>
                         <View style={styles.headerActions}>
+                            <TouchableOpacity onPress={handleViewBookings} style={styles.bookingsButton}>
+                                <FontAwesome5 name="ticket-alt" size={16} color="#fff" />
+                            </TouchableOpacity>
                             <TouchableOpacity onPress={() => router.push('/(private)/private-history')} style={styles.historyButton}>
                                 <FontAwesome5 name="history" size={18} color="#fff" />
                             </TouchableOpacity>
@@ -824,71 +825,40 @@ export default function PrivateRidesScreen() {
                                     </View>
                                 )}
 
-                                {groupedPastRides.length > 0 && (
-                                    <View style={styles.section}>
-                                        <TouchableOpacity onPress={() => toggleExpand('myRides')}>
-                                            <View style={styles.sectionHeader}>
-                                                <Text style={styles.sectionTitle}>Past Rides ({pastRides.length})</Text>
-                                                <FontAwesome5
-                                                    name={expandedSections.myRides ? 'chevron-up' : 'chevron-down'}
-                                                    size={16}
-                                                    color="#fff"
-                                                />
-                                            </View>
-                                        </TouchableOpacity>
+                                {/* My Bookings Section */}
+                                <View style={styles.section}>
+                                    <TouchableOpacity onPress={handleViewBookings}>
+                                        <View style={styles.sectionHeader}>
+                                            <Text style={styles.sectionTitle}>My Bookings</Text>
+                                            <FontAwesome5
+                                                name="arrow-right"
+                                                size={16}
+                                                color="#fff"
+                                            />
+                                        </View>
+                                    </TouchableOpacity>
 
-                                        {expandedSections.myRides && (
-                                            <View style={styles.sectionContent}>
-                                                {groupedPastRides.map((group) => (
-                                                    <View key={`past-${group.date}`} style={styles.dateGroup}>
-                                                        <View style={styles.myRideDateHeader}>
-                                                            <FontAwesome5
-                                                                name="calendar-alt"
-                                                                size={16}
-                                                                color="#0a2472"
-                                                                style={styles.dateIcon}
-                                                            />
-                                                            <Text style={styles.myRideDateText}>{group.date}</Text>
-                                                            <Text style={styles.myRideTimeRangeText}>{group.timeRange}</Text>
-                                                        </View>
-                                                        {group.rides.map((ride) => {
-                                                            // Calculate ride status and available seats
-                                                            const availableSeats = ride.seats - (ride.booked_seats || 0);
-                                                            const getRideStatus = (ride) => {
-                                                                if (ride.isPrivate) {
-                                                                    return ride.status === 'active' ? 'Available' : 'Inactive';
-                                                                }
-                                                                if (availableSeats === 0) return 'Full';
-                                                                if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
-                                                                return 'Available';
-                                                            };
-                                                            const statusDisplay = getRideStatus(ride);
-
-                                                            return (
-                                                                <View key={ride._id} style={styles.rideCardContainer}>
-                                                                    <View style={styles.rideCardHeader}>
-                                                                        <DriverRideCard
-                                                                            ride={ride}
-                                                                            onPress={() => handleRideCardPress(ride)}
-                                                                        />
-                                                                        <TouchableOpacity
-                                                                            style={styles.optionsButton}
-                                                                            onPress={() => handleRideOptionsPress(ride)}
-                                                                        >
-                                                                            <FontAwesome5 name="ellipsis-v" size={16} color="#666" />
-                                                                        </TouchableOpacity>
-                                                                    </View>
-                                                                </View>
-                                                            );
-                                                        })}
-                                                    </View>
-                                                ))}
+                                    <View style={styles.sectionContent}>
+                                        <View style={styles.bookingsSummaryCard}>
+                                            <View style={styles.bookingsSummaryHeader}>
+                                                <FontAwesome5 name="ticket-alt" size={20} color="#0a2472" />
+                                                <Text style={styles.bookingsSummaryTitle}>View All Your Bookings</Text>
                                             </View>
-                                        )}
+                                            <Text style={styles.bookingsSummaryText}>
+                                                See all your public and private ride bookings in one place, including ride status, payment info, and more.
+                                            </Text>
+                                            <TouchableOpacity
+                                                style={styles.viewBookingsButton}
+                                                onPress={handleViewBookings}
+                                            >
+                                                <FontAwesome5 name="external-link-alt" size={14} color="#fff" />
+                                                <Text style={styles.viewBookingsButtonText}>View Bookings</Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                )}
+                                </View>
 
-                                {!groupedActiveRides.length && !groupedCompletedRides.length && !groupedPastRides.length && (
+                                {!groupedActiveRides.length && !groupedCompletedRides.length && !groupedAvailableRides.length && (
                                     <View style={styles.emptyContainer}>
                                         <Text style={styles.emptyText}>No private rides found</Text>
                                         <TouchableOpacity
@@ -1023,6 +993,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
+        backgroundColor: 'transparent', // Ensure container doesn't block header
     },
     header: {
         flexDirection: 'row',
@@ -1030,7 +1001,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: 'rgba(10, 36, 114, 0.8)',
+        paddingTop: 20, // Reduced padding for status bar
+        backgroundColor: 'rgba(10, 36, 114, 0.95)', // Semi-transparent blue instead of red
+        zIndex: 1000, // Ensure header is above other elements
+        elevation: 5, // For Android
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     },
     backButton: {
         padding: 8,
@@ -1049,6 +1025,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
+    },
+    bookingsButton: {
+        padding: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     historyButton: {
         padding: 8,
@@ -1733,5 +1716,52 @@ const styles = StyleSheet.create({
     deleteOptionText: {
         color: '#dc3545',
         fontWeight: '600',
+    },
+    bookingsSummaryCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 20,
+        marginTop: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e8f4fd',
+    },
+    bookingsSummaryHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e1f0ff',
+    },
+    bookingsSummaryTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0a2472',
+        marginLeft: 10,
+    },
+    bookingsSummaryText: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 15,
+        lineHeight: 22,
+    },
+    viewBookingsButton: {
+        backgroundColor: '#0a2472',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    viewBookingsButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 8,
     },
 }); 
