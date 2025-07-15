@@ -3,6 +3,8 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import RideCard from '../../components/RideCard';
+import DriverRideCard from '../../components/DriverRideCard';
+import DriverRideDetail from '../../components/DriverRideDetail';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
@@ -28,6 +30,14 @@ export default function PrivateRidesScreen() {
     const [selectedRideForCompletion, setSelectedRideForCompletion] = useState(null);
     const [selectedPassenger, setSelectedPassenger] = useState(null);
     const [recentSearches, setRecentSearches] = useState([]);
+
+    // New state for driver ride detail modal
+    const [selectedRideForDetail, setSelectedRideForDetail] = useState(null);
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+
+    // New state for ride options menu
+    const [selectedRideForOptions, setSelectedRideForOptions] = useState(null);
+    const [optionsModalVisible, setOptionsModalVisible] = useState(false);
 
     // Custom alert state
     const [alertVisible, setAlertVisible] = useState(false);
@@ -202,6 +212,95 @@ export default function PrivateRidesScreen() {
         setSearchFrom(search.from);
         setSearchTo(search.to);
         handleSearch(search.from, search.to);
+    };
+
+    // Handle opening ride detail modal
+    const handleRideCardPress = (ride) => {
+        setSelectedRideForDetail(ride);
+        setDetailModalVisible(true);
+    };
+
+    // Handle closing ride detail modal
+    const handleCloseDetailModal = () => {
+        setDetailModalVisible(false);
+        setSelectedRideForDetail(null);
+    };
+
+    // Handle opening ride options menu
+    const handleRideOptionsPress = (ride) => {
+        setSelectedRideForOptions(ride);
+        setOptionsModalVisible(true);
+    };
+
+    // Handle closing ride options menu
+    const handleCloseOptionsModal = () => {
+        setOptionsModalVisible(false);
+        setSelectedRideForOptions(null);
+    };
+
+    // Handle edit ride from options menu
+    const handleEditRideFromOptions = () => {
+        if (selectedRideForOptions) {
+            handleEditRide(selectedRideForOptions);
+        }
+        handleCloseOptionsModal();
+    };
+
+    // Handle delete ride from options menu
+    const handleDeleteRideFromOptions = () => {
+        if (selectedRideForOptions) {
+            handleDeleteRide(selectedRideForOptions._id);
+        }
+        handleCloseOptionsModal();
+    };
+
+    // Handle updating payment status
+    const handleUpdatePaymentStatus = async (passengerId, paymentStatus) => {
+        try {
+            if (!selectedRideForDetail || !user?.token) {
+                return;
+            }
+
+            const response = await axios.patch(
+                `${process.env.EXPO_PUBLIC_API_URL}/rides/${selectedRideForDetail._id}/payment-status`,
+                {
+                    passengerId,
+                    paymentStatus
+                },
+                {
+                    headers: { Authorization: `Bearer ${user.token}` }
+                }
+            );
+
+            // Update the local ride data
+            if (selectedRideForDetail.bookedBy) {
+                const updatedRide = {
+                    ...selectedRideForDetail,
+                    bookedBy: selectedRideForDetail.bookedBy.map(passenger =>
+                        passenger.userId._id === passengerId
+                            ? { ...passenger, paymentStatus }
+                            : passenger
+                    )
+                };
+                setSelectedRideForDetail(updatedRide);
+            }
+
+            // Refresh the rides list
+            await fetchPrivateRides();
+
+            showAlert(
+                'Success',
+                `Payment status updated to ${paymentStatus}`,
+                'success'
+            );
+        } catch (error) {
+            console.error('Error updating payment status:', error);
+            showAlert(
+                'Error',
+                'Failed to update payment status. Please try again.',
+                'error'
+            );
+        }
     };
 
     const groupRidesByDate = (ridesToGroup) => {
@@ -438,554 +537,483 @@ export default function PrivateRidesScreen() {
     const groupedAvailableRides = groupRidesByDate(availableRides);
 
     return (
-        <LinearGradient
-            colors={['#0a2472', '#1E90FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.backgroundGradient}
-        >
-            <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <FontAwesome5 name="arrow-left" size={20} color="#fff" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Private Rides</Text>
-                    <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={() => router.push('/(private)/private-history')} style={styles.historyButton}>
-                            <FontAwesome5 name="history" size={18} color="#fff" />
+        <>
+            <LinearGradient
+                colors={['#0a2472', '#1E90FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.backgroundGradient}
+            >
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => router.push('/(private)/add-private-ride')} style={styles.addButton}>
-                            <FontAwesome5 name="plus" size={20} color="#fff" />
-                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Private Rides</Text>
+                        <View style={styles.headerActions}>
+                            <TouchableOpacity onPress={() => router.push('/(private)/private-history')} style={styles.historyButton}>
+                                <FontAwesome5 name="history" size={18} color="#fff" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => router.push('/(private)/add-private-ride')} style={styles.addButton}>
+                                <FontAwesome5 name="plus" size={20} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
 
-                <FlatList
-                    data={[]}
-                    renderItem={null}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isLoadingPrivateRides || isLoadingAvailableRides}
-                            onRefresh={onRefresh}
-                            colors={['#4CAF50']}
-                            tintColor='#4CAF50'
-                        />
-                    }
-                    contentContainerStyle={styles.scrollContent}
-                    ListHeaderComponent={
-                        <View>
-                            {/* Search Section for Available Private Rides */}
-                            <View style={styles.searchSection}>
-                                <Text style={styles.searchTitle}>Search Available Private Rides</Text>
-                                <View style={styles.searchContainer}>
-                                    <View style={styles.inputColumn}>
-                                        <View style={styles.inputWrapper}>
-                                            <LocationPicker
-                                                value={searchFrom ? { name: searchFrom } : null}
-                                                onLocationSelect={(location) => setSearchFrom(location.name)}
-                                                placeholder="From..."
-                                                label=""
-                                                style={styles.locationPickerStyle}
-                                            />
+                    <FlatList
+                        data={[]}
+                        renderItem={null}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isLoadingPrivateRides || isLoadingAvailableRides}
+                                onRefresh={onRefresh}
+                                colors={['#4CAF50']}
+                                tintColor='#4CAF50'
+                            />
+                        }
+                        contentContainerStyle={styles.scrollContent}
+                        ListHeaderComponent={
+                            <View>
+                                {/* Search Section for Available Private Rides */}
+                                <View style={styles.searchSection}>
+                                    <Text style={styles.searchTitle}>Search Available Private Rides</Text>
+                                    <View style={styles.searchContainer}>
+                                        <View style={styles.inputColumn}>
+                                            <View style={styles.inputWrapper}>
+                                                <LocationPicker
+                                                    value={searchFrom ? { name: searchFrom } : null}
+                                                    onLocationSelect={(location) => setSearchFrom(location.name)}
+                                                    placeholder="From..."
+                                                    label=""
+                                                    style={styles.locationPickerStyle}
+                                                />
+                                            </View>
+                                            <View style={styles.inputWrapper}>
+                                                <LocationPicker
+                                                    value={searchTo ? { name: searchTo } : null}
+                                                    onLocationSelect={(location) => setSearchTo(location.name)}
+                                                    placeholder="To..."
+                                                    label=""
+                                                    style={styles.locationPickerStyle}
+                                                />
+                                            </View>
                                         </View>
-                                        <View style={styles.inputWrapper}>
-                                            <LocationPicker
-                                                value={searchTo ? { name: searchTo } : null}
-                                                onLocationSelect={(location) => setSearchTo(location.name)}
-                                                placeholder="To..."
-                                                label=""
-                                                style={styles.locationPickerStyle}
-                                            />
+                                        <View style={styles.searchButtons}>
+                                            <TouchableOpacity
+                                                style={styles.searchButton}
+                                                onPress={() => handleSearch()}
+                                                disabled={isLoadingAvailableRides}
+                                            >
+                                                <Text style={styles.searchButtonText}>
+                                                    {isLoadingAvailableRides ? 'Searching...' : 'Search'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            {(searchFrom || searchTo) && (
+                                                <TouchableOpacity
+                                                    style={styles.clearButton}
+                                                    onPress={clearSearch}
+                                                >
+                                                    <Text style={styles.clearButtonText}>Clear</Text>
+                                                </TouchableOpacity>
+                                            )}
                                         </View>
                                     </View>
-                                    <View style={styles.searchButtons}>
-                                        <TouchableOpacity
-                                            style={styles.searchButton}
-                                            onPress={() => handleSearch()}
-                                            disabled={isLoadingAvailableRides}
-                                        >
-                                            <Text style={styles.searchButtonText}>
-                                                {isLoadingAvailableRides ? 'Searching...' : 'Search'}
-                                            </Text>
+                                </View>
+
+                                {/* Recent Searches Section */}
+                                {recentSearches.length > 0 && !hasSearched && (
+                                    <View style={styles.recentSearchesSection}>
+                                        <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
+                                        <View style={styles.recentSearchesList}>
+                                            {recentSearches.map((search, index) => (
+                                                <TouchableOpacity
+                                                    key={index}
+                                                    style={styles.recentSearchItem}
+                                                    onPress={() => handleRecentSearchPress(search)}
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <View style={styles.recentSearchContent}>
+                                                        <View style={styles.routeInfo}>
+                                                            <Text style={styles.routeFrom}>{search.from}</Text>
+                                                            <Ionicons name="arrow-forward" size={16} color="#94a3b8" />
+                                                            <Text style={styles.routeTo}>{search.to}</Text>
+                                                        </View>
+                                                        <View style={styles.searchCount}>
+                                                            <Ionicons name="time-outline" size={14} color="#64748b" />
+                                                            <Text style={styles.countText}>{search.count} times</Text>
+                                                        </View>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Available Private Rides Section */}
+                                {hasSearched && groupedAvailableRides.length > 0 && (
+                                    <View style={styles.section}>
+                                        <TouchableOpacity onPress={() => toggleExpand('available')}>
+                                            <View style={styles.sectionHeader}>
+                                                <Text style={styles.sectionTitle}>Available Private Rides ({availableRides.length})</Text>
+                                                <FontAwesome5
+                                                    name={expandedSections.available ? 'chevron-up' : 'chevron-down'}
+                                                    size={16}
+                                                    color="#fff"
+                                                />
+                                            </View>
                                         </TouchableOpacity>
-                                        {(searchFrom || searchTo) && (
-                                            <TouchableOpacity
-                                                style={styles.clearButton}
-                                                onPress={clearSearch}
-                                            >
-                                                <Text style={styles.clearButtonText}>Clear</Text>
-                                            </TouchableOpacity>
+
+                                        {expandedSections.available && (
+                                            <View style={styles.sectionContent}>
+                                                {groupedAvailableRides.map((group) => (
+                                                    <View key={`available-${group.date}`} style={styles.dateGroup}>
+                                                        <View style={styles.dateHeader}>
+                                                            <FontAwesome5 name="calendar-alt" size={14} color="#0a2472" />
+                                                            <Text style={styles.dateTitle}>{group.date}</Text>
+                                                        </View>
+
+                                                        {group.rides.map((ride) => {
+                                                            const availableSeats = ride.available_seats || (ride.seats - (ride.booked_seats || 0));
+                                                            const statusDisplay = ride.statusDisplay || 'Available';
+
+                                                            return (
+                                                                <View key={ride._id} style={styles.rideCardContainer}>
+                                                                    <RideCard
+                                                                        ride={ride}
+                                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                                        isPrivate={true}
+                                                                        availableSeats={availableSeats}
+                                                                        statusDisplay={statusDisplay}
+                                                                        isFull={availableSeats === 0}
+                                                                        showDriverInfo={true}
+                                                                    />
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                ))}
+                                            </View>
                                         )}
                                     </View>
-                                </View>
-                            </View>
+                                )}
 
-                            {/* Recent Searches Section */}
-                            {recentSearches.length > 0 && !hasSearched && (
-                                <View style={styles.recentSearchesSection}>
-                                    <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
-                                    <View style={styles.recentSearchesList}>
-                                        {recentSearches.map((search, index) => (
-                                            <TouchableOpacity
-                                                key={index}
-                                                style={styles.recentSearchItem}
-                                                onPress={() => handleRecentSearchPress(search)}
-                                                activeOpacity={0.8}
-                                            >
-                                                <View style={styles.recentSearchContent}>
-                                                    <View style={styles.routeInfo}>
-                                                        <Text style={styles.routeFrom}>{search.from}</Text>
-                                                        <Ionicons name="arrow-forward" size={16} color="#94a3b8" />
-                                                        <Text style={styles.routeTo}>{search.to}</Text>
-                                                    </View>
-                                                    <View style={styles.searchCount}>
-                                                        <Ionicons name="time-outline" size={14} color="#64748b" />
-                                                        <Text style={styles.countText}>{search.count} times</Text>
-                                                    </View>
-                                                </View>
-                                            </TouchableOpacity>
-                                        ))}
+                                {hasSearched && availableRides.length === 0 && !isLoadingAvailableRides && (
+                                    <View style={styles.noResultsContainer}>
+                                        <Text style={styles.noResultsText}>
+                                            No private rides found matching your search criteria.
+                                        </Text>
                                     </View>
-                                </View>
-                            )}
+                                )}
 
-                            {/* Available Private Rides Section */}
-                            {hasSearched && groupedAvailableRides.length > 0 && (
-                                <View style={styles.section}>
-                                    <TouchableOpacity onPress={() => toggleExpand('available')}>
-                                        <View style={styles.sectionHeader}>
-                                            <Text style={styles.sectionTitle}>Available Private Rides ({availableRides.length})</Text>
-                                            <FontAwesome5
-                                                name={expandedSections.available ? 'chevron-up' : 'chevron-down'}
-                                                size={16}
-                                                color="#fff"
-                                            />
-                                        </View>
-                                    </TouchableOpacity>
+                                {/* {!hasSearched && (
+                                    <View style={styles.searchPromptContainer}>
+                                        <FontAwesome5 name="search" size={48} color="rgba(255, 255, 255, 0.6)" />
+                                        <Text style={styles.searchPromptText}>
+                                            Search for available private rides using the form above
+                                        </Text>
+                                    </View>
+                                )} */}
 
-                                    {expandedSections.available && (
-                                        <View style={styles.sectionContent}>
-                                            {groupedAvailableRides.map((group) => (
-                                                <View key={`available-${group.date}`} style={styles.dateGroup}>
-                                                    <View style={styles.dateHeader}>
-                                                        <FontAwesome5 name="calendar-alt" size={14} color="#0a2472" />
-                                                        <Text style={styles.dateTitle}>{group.date}</Text>
-                                                    </View>
+                                {groupedActiveRides.length > 0 && (
+                                    <View style={styles.section}>
+                                        <TouchableOpacity onPress={() => toggleExpand('myRides')}>
+                                            <View style={styles.sectionHeader}>
+                                                <Text style={styles.sectionTitle}>My Rides ({activeRides.length})</Text>
+                                                <FontAwesome5
+                                                    name={expandedSections.myRides ? 'chevron-up' : 'chevron-down'}
+                                                    size={16}
+                                                    color="#fff"
+                                                />
+                                            </View>
+                                        </TouchableOpacity>
 
-                                                    {group.rides.map((ride) => {
-                                                        const availableSeats = ride.available_seats || (ride.seats - (ride.booked_seats || 0));
-                                                        const statusDisplay = ride.statusDisplay || 'Available';
+                                        {expandedSections.myRides && (
+                                            <View style={styles.sectionContent}>
+                                                {groupedActiveRides.map((group) => (
+                                                    <View key={`active-${group.date}`} style={styles.dateGroup}>
+                                                        <View style={styles.myRideDateHeader}>
+                                                            <FontAwesome5
+                                                                name="calendar-alt"
+                                                                size={16}
+                                                                color="#0a2472"
+                                                                style={styles.dateIcon}
+                                                            />
+                                                            <Text style={styles.myRideDateText}>{group.date}</Text>
+                                                            <Text style={styles.myRideTimeRangeText}>{group.timeRange}</Text>
+                                                        </View>
+                                                        {group.rides.map((ride) => {
+                                                            // Calculate ride status and available seats
+                                                            const availableSeats = ride.seats - (ride.booked_seats || 0);
+                                                            const getRideStatus = (ride) => {
+                                                                if (ride.isPrivate) {
+                                                                    return ride.status === 'active' ? 'Available' : 'Inactive';
+                                                                }
+                                                                if (availableSeats === 0) return 'Full';
+                                                                if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
+                                                                return 'Available';
+                                                            };
+                                                            const statusDisplay = getRideStatus(ride);
 
-                                                        return (
-                                                            <View key={ride._id} style={styles.rideCardContainer}>
-                                                                <RideCard
-                                                                    ride={ride}
-                                                                    onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                                    isPrivate={true}
-                                                                    availableSeats={availableSeats}
-                                                                    statusDisplay={statusDisplay}
-                                                                    isFull={availableSeats === 0}
-                                                                    showDriverInfo={true}
-                                                                />
-                                                            </View>
-                                                        );
-                                                    })}
-                                                </View>
-                                            ))}
-                                        </View>
-                                    )}
-                                </View>
-                            )}
-
-                            {hasSearched && availableRides.length === 0 && !isLoadingAvailableRides && (
-                                <View style={styles.noResultsContainer}>
-                                    <Text style={styles.noResultsText}>
-                                        No private rides found matching your search criteria.
-                                    </Text>
-                                </View>
-                            )}
-
-                            {/* {!hasSearched && (
-                                <View style={styles.searchPromptContainer}>
-                                    <FontAwesome5 name="search" size={48} color="rgba(255, 255, 255, 0.6)" />
-                                    <Text style={styles.searchPromptText}>
-                                        Search for available private rides using the form above
-                                    </Text>
-                                </View>
-                            )} */}
-
-                            {groupedActiveRides.length > 0 && (
-                                <View style={styles.section}>
-                                    <TouchableOpacity onPress={() => toggleExpand('myRides')}>
-                                        <View style={styles.sectionHeader}>
-                                            <Text style={styles.sectionTitle}>My Rides ({activeRides.length})</Text>
-                                            <FontAwesome5
-                                                name={expandedSections.myRides ? 'chevron-up' : 'chevron-down'}
-                                                size={16}
-                                                color="#fff"
-                                            />
-                                        </View>
-                                    </TouchableOpacity>
-
-                                    {expandedSections.myRides && (
-                                        <View style={styles.sectionContent}>
-                                            {groupedActiveRides.map((group) => (
-                                                <View key={`active-${group.date}`} style={styles.dateGroup}>
-                                                    <View style={styles.myRideDateHeader}>
-                                                        <FontAwesome5
-                                                            name="calendar-alt"
-                                                            size={16}
-                                                            color="#0a2472"
-                                                            style={styles.dateIcon}
-                                                        />
-                                                        <Text style={styles.myRideDateText}>{group.date}</Text>
-                                                        <Text style={styles.myRideTimeRangeText}>{group.timeRange}</Text>
-                                                    </View>
-                                                    {group.rides.map((ride) => {
-                                                        // Calculate ride status and available seats
-                                                        const availableSeats = ride.seats - (ride.booked_seats || 0);
-                                                        const getRideStatus = (ride) => {
-                                                            if (ride.isPrivate) {
-                                                                return ride.status === 'active' ? 'Available' : 'Inactive';
-                                                            }
-                                                            if (availableSeats === 0) return 'Full';
-                                                            if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
-                                                            return 'Available';
-                                                        };
-                                                        const statusDisplay = getRideStatus(ride);
-
-                                                        return (
-                                                            <View key={ride._id} style={styles.rideCardContainer}>
-                                                                <RideCard
-                                                                    ride={ride}
-                                                                    onPress={() => { }} // Make unclickable
-                                                                    isPrivate={true}
-                                                                    availableSeats={availableSeats}
-                                                                    statusDisplay={statusDisplay}
-                                                                    isFull={availableSeats === 0}
-                                                                />
-
-                                                                {/* Show booked passengers */}
-                                                                {ride.bookedBy && ride.bookedBy.length > 0 && (
-                                                                    <View style={styles.passengersSection}>
-                                                                        <View style={styles.passengersSectionHeader}>
-                                                                            <Text style={styles.passengersSectionTitle}>
-                                                                                Booked Passengers ({ride.bookedBy.length})
-                                                                            </Text>
-                                                                            {ride.allPassengersCompleted && (
-                                                                                <View style={styles.rideCompletedBadge}>
-                                                                                    <FontAwesome5 name="check-circle" size={12} color="#fff" />
-                                                                                    <Text style={styles.rideCompletedText}>Ride Completed</Text>
-                                                                                </View>
-                                                                            )}
-                                                                            {ride.somePassengersCompleted && !ride.allPassengersCompleted && (
-                                                                                <View style={styles.partialCompletedBadge}>
-                                                                                    <FontAwesome5 name="clock" size={12} color="#fff" />
-                                                                                    <Text style={styles.partialCompletedText}>
-                                                                                        {ride.completedPassengers}/{ride.bookedBy.length} Completed
-                                                                                    </Text>
-                                                                                </View>
-                                                                            )}
-                                                                        </View>
-                                                                        {ride.bookedBy.map((booking, index) => {
-                                                                            const passenger = booking.userId || booking;
-                                                                            const passengerName = passenger.name || passenger.email || `Passenger ${index + 1}`;
-                                                                            const checkInStatus = booking.checkInStatus || 'pending';
-
-                                                                            return (
-                                                                                <View key={booking.bookingId || index} style={styles.passengerContainer}>
-                                                                                    <View style={styles.passengerRow}>
-                                                                                        <View style={styles.passengerInfo}>
-                                                                                            <FontAwesome5 name="user" size={14} color="#666" />
-                                                                                            <Text style={styles.passengerName}>{passengerName}</Text>
-                                                                                        </View>
-                                                                                        <View style={[
-                                                                                            styles.statusBadge,
-                                                                                            checkInStatus === 'completed' ? styles.completedBadge :
-                                                                                                checkInStatus === 'checked-in' ? styles.checkedInBadge :
-                                                                                                    styles.pendingBadge
-                                                                                        ]}>
-                                                                                            <Text style={styles.statusBadgeText}>
-                                                                                                {checkInStatus === 'completed' ? 'Completed' :
-                                                                                                    checkInStatus === 'checked-in' ? 'Checked In' :
-                                                                                                        'Pending'}
-                                                                                            </Text>
-                                                                                        </View>
-                                                                                    </View>
-                                                                                    {checkInStatus !== 'completed' && !ride.allPassengersCompleted && (
-                                                                                        <View style={styles.buttonRow}>
-                                                                                            <TouchableOpacity
-                                                                                                style={styles.completePinButton}
-                                                                                                onPress={() => handleCompleteRideWithPin(ride, booking)}
-                                                                                            >
-                                                                                                <FontAwesome5 name="key" size={12} color="#fff" />
-                                                                                                <Text style={styles.completePinButtonText}>Complete with PIN</Text>
-                                                                                            </TouchableOpacity>
-                                                                                        </View>
-                                                                                    )}
-                                                                                </View>
-                                                                            );
-                                                                        })}
+                                                            return (
+                                                                <View key={ride._id} style={styles.rideCardContainer}>
+                                                                    <View style={styles.rideCardHeader}>
+                                                                        <DriverRideCard
+                                                                            ride={ride}
+                                                                            onPress={() => handleRideCardPress(ride)}
+                                                                        />
+                                                                        <TouchableOpacity
+                                                                            style={styles.optionsButton}
+                                                                            onPress={() => handleRideOptionsPress(ride)}
+                                                                        >
+                                                                            <FontAwesome5 name="ellipsis-v" size={16} color="#666" />
+                                                                        </TouchableOpacity>
                                                                     </View>
-                                                                )}
-
-                                                                <View style={styles.rideActions}>
-                                                                    <TouchableOpacity
-                                                                        style={[styles.actionButton, styles.editButton]}
-                                                                        onPress={() => handleEditRide(ride)}
-                                                                    >
-                                                                        <FontAwesome5 name="edit" size={16} color="#fff" />
-                                                                    </TouchableOpacity>
-                                                                    <TouchableOpacity
-                                                                        style={[styles.actionButton, styles.deleteButton]}
-                                                                        onPress={() => handleDeleteRide(ride._id)}
-                                                                    >
-                                                                        <FontAwesome5 name="trash" size={16} color="#fff" />
-                                                                    </TouchableOpacity>
                                                                 </View>
-                                                            </View>
-                                                        );
-                                                    })}
-                                                </View>
-                                            ))}
-                                        </View>
-                                    )}
-                                </View>
-                            )}
-
-                            {groupedCompletedRides.length > 0 && (
-                                <View style={styles.section}>
-                                    <TouchableOpacity onPress={() => toggleExpand('completed')}>
-                                        <View style={styles.sectionHeader}>
-                                            <Text style={styles.sectionTitle}>Completed Rides ({completedRides.length})</Text>
-                                            <FontAwesome5
-                                                name={expandedSections.completed ? 'chevron-up' : 'chevron-down'}
-                                                size={16}
-                                                color="#fff"
-                                            />
-                                        </View>
-                                    </TouchableOpacity>
-
-                                    {expandedSections.completed && (
-                                        <View style={styles.sectionContent}>
-                                            {groupedCompletedRides.map((group) => (
-                                                <View key={`completed-${group.date}`} style={styles.dateGroup}>
-                                                    <View style={styles.dateHeader}>
-                                                        <FontAwesome5 name="calendar-alt" size={14} color="#0a2472" />
-                                                        <Text style={styles.dateTitle}>{group.date}</Text>
+                                                            );
+                                                        })}
                                                     </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </View>
+                                )}
 
-                                                    {group.rides.map((ride) => {
-                                                        const availableSeats = ride.available_seats || (ride.seats - (ride.booked_seats || 0));
-                                                        const statusDisplay = ride.statusDisplay || 'Completed';
+                                {groupedCompletedRides.length > 0 && (
+                                    <View style={styles.section}>
+                                        <TouchableOpacity onPress={() => toggleExpand('completed')}>
+                                            <View style={styles.sectionHeader}>
+                                                <Text style={styles.sectionTitle}>Completed Rides ({completedRides.length})</Text>
+                                                <FontAwesome5
+                                                    name={expandedSections.completed ? 'chevron-up' : 'chevron-down'}
+                                                    size={16}
+                                                    color="#fff"
+                                                />
+                                            </View>
+                                        </TouchableOpacity>
 
-                                                        return (
-                                                            <View key={ride._id} style={styles.rideCardContainer}>
-                                                                <RideCard
-                                                                    ride={ride}
-                                                                    onPress={() => router.push(`/(rides)/${ride._id}`)}
-                                                                    isPrivate={true}
-                                                                    availableSeats={availableSeats}
-                                                                    statusDisplay={statusDisplay}
-                                                                    isFull={availableSeats === 0}
-                                                                />
-                                                            </View>
-                                                        );
-                                                    })}
-                                                </View>
-                                            ))}
-                                        </View>
-                                    )}
-                                </View>
-                            )}
+                                        {expandedSections.completed && (
+                                            <View style={styles.sectionContent}>
+                                                {groupedCompletedRides.map((group) => (
+                                                    <View key={`completed-${group.date}`} style={styles.dateGroup}>
+                                                        <View style={styles.dateHeader}>
+                                                            <FontAwesome5 name="calendar-alt" size={14} color="#0a2472" />
+                                                            <Text style={styles.dateTitle}>{group.date}</Text>
+                                                        </View>
 
-                            {groupedPastRides.length > 0 && (
-                                <View style={styles.section}>
-                                    <TouchableOpacity onPress={() => toggleExpand('myRides')}>
-                                        <View style={styles.sectionHeader}>
-                                            <Text style={styles.sectionTitle}>Past Rides ({pastRides.length})</Text>
-                                            <FontAwesome5
-                                                name={expandedSections.myRides ? 'chevron-up' : 'chevron-down'}
-                                                size={16}
-                                                color="#fff"
-                                            />
-                                        </View>
-                                    </TouchableOpacity>
+                                                        {group.rides.map((ride) => {
+                                                            const availableSeats = ride.available_seats || (ride.seats - (ride.booked_seats || 0));
+                                                            const statusDisplay = ride.statusDisplay || 'Completed';
 
-                                    {expandedSections.myRides && (
-                                        <View style={styles.sectionContent}>
-                                            {groupedPastRides.map((group) => (
-                                                <View key={`past-${group.date}`} style={styles.dateGroup}>
-                                                    <View style={styles.myRideDateHeader}>
-                                                        <FontAwesome5
-                                                            name="calendar-alt"
-                                                            size={16}
-                                                            color="#0a2472"
-                                                            style={styles.dateIcon}
-                                                        />
-                                                        <Text style={styles.myRideDateText}>{group.date}</Text>
-                                                        <Text style={styles.myRideTimeRangeText}>{group.timeRange}</Text>
+                                                            return (
+                                                                <View key={ride._id} style={styles.rideCardContainer}>
+                                                                    <RideCard
+                                                                        ride={ride}
+                                                                        onPress={() => router.push(`/(rides)/${ride._id}`)}
+                                                                        isPrivate={true}
+                                                                        availableSeats={availableSeats}
+                                                                        statusDisplay={statusDisplay}
+                                                                        isFull={availableSeats === 0}
+                                                                    />
+                                                                </View>
+                                                            );
+                                                        })}
                                                     </View>
-                                                    {group.rides.map((ride) => {
-                                                        // Calculate ride status and available seats
-                                                        const availableSeats = ride.seats - (ride.booked_seats || 0);
-                                                        const getRideStatus = (ride) => {
-                                                            if (ride.isPrivate) {
-                                                                return ride.status === 'active' ? 'Available' : 'Inactive';
-                                                            }
-                                                            if (availableSeats === 0) return 'Full';
-                                                            if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
-                                                            return 'Available';
-                                                        };
-                                                        const statusDisplay = getRideStatus(ride);
+                                                ))}
+                                            </View>
+                                        )}
+                                    </View>
+                                )}
 
-                                                        return (
-                                                            <View key={ride._id} style={styles.rideCardContainer}>
-                                                                <RideCard
-                                                                    ride={ride}
-                                                                    onPress={() => { }} // Make unclickable
-                                                                    isPrivate={true}
-                                                                    availableSeats={availableSeats}
-                                                                    statusDisplay={statusDisplay}
-                                                                    isFull={availableSeats === 0}
-                                                                />
+                                {groupedPastRides.length > 0 && (
+                                    <View style={styles.section}>
+                                        <TouchableOpacity onPress={() => toggleExpand('myRides')}>
+                                            <View style={styles.sectionHeader}>
+                                                <Text style={styles.sectionTitle}>Past Rides ({pastRides.length})</Text>
+                                                <FontAwesome5
+                                                    name={expandedSections.myRides ? 'chevron-up' : 'chevron-down'}
+                                                    size={16}
+                                                    color="#fff"
+                                                />
+                                            </View>
+                                        </TouchableOpacity>
 
-                                                                {/* Show booked passengers for past rides */}
-                                                                {ride.bookedBy && ride.bookedBy.length > 0 && (
-                                                                    <View style={styles.passengersSection}>
-                                                                        <Text style={styles.passengersSectionTitle}>Passengers ({ride.bookedBy.length})</Text>
-                                                                        {ride.bookedBy.map((booking, index) => {
-                                                                            const passenger = booking.userId || booking;
-                                                                            const passengerName = passenger.name || passenger.email || `Passenger ${index + 1}`;
-                                                                            const checkInStatus = booking.checkInStatus || 'pending';
+                                        {expandedSections.myRides && (
+                                            <View style={styles.sectionContent}>
+                                                {groupedPastRides.map((group) => (
+                                                    <View key={`past-${group.date}`} style={styles.dateGroup}>
+                                                        <View style={styles.myRideDateHeader}>
+                                                            <FontAwesome5
+                                                                name="calendar-alt"
+                                                                size={16}
+                                                                color="#0a2472"
+                                                                style={styles.dateIcon}
+                                                            />
+                                                            <Text style={styles.myRideDateText}>{group.date}</Text>
+                                                            <Text style={styles.myRideTimeRangeText}>{group.timeRange}</Text>
+                                                        </View>
+                                                        {group.rides.map((ride) => {
+                                                            // Calculate ride status and available seats
+                                                            const availableSeats = ride.seats - (ride.booked_seats || 0);
+                                                            const getRideStatus = (ride) => {
+                                                                if (ride.isPrivate) {
+                                                                    return ride.status === 'active' ? 'Available' : 'Inactive';
+                                                                }
+                                                                if (availableSeats === 0) return 'Full';
+                                                                if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
+                                                                return 'Available';
+                                                            };
+                                                            const statusDisplay = getRideStatus(ride);
 
-                                                                            return (
-                                                                                <View key={booking.bookingId || index} style={styles.passengerContainer}>
-                                                                                    <View style={styles.passengerRow}>
-                                                                                        <View style={styles.passengerInfo}>
-                                                                                            <FontAwesome5 name="user" size={14} color="#666" />
-                                                                                            <Text style={styles.passengerName}>{passengerName}</Text>
-                                                                                        </View>
-                                                                                        <View style={[
-                                                                                            styles.statusBadge,
-                                                                                            checkInStatus === 'completed' ? styles.completedBadge :
-                                                                                                checkInStatus === 'checked-in' ? styles.checkedInBadge :
-                                                                                                    styles.pendingBadge
-                                                                                        ]}>
-                                                                                            <Text style={styles.statusBadgeText}>
-                                                                                                {checkInStatus === 'completed' ? 'Completed' :
-                                                                                                    checkInStatus === 'checked-in' ? 'Checked In' :
-                                                                                                        'Pending'}
-                                                                                            </Text>
-                                                                                        </View>
-                                                                                    </View>
-                                                                                </View>
-                                                                            );
-                                                                        })}
+                                                            return (
+                                                                <View key={ride._id} style={styles.rideCardContainer}>
+                                                                    <View style={styles.rideCardHeader}>
+                                                                        <DriverRideCard
+                                                                            ride={ride}
+                                                                            onPress={() => handleRideCardPress(ride)}
+                                                                        />
+                                                                        <TouchableOpacity
+                                                                            style={styles.optionsButton}
+                                                                            onPress={() => handleRideOptionsPress(ride)}
+                                                                        >
+                                                                            <FontAwesome5 name="ellipsis-v" size={16} color="#666" />
+                                                                        </TouchableOpacity>
                                                                     </View>
-                                                                )}
-
-                                                                <View style={styles.rideActions}>
-                                                                    <TouchableOpacity
-                                                                        style={[styles.actionButton, styles.editButton]}
-                                                                        onPress={() => handleEditRide(ride)}
-                                                                    >
-                                                                        <FontAwesome5 name="edit" size={16} color="#fff" />
-                                                                    </TouchableOpacity>
-                                                                    <TouchableOpacity
-                                                                        style={[styles.actionButton, styles.deleteButton]}
-                                                                        onPress={() => handleDeleteRide(ride._id)}
-                                                                    >
-                                                                        <FontAwesome5 name="trash" size={16} color="#fff" />
-                                                                    </TouchableOpacity>
                                                                 </View>
-                                                            </View>
-                                                        );
-                                                    })}
-                                                </View>
-                                            ))}
-                                        </View>
-                                    )}
-                                </View>
-                            )}
+                                                            );
+                                                        })}
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </View>
+                                )}
 
-                            {!groupedActiveRides.length && !groupedCompletedRides.length && !groupedPastRides.length && (
-                                <View style={styles.emptyContainer}>
-                                    <Text style={styles.emptyText}>No private rides found</Text>
+                                {!groupedActiveRides.length && !groupedCompletedRides.length && !groupedPastRides.length && (
+                                    <View style={styles.emptyContainer}>
+                                        <Text style={styles.emptyText}>No private rides found</Text>
+                                        <TouchableOpacity
+                                            style={styles.addButton}
+                                            onPress={() => router.push('/(private)/add-private-ride')}
+                                        >
+                                            <FontAwesome5 name="plus" size={16} color="#fff" style={styles.addIcon} />
+                                            <Text style={styles.addButtonText}>Add Private Ride</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
+                        }
+                    />
+
+                    {/* PIN Modal */}
+                    <Modal
+                        visible={pinModalVisible}
+                        animationType="slide"
+                        transparent={true}
+                        onRequestClose={() => setPinModalVisible(false)}
+                    >
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+                                <FontAwesome5 name="key" size={48} color="#4CAF50" style={styles.modalIcon} />
+                                <Text style={styles.modalTitle}>Complete Ride with PIN</Text>
+                                <Text style={styles.pinSubtitle}>
+                                    {selectedPassenger ?
+                                        `Enter the PIN provided by ${selectedPassenger.userId?.name || selectedPassenger.userId?.email || 'the passenger'}` :
+                                        'Enter the PIN provided by the passenger'
+                                    }
+                                </Text>
+                                <TextInput
+                                    style={styles.pinInput}
+                                    value={pinInput}
+                                    onChangeText={setPinInput}
+                                    placeholder="Enter 6-digit PIN"
+                                    placeholderTextColor="#999"
+                                    keyboardType="numeric"
+                                    maxLength={6}
+                                    autoFocus={true}
+                                />
+                                <View style={styles.modalButtons}>
                                     <TouchableOpacity
-                                        style={styles.addButton}
-                                        onPress={() => router.push('/(private)/add-private-ride')}
+                                        style={styles.cancelModalButton}
+                                        onPress={() => {
+                                            setPinModalVisible(false);
+                                            setPinInput('');
+                                            setSelectedRideForCompletion(null);
+                                            setSelectedPassenger(null);
+                                        }}
                                     >
-                                        <FontAwesome5 name="plus" size={16} color="#fff" style={styles.addIcon} />
-                                        <Text style={styles.addButtonText}>Add Private Ride</Text>
+                                        <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.submitPinButton, pinInput.length !== 6 && styles.disabledButton]}
+                                        onPress={submitPinCompletion}
+                                        disabled={pinInput.length !== 6}
+                                    >
+                                        <Text style={styles.submitPinButtonText}>Complete Ride</Text>
                                     </TouchableOpacity>
                                 </View>
-                            )}
-                        </View>
-                    }
-                />
-
-                <Modal
-                    visible={pinModalVisible}
-                    animationType="slide"
-                    transparent={true}
-                    onRequestClose={() => setPinModalVisible(false)}
-                >
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <FontAwesome5 name="key" size={48} color="#4CAF50" style={styles.modalIcon} />
-                            <Text style={styles.modalTitle}>Complete Ride with PIN</Text>
-                            <Text style={styles.pinSubtitle}>
-                                {selectedPassenger ?
-                                    `Enter the PIN provided by ${selectedPassenger.userId?.name || selectedPassenger.userId?.email || 'the passenger'}` :
-                                    'Enter the PIN provided by the passenger'
-                                }
-                            </Text>
-                            <TextInput
-                                style={styles.pinInput}
-                                value={pinInput}
-                                onChangeText={setPinInput}
-                                placeholder="Enter 6-digit PIN"
-                                placeholderTextColor="#999"
-                                keyboardType="numeric"
-                                maxLength={6}
-                                autoFocus={true}
-                            />
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={styles.cancelModalButton}
-                                    onPress={() => {
-                                        setPinModalVisible(false);
-                                        setPinInput('');
-                                        setSelectedRideForCompletion(null);
-                                        setSelectedPassenger(null);
-                                    }}
-                                >
-                                    <Text style={styles.cancelModalButtonText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.submitPinButton, pinInput.length !== 6 && styles.disabledButton]}
-                                    onPress={submitPinCompletion}
-                                    disabled={pinInput.length !== 6}
-                                >
-                                    <Text style={styles.submitPinButtonText}>Complete Ride</Text>
-                                </TouchableOpacity>
                             </View>
                         </View>
-                    </View>
-                </Modal>
-            </SafeAreaView>
+                    </Modal>
 
-            {/* Custom Alert - moved to root level */}
+                    {/* Ride Options Modal */}
+                    <Modal
+                        visible={optionsModalVisible}
+                        transparent={true}
+                        animationType="fade"
+                        onRequestClose={handleCloseOptionsModal}
+                    >
+                        <TouchableOpacity
+                            style={styles.optionsModalOverlay}
+                            activeOpacity={1}
+                            onPress={handleCloseOptionsModal}
+                        >
+                            <View style={styles.optionsModalContent}>
+                                <View style={styles.optionsModalHeader}>
+                                    <Text style={styles.optionsModalTitle}>Ride Options</Text>
+                                    <TouchableOpacity onPress={handleCloseOptionsModal} style={styles.optionsCloseButton}>
+                                        <FontAwesome5 name="times" size={16} color="#666" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.optionItem}
+                                    onPress={handleEditRideFromOptions}
+                                >
+                                    <FontAwesome5 name="edit" size={16} color="#007bff" />
+                                    <Text style={styles.optionText}>Edit Ride</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.optionItem}
+                                    onPress={handleDeleteRideFromOptions}
+                                >
+                                    <FontAwesome5 name="trash" size={16} color="#dc3545" />
+                                    <Text style={[styles.optionText, styles.deleteOptionText]}>Delete Ride</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
+                    </Modal>
+                </SafeAreaView>
+            </LinearGradient>
+
+            {/* Driver Ride Detail Modal */}
+            <DriverRideDetail
+                visible={detailModalVisible}
+                ride={selectedRideForDetail}
+                onClose={handleCloseDetailModal}
+                onUpdatePaymentStatus={handleUpdatePaymentStatus}
+            />
+
+            {/* Custom Alert */}
             <CustomAlert
                 visible={alertVisible}
                 title={alertConfig.title}
                 message={alertConfig.message}
                 type={alertConfig.type}
                 buttons={alertConfig.buttons}
-                onDismiss={hideAlert}
+                onDismiss={() => setAlertVisible(false)}
             />
-        </LinearGradient>
+        </>
     );
 }
 
@@ -1121,24 +1149,46 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
     },
     rideCardContainer: {
-        marginBottom: 32,
+        marginBottom: 20,
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 0,
-        elevation: 3,
+        elevation: 4,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3.84,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
         borderWidth: 1,
-        borderColor: '#e0e0e0',
+        borderColor: '#e8f4fd',
+        overflow: 'hidden',
     },
-    rideActions: {
-        position: 'absolute',
-        right: 8,
-        top: 8,
+    rideCardHeader: {
         flexDirection: 'row',
-        gap: 8,
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        padding: 20,
+        backgroundColor: 'linear-gradient(135deg, #f8faff 0%, #e8f4fd 100%)',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e1f0ff',
+    },
+    optionsButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 3,
+        shadowColor: '#0a2472',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        marginLeft: 12,
+        borderWidth: 1,
+        borderColor: '#e1f0ff',
     },
     actionButton: {
         width: 32,
@@ -1622,5 +1672,66 @@ const styles = StyleSheet.create({
     locationPickerStyle: {
         marginBottom: 0,
         flex: 1,
+    },
+    optionsModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    optionsModalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 0,
+        width: '85%',
+        maxWidth: 320,
+        shadowColor: '#0a2472',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 12,
+        borderWidth: 1,
+        borderColor: '#e8f4fd',
+    },
+    optionsModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e1f0ff',
+        backgroundColor: 'rgba(10, 36, 114, 0.05)',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+    },
+    optionsModalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0a2472',
+    },
+    optionsCloseButton: {
+        padding: 6,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        borderWidth: 1,
+        borderColor: '#e1f0ff',
+    },
+    optionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 18,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f8ff',
+        backgroundColor: '#fff',
+    },
+    optionText: {
+        fontSize: 16,
+        color: '#374151',
+        marginLeft: 14,
+        fontWeight: '500',
+    },
+    deleteOptionText: {
+        color: '#dc3545',
+        fontWeight: '600',
     },
 }); 

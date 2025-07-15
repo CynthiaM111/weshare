@@ -1,7 +1,7 @@
 // app/(rides)/[id].js
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
@@ -9,11 +9,13 @@ import { useApi } from '../../hooks/useApi';
 // import ErrorDisplay from '../../components/ErrorDisplay';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import DriverContactModal from '../../components/DriverContactModal';
 
 export default function RideDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { user } = useAuth();
+    const [showDriverModal, setShowDriverModal] = useState(false);
 
     const {
         data: ride,
@@ -99,7 +101,23 @@ export default function RideDetails() {
             return;
         }
 
+        // For private rides, show driver contact modal
+        if (ride && ride.isPrivate) {
+            setShowDriverModal(true);
+        } else {
+            // For public rides, book directly
+            await bookRide();
+            fetchRideDetails();
+            router.replace('/(rides)/booked');
+        }
+    };
+
+    const handlePaymentConfirmed = async () => {
         try {
+            // Close driver modal
+            setShowDriverModal(false);
+
+            // Now proceed with booking after user confirms payment
             await bookRide();
             fetchRideDetails();
             router.replace('/(rides)/booked');
@@ -265,6 +283,22 @@ export default function RideDetails() {
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
+
+            {/* Driver Contact Modal for Private Rides */}
+            {showDriverModal && ride && ride.isPrivate && ride.userId && (
+                <DriverContactModal
+                    visible={showDriverModal}
+                    rideDetails={{
+                        from: ride.from,
+                        to: ride.to,
+                        departureDate: format(new Date(ride.departure_time), 'MMM dd, yyyy'),
+                        price: ride.price
+                    }}
+                    driverInfo={ride.userId}
+                    onConfirmPayment={handlePaymentConfirmed}
+                    onClose={() => setShowDriverModal(false)}
+                />
+            )}
         </LinearGradient>
     );
 }
