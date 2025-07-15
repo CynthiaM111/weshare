@@ -175,10 +175,18 @@ const createRide = async (req, res) => {
                 return res.status(400).json({ error: 'Please specify if your vehicle is wheelchair-accessible (yes/no)' });
             }
 
-            // Check if user is verified
+            // Check if user is verified driver
             const user = await User.findById(req.user.id);
-            if (!user || !user.isVerified) {
-                return res.status(403).json({ error: 'Only verified drivers can post private rides. Please verify your account first.' });
+            if (!user || !user.verifiedDriver) {
+                return res.status(403).json({
+                    error: 'Only verified drivers can post private rides. Please complete driver verification first.',
+                    requiresVerification: true
+                });
+            }
+
+            // For verified drivers, use their stored license plate if not provided
+            if (isPrivate && !licensePlate && user.driverProfile?.vehicleLicensePlate) {
+                licensePlate = user.driverProfile.vehicleLicensePlate;
             }
 
             // Check maximum rides per day (5 rides)
@@ -706,7 +714,8 @@ const getRideById = async (req, res) => {
     try {
         const ride = await Ride.findById(req.params.id)
             .populate('agencyId', 'name email')
-            .populate('categoryId', 'from to averageTime');
+            .populate('categoryId', 'from to averageTime')
+            .populate('userId', 'name email contact_number'); // Add contact_number to populated fields
 
         if (!ride) {
             return res.status(404).json({ error: 'Ride not found' });
@@ -928,7 +937,7 @@ const bookRide = async (req, res) => {
             });
         }
 
-        const ride = await Ride.findById(rideId);
+        const ride = await Ride.findById(rideId).populate('bookedBy.userId', 'name email photoUrl');
         if (!ride) {
             console.error('Ride not found:', rideId);
             return res.status(404).json({
@@ -958,7 +967,7 @@ const bookRide = async (req, res) => {
 
 
         const validationResult = ruleValidator.validateAction('booking', 'create', context);
-        
+
 
         if (!validationResult.isValid) {
             return res.status(400).json({
@@ -1440,7 +1449,7 @@ const getUserPrivateRides = async (req, res) => {
                 { status: { $ne: 'completed' } } // Exclude explicitly completed rides
             ]
         })
-            .populate('bookedBy.userId', 'name email')
+            .populate('bookedBy.userId', 'name email photoUrl')
             .sort({ departure_time: -1 })
             .lean();
 
@@ -1504,7 +1513,7 @@ const getAvailablePrivateRides = async (req, res) => {
         }
 
         const rides = await Ride.find(searchCriteria)
-            .populate('userId', 'name email')
+            .populate('userId', 'name email photoUrl')
             .select('from to departure_time estimatedArrivalTime licensePlate status description created_at seats price booked_seats userId')
             .sort({ departure_time: 1 })
             .lean();
@@ -2042,7 +2051,7 @@ const getRideBookings = async (req, res) => {
 
         // Find the ride and populate passenger information
         const ride = await Ride.findById(id)
-            .populate('bookedBy.userId', 'name email')
+            .populate('bookedBy.userId', 'name email photoUrl')
             .populate('agencyId', 'name email')
             .populate('categoryId', 'from to averageTime')
             .lean();
@@ -2122,7 +2131,8 @@ const getRideBookings = async (req, res) => {
             passenger: {
                 _id: booking.userId._id,
                 name: booking.userId.name,
-                email: booking.userId.email
+                email: booking.userId.email,
+                photoUrl: booking.userId.photoUrl
             },
             status: booking.checkInStatus,
             bookingId: booking.bookingId,
@@ -2138,6 +2148,60 @@ const getRideBookings = async (req, res) => {
             code: 'INTERNAL_SERVER_ERROR',
             details: error.message
         });
+    }
+};
+
+// Update payment status for a passenger on a private ride
+const updatePaymentStatus = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const { passengerId, paymentStatus } = req.body;
+        const driverId = req.user.id;
+
+        if (!mongoose.Types.ObjectId.isValid(rideId)) {
+            return res.status(400).json({ error: 'Invalid ride ID' });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(passengerId)) {
+            return res.status(400).json({ error: 'Invalid passenger ID' });
+        }
+
+        if (!['paid', 'unpaid'].includes(paymentStatus)) {
+            return res.status(400).json({ error: 'Invalid payment status' });
+        }
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) {
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        // Check if the current user is the driver of this private ride
+        if (ride.isPrivate && ride.userId.toString() !== driverId) {
+            return res.status(403).json({ error: 'Only the ride driver can update payment status' });
+        }
+
+        // Find the passenger booking
+        const booking = ride.bookedBy.find(b => b.userId.toString() === passengerId);
+        if (!booking) {
+            return res.status(404).json({ error: 'Passenger not found on this ride' });
+        }
+
+        // Update payment status
+        booking.paymentStatus = paymentStatus;
+        await ride.save();
+
+        // Clear cache
+        await redisClient.del(`bookedRides:${passengerId}`);
+        await clearCache();
+
+        res.status(200).json({
+            message: 'Payment status updated successfully',
+            paymentStatus: paymentStatus,
+            passengerId: passengerId
+        });
+    } catch (error) {
+        console.error('Error updating payment status:', error);
+        res.status(500).json({ error: 'Failed to update payment status' });
     }
 };
 
@@ -2166,6 +2230,7 @@ module.exports = {
     refreshCache,
     warmCache,
     getAgencyRideHistory,
-    getRideBookings
+    getRideBookings,
+    updatePaymentStatus
 };
 

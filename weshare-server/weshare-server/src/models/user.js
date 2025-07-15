@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ['user', 'agency_employee'], default: 'user' }, // Only normal users here
     name: { type: String, required: true },
     contact_number: { type: String, required: true, unique: true, match: [/^\+2507[2389]\d{7}$/, 'Please enter a valid Rwandan phone number'] },
+    photoUrl: { type: String, trim: true }, // Profile photo URL
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String },
     verificationCodeExpires: { type: Date },
@@ -15,7 +16,49 @@ const userSchema = new mongoose.Schema({
     booked_rides: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Ride'
-    }]
+    }],
+
+    // Driver verification fields
+    verifiedDriver: {
+        type: Boolean,
+        default: false
+    },
+
+    driverProfile: {
+        fullName: {
+            type: String,
+            trim: true
+        },
+        dateOfBirth: {
+            type: Date
+        },
+        nationalId: {
+            type: String,
+            trim: true,
+            validate: {
+                validator: function (v) {
+                    return /^\d{16}$/.test(v);
+                },
+                message: 'National ID must be exactly 16 digits'
+            }
+        },
+        vehicleLicensePlate: {
+            type: String,
+            trim: true,
+            validate: {
+                validator: function (v) {
+                    return /^[A-Z0-9]{2,7}$/.test(v);
+                },
+                message: 'License plate must be 2-7 characters, letters and numbers only'
+            }
+        },
+        verificationDate: {
+            type: Date,
+            default: Date.now
+        }
+    }
+}, {
+    timestamps: true
 });
 
 // Create indexes

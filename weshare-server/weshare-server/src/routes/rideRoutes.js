@@ -31,6 +31,9 @@ router.patch('/rides/:rideId/cancel-ride', authController.protect, rideControlle
 router.post('/rides/:rideId/generate-completion-pin', authController.protect, rideController.generateCompletionPin);
 router.post('/rides/:rideId/complete-with-pin', authController.protect, rideController.completeRideWithPin);
 
+// Payment status update for private rides
+router.patch('/rides/:rideId/payment-status', authController.protect, rideController.updatePaymentStatus);
+
 router.post('/rides/cache/refresh', authController.protect, rideController.refreshCache);
 
 module.exports = router;

@@ -204,6 +204,7 @@ const login = async (req, res) => {
             email: user.email,
             name: user.name,
             contact_number: user.contact_number,
+            photoUrl: user.photoUrl,
         };
 
         if (role === 'agency_employee') {
@@ -254,6 +255,7 @@ const status = async (req, res) => {
             email: user.email,
             name: user.name,
             contact_number: user.contact_number,
+            photoUrl: user.photoUrl,
             agencyId: decoded.role === 'agency_employee' ? user.agencyId : null,
             destinationCategoryId: decoded.role === 'agency_employee' ? user.destinationCategoryId : null
         });
@@ -559,4 +561,79 @@ const sendOTP = async (req, res) => {
     }
 };
 
-module.exports = { signup, login, protect, agencyOnly, status, employeeOnly, getAgencies, getAgencyCategories, getAgencyById, getDestinationCategoryById, verifyPhone, resendVerificationCode, sendOTP, getUsers };
+// Update user profile
+const updateUserProfile = async (req, res) => {
+    try {
+        const { photoUrl, name, contact_number } = req.body;
+        const userId = req.user.id;
+
+        // Build update object with only provided fields
+        const updateData = {};
+        if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
+        if (name !== undefined) updateData.name = name;
+        if (contact_number !== undefined) updateData.contact_number = contact_number;
+
+        // Validate contact number if provided
+        if (contact_number) {
+            const rwPhoneRegex = /^\+2507[2389]\d{7}$/;
+            if (!rwPhoneRegex.test(contact_number)) {
+                return res.status(400).json({ error: 'Invalid Rwandan phone number' });
+            }
+
+            // Check if contact number is already taken by another user
+            const existingUser = await User.findOne({
+                contact_number,
+                _id: { $ne: userId }
+            });
+            if (existingUser) {
+                return res.status(400).json({ error: 'A user with this contact number already exists' });
+            }
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(200).json({
+            message: 'Profile updated successfully',
+            user: {
+                id: updatedUser._id,
+                name: updatedUser.name,
+                contact_number: updatedUser.contact_number,
+                photoUrl: updatedUser.photoUrl,
+                role: updatedUser.role,
+                email: updatedUser.email
+            }
+        });
+    } catch (error) {
+        console.error('Error updating user profile:', error);
+        res.status(500).json({
+            error: 'Failed to update profile',
+            details: error.message
+        });
+    }
+};
+
+module.exports = {
+    signup,
+    login,
+    protect,
+    agencyOnly,
+    status,
+    employeeOnly,
+    getAgencies,
+    getAgencyCategories,
+    getAgencyById,
+    getDestinationCategoryById,
+    verifyPhone,
+    resendVerificationCode,
+    sendOTP,
+    getUsers,
+    updateUserProfile
+};

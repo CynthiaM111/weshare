@@ -14,7 +14,8 @@ const {
     verifyPhone,
     resendVerificationCode,
     sendOTP,
-    getUsers
+    getUsers,
+    updateUserProfile
 } = require('../controllers/authController');
 
 // Public routes
@@ -30,6 +31,7 @@ router.get('/users', protect, getUsers);
 router.get('/agencies/:agencyId', protect, getAgencyById);
 router.get('/agencies/:id/categories', getAgencyCategories);
 router.get('/categories/:id', protect, getDestinationCategoryById);
+router.put('/user', protect, updateUserProfile);
 
 
 module.exports = router;
