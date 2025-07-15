@@ -31,6 +31,10 @@ router.patch('/rides/:rideId/cancel-ride', authController.protect, rideControlle
 router.post('/rides/:rideId/generate-completion-pin', authController.protect, rideController.generateCompletionPin);
 router.post('/rides/:rideId/complete-with-pin', authController.protect, rideController.completeRideWithPin);
 
+// GPS-based ride completion routes for private rides
+router.post('/rides/:rideId/start', authController.protect, rideController.startRide);
+router.post('/rides/:rideId/finish', authController.protect, rideController.finishRide);
+
 // Payment status update for private rides
 router.patch('/rides/:rideId/payment-status', authController.protect, rideController.updatePaymentStatus);
 

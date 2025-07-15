@@ -205,6 +205,29 @@ const createRide = async (req, res) => {
                 return res.status(400).json({ error: 'You have reached the maximum limit of 5 rides per day. Please try again tomorrow.' });
             }
 
+            // RESTRICTION: Check if driver has too many active rides
+            const activeRidesCount = await Ride.countDocuments({
+                userId: req.user.id,
+                isPrivate: true,
+                status: 'active',
+                departure_time: { $gte: new Date() }
+            });
+
+            if (activeRidesCount >= 8) {
+                return res.status(400).json({ error: 'You already have 8 active rides. Please manage your existing rides before creating new ones.' });
+            }
+
+            // RESTRICTION: Check if driver has any rides in progress
+            const inProgressRidesCount = await Ride.countDocuments({
+                userId: req.user.id,
+                isPrivate: true,
+                rideStatus: 'in_progress'
+            });
+
+            if (inProgressRidesCount > 0) {
+                return res.status(400).json({ error: 'You have rides currently in progress. Please finish them before creating new rides.' });
+            }
+
             // Check for duplicate rides on same date and time
             const departureTime = new Date(`${date}T${time}`);
             const timeWindowStart = new Date(departureTime.getTime() - 30 * 60 * 1000); // 30 minutes before
@@ -759,6 +782,13 @@ const updateRide = async (req, res) => {
             }
         }
 
+        // RESTRICTION: Check if ride is in progress (cannot edit started rides)
+        if (ride.rideStatus === 'in_progress') {
+            return res.status(400).json({
+                error: 'Cannot edit a ride that is already in progress. Please finish the ride first.'
+            });
+        }
+
         // Prevent updating booked_seats directly via this endpoint
         if ('booked_seats' in updates) {
             delete updates.booked_seats;
@@ -817,6 +847,29 @@ const deleteRide = async (req, res) => {
                 code: 'RIDE_NOT_FOUND',
                 timestamp: new Date().toISOString()
             });
+        }
+
+        // RESTRICTION: Check if ride is in progress (cannot delete started rides)
+        if (ride.rideStatus === 'in_progress') {
+            return res.status(400).json({
+                error: 'Cannot delete a ride that is already in progress. Please finish the ride first.',
+                code: 'RIDE_IN_PROGRESS',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        // RESTRICTION: Check if ride has passengers and is close to departure
+        if (ride.bookedBy && ride.bookedBy.length > 0) {
+            const currentTime = new Date();
+            const oneHourBeforeDeparture = new Date(ride.departure_time.getTime() - 60 * 60 * 1000);
+
+            if (currentTime >= oneHourBeforeDeparture) {
+                return res.status(400).json({
+                    error: 'Cannot delete a ride with passengers within 1 hour of departure. Please contact passengers directly.',
+                    code: 'RIDE_TOO_CLOSE_TO_DEPARTURE',
+                    timestamp: new Date().toISOString()
+                });
+            }
         }
 
         // Validate deletion against business rules
@@ -1979,6 +2032,14 @@ const cancelRide = async (req, res) => {
             });
         }
 
+        // RESTRICTION: Check if ride is in progress (cannot cancel started rides)
+        if (ride.rideStatus === 'in_progress') {
+            return res.status(400).json({
+                error: 'Cannot cancel a ride that is already in progress. Please finish the ride instead.',
+                code: 'RIDE_IN_PROGRESS'
+            });
+        }
+
         // Check if ride has already departed
         const currentTime = new Date();
         if (ride.departure_time < currentTime) {
@@ -2205,6 +2266,297 @@ const updatePaymentStatus = async (req, res) => {
     }
 };
 
+// GPS-based ride completion functions
+const startRide = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const { latitude, longitude } = req.body;
+        const driverId = req.user.id;
+
+        console.log('startRide called with:', { rideId, latitude, longitude, driverId });
+
+        if (!mongoose.Types.ObjectId.isValid(rideId)) {
+            return res.status(400).json({ error: 'Invalid ride ID' });
+        }
+
+        if (!latitude || !longitude) {
+            return res.status(400).json({ error: 'GPS coordinates are required' });
+        }
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) {
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        // Check if the current user is the driver of this private ride
+        if (ride.isPrivate && ride.userId.toString() !== driverId) {
+            return res.status(403).json({ error: 'Only the ride driver can start the ride' });
+        }
+
+        // RESTRICTION 1: Check if ride is already started or completed
+        if (ride.rideStatus === 'in_progress' || ride.rideStatus === 'completed') {
+            return res.status(400).json({ error: 'Ride is already in progress or completed' });
+        }
+
+        // RESTRICTION 2: Check if ride has passengers
+        if (!ride.bookedBy || ride.bookedBy.length === 0) {
+            return res.status(400).json({ error: 'Cannot start a ride with no passengers' });
+        }
+
+        // RESTRICTION 3: Check if departure time is within acceptable range (30 minutes before to 2 hours after)
+        const currentTime = new Date();
+        const departureTime = new Date(ride.departure_time);
+        const thirtyMinutesBefore = new Date(departureTime.getTime() - 30 * 60 * 1000);
+        const twoHoursAfter = new Date(departureTime.getTime() + 2 * 60 * 60 * 1000);
+
+        if (currentTime < thirtyMinutesBefore) {
+            return res.status(400).json({
+                error: 'Cannot start ride more than 30 minutes before scheduled departure time'
+            });
+        }
+
+        if (currentTime > twoHoursAfter) {
+            return res.status(400).json({
+                error: 'Cannot start ride more than 2 hours after scheduled departure time'
+            });
+        }
+
+        // RESTRICTION 4: Check if driver has already started too many rides today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const todayStartedRides = await Ride.countDocuments({
+            userId: driverId,
+            isPrivate: true,
+            rideStartedAt: { $gte: today, $lt: tomorrow },
+            rideStatus: { $in: ['in_progress', 'completed'] }
+        });
+
+        if (todayStartedRides >= 10) {
+            return res.status(400).json({
+                error: 'You have already started 10 rides today. Please try again tomorrow.'
+            });
+        }
+
+        // RESTRICTION 5: Check if driver has any active rides in progress
+        const activeRides = await Ride.countDocuments({
+            userId: driverId,
+            isPrivate: true,
+            rideStatus: 'in_progress'
+        });
+
+        if (activeRides >= 3) {
+            return res.status(400).json({
+                error: 'You already have 3 active rides in progress. Please finish them before starting new ones.'
+            });
+        }
+
+        // Validate GPS location against origin (if coordinates are available)
+        let locationWarning = null;
+        if (ride.originCoordinates && ride.originCoordinates.latitude && ride.originCoordinates.longitude) {
+            const distance = calculateDistance(
+                latitude, longitude,
+                ride.originCoordinates.latitude, ride.originCoordinates.longitude
+            );
+
+            if (distance > 5) { // More than 5km from origin
+                locationWarning = `You're starting this ride ${distance.toFixed(1)}km from the origin. This may result in penalties.`;
+            }
+        }
+
+        // Start the ride
+        ride.rideStatus = 'in_progress';
+        ride.rideStartedAt = new Date();
+        await ride.save();
+
+        // Clear cache
+        await redisClient.del(`privateRides:${driverId}`);
+        await clearCache();
+
+        // Send notification to all passengers
+        try {
+            for (const booking of ride.bookedBy) {
+                await messagingService.sendRideStarted(booking.userId, rideId);
+            }
+        } catch (messageError) {
+            console.error('Failed to send ride started messages:', messageError);
+        }
+
+        res.status(200).json({
+            message: 'Ride started successfully',
+            warning: locationWarning,
+            rideStatus: ride.rideStatus
+        });
+    } catch (error) {
+        console.error('Error starting ride:', error);
+        res.status(500).json({ error: 'Failed to start ride' });
+    }
+};
+
+const finishRide = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const { latitude, longitude } = req.body;
+        const driverId = req.user.id;
+
+        console.log('finishRide called with:', { rideId, latitude, longitude, driverId });
+
+        if (!mongoose.Types.ObjectId.isValid(rideId)) {
+            return res.status(400).json({ error: 'Invalid ride ID' });
+        }
+
+        if (!latitude || !longitude) {
+            return res.status(400).json({ error: 'GPS coordinates are required' });
+        }
+
+        const ride = await Ride.findById(rideId).populate('bookedBy.userId', 'name email');
+        if (!ride) {
+            return res.status(404).json({ error: 'Ride not found' });
+        }
+
+        // Check if the current user is the driver of this private ride
+        if (ride.isPrivate && ride.userId.toString() !== driverId) {
+            return res.status(403).json({ error: 'Only the ride driver can finish the ride' });
+        }
+
+        // RESTRICTION 1: Check if ride is not started or already completed
+        if (ride.rideStatus === 'not_started') {
+            return res.status(400).json({ error: 'Ride must be started before it can be finished' });
+        }
+
+        if (ride.rideStatus === 'completed') {
+            return res.status(400).json({ error: 'Ride is already completed' });
+        }
+
+        // RESTRICTION 2: Check if ride was started too recently (minimum 5 minutes)
+        if (ride.rideStartedAt) {
+            const rideStartTime = new Date(ride.rideStartedAt);
+            const currentTime = new Date();
+            const timeDifference = (currentTime - rideStartTime) / (1000 * 60); // in minutes
+
+            if (timeDifference < 5) {
+                return res.status(400).json({
+                    error: 'Ride must be active for at least 5 minutes before it can be finished'
+                });
+            }
+        }
+
+        // RESTRICTION 3: Check if all passengers are present (at least checked in)
+        const passengersNotCheckedIn = ride.bookedBy.filter(booking =>
+            booking.checkInStatus === 'pending'
+        );
+
+        if (passengersNotCheckedIn.length > 0) {
+            return res.status(400).json({
+                error: `Cannot finish ride. ${passengersNotCheckedIn.length} passenger(s) have not checked in yet.`
+            });
+        }
+
+        // RESTRICTION 4: Check if driver is finishing too many rides in a short time
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const recentFinishedRides = await Ride.countDocuments({
+            userId: driverId,
+            isPrivate: true,
+            rideFinishedAt: { $gte: oneHourAgo },
+            rideStatus: 'completed'
+        });
+
+        if (recentFinishedRides >= 5) {
+            return res.status(400).json({
+                error: 'You have finished 5 rides in the last hour. Please wait before finishing more rides.'
+            });
+        }
+
+        // RESTRICTION 5: Check if estimated arrival time has passed (with 1 hour grace period)
+        const estimatedArrivalTime = new Date(ride.estimatedArrivalTime);
+        const gracePeriodEnd = new Date(estimatedArrivalTime.getTime() + 60 * 60 * 1000); // 1 hour after ETA
+        const currentTime = new Date();
+
+        if (currentTime < estimatedArrivalTime) {
+            return res.status(400).json({
+                error: 'Cannot finish ride before the estimated arrival time'
+            });
+        }
+
+        if (currentTime > gracePeriodEnd) {
+            return res.status(400).json({
+                error: 'Cannot finish ride more than 1 hour after estimated arrival time. Please contact support.'
+            });
+        }
+
+        // Validate GPS location against destination (if coordinates are available)
+        let locationWarning = null;
+        if (ride.destinationCoordinates && ride.destinationCoordinates.latitude && ride.destinationCoordinates.longitude) {
+            const distance = calculateDistance(
+                latitude, longitude,
+                ride.destinationCoordinates.latitude, ride.destinationCoordinates.longitude
+            );
+
+            if (distance > 5) { // More than 5km from destination
+                locationWarning = `You're ending the ride ${distance.toFixed(1)}km from the destination. This may result in penalties.`;
+            }
+        }
+
+        // Mark all passengers as completed
+        for (const booking of ride.bookedBy) {
+            booking.checkInStatus = 'completed';
+            booking.completedAt = new Date();
+        }
+
+        // Finish the ride
+        ride.rideStatus = 'completed';
+        ride.rideFinishedAt = new Date();
+        ride.status = 'completed'; // Update the main status as well
+        await ride.save();
+
+        // Clear cache
+        await redisClient.del(`privateRides:${driverId}`);
+        await clearCache();
+
+        // Clear cache for all passengers on this ride
+        for (const booking of ride.bookedBy) {
+            await redisClient.del(`bookedRides:${booking.userId._id || booking.userId}`);
+        }
+
+        // Send completion notifications
+        try {
+            for (const booking of ride.bookedBy) {
+                await messagingService.sendRideCompletion(booking.userId._id || booking.userId, rideId);
+            }
+            // Send completion notification to driver
+            await messagingService.sendPrivateRideCompleted(driverId, rideId);
+        } catch (messageError) {
+            console.error('Failed to send ride completion messages:', messageError);
+        }
+
+        res.status(200).json({
+            message: 'Ride completed successfully',
+            warning: locationWarning,
+            rideStatus: ride.rideStatus,
+            completedPassengers: ride.bookedBy.length
+        });
+    } catch (error) {
+        console.error('Error finishing ride:', error);
+        res.status(500).json({ error: 'Failed to finish ride' });
+    }
+};
+
+// Helper function to calculate distance between two GPS coordinates (Haversine formula)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in kilometers
+    return distance;
+};
+
 module.exports = {
     createRide,
     getRides,
@@ -2231,6 +2583,9 @@ module.exports = {
     warmCache,
     getAgencyRideHistory,
     getRideBookings,
-    updatePaymentStatus
+    updatePaymentStatus,
+    startRide,
+    finishRide,
+    calculateDistance
 };
 

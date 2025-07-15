@@ -18,6 +18,15 @@ const rideSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
+    // GPS coordinates for origin and destination
+    originCoordinates: {
+        latitude: { type: Number },
+        longitude: { type: Number }
+    },
+    destinationCoordinates: {
+        latitude: { type: Number },
+        longitude: { type: Number }
+    },
     departure_time: {
         type: Date,
         required: true,
@@ -109,10 +118,18 @@ const rideSchema = new mongoose.Schema({
         checkInStatus: { type: String, enum: ['pending', 'checked-in', 'completed'], default: 'pending' },
         paymentStatus: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' }, // Payment tracking
         bookingId: { type: String, required: true }, // Unique ID for QR code
-        completionPin: { type: String }, // PIN for ride completion
-        pinGeneratedAt: { type: Date }, // When the PIN was generated
+        completionPin: { type: String }, // PIN for ride completion (deprecated)
+        pinGeneratedAt: { type: Date }, // When the PIN was generated (deprecated)
         completedAt: { type: Date } // When the ride was completed
     }],
+    // Ride status tracking for GPS-based completion
+    rideStartedAt: { type: Date }, // When driver started the ride
+    rideFinishedAt: { type: Date }, // When driver finished the ride
+    rideStatus: {
+        type: String,
+        enum: ['not_started', 'in_progress', 'completed'],
+        default: 'not_started'
+    },
     // booked_users: [{
     //     type: mongoose.Schema.Types.ObjectId,
     //     ref: 'User'
