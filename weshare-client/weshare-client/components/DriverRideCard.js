@@ -18,119 +18,124 @@ const DriverRideCard = ({
     const isInProgress = ride.rideStatus === 'in_progress';
     const isCompleted = ride.rideStatus === 'completed';
 
+    const getStatusColor = () => {
+        if (isCompleted) return '#10B981';
+        if (isInProgress) return '#3B82F6';
+        return '#F59E0B';
+    };
+
+    const getStatusText = () => {
+        if (isCompleted) return 'Completed';
+        if (isInProgress) return 'In Progress';
+        return 'Ready';
+    };
+
+    const getStatusIcon = () => {
+        if (isCompleted) return 'check-circle';
+        if (isInProgress) return 'route';
+        return 'clock';
+    };
+
     return (
-        <TouchableOpacity style={styles.card} onPress={onPress}>
-            {/* Status Badge */}
-            <View style={styles.statusBadgeContainer}>
-                {isNotStarted && (
-                    <View style={styles.statusBadge}>
-                        <FontAwesome5 name="clock" size={12} color="#fff" />
-                        <Text style={styles.statusBadgeText}>Ready</Text>
-                    </View>
-                )}
-                {isInProgress && (
-                    <View style={[styles.statusBadge, styles.inProgressBadge]}>
-                        <FontAwesome5 name="route" size={12} color="#fff" />
-                        <Text style={styles.statusBadgeText}>In Progress</Text>
-                    </View>
-                )}
-                {isCompleted && (
-                    <View style={[styles.statusBadge, styles.completedBadge]}>
-                        <FontAwesome5 name="check-circle" size={12} color="#fff" />
-                        <Text style={styles.statusBadgeText}>Completed</Text>
-                    </View>
-                )}
-            </View>
-
-            {/* Route and Date */}
+        <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.95}>
+            {/* Header with Route and Status */}
             <View style={styles.header}>
-                <View style={styles.routeContainer}>
-                    <FontAwesome5 name="route" size={16} color="#0a2472" />
-                    <Text style={styles.routeText}>{ride.from} → {ride.to}</Text>
+                <View style={styles.routeInfo}>
+                    <View style={styles.routeContainer}>
+                        <FontAwesome5 name="map-marker-alt" size={14} color="#6B7280" />
+                        <Text style={styles.routeText} numberOfLines={1}>
+                            {ride.from} → {ride.to}
+                        </Text>
+                    </View>
+                    <View style={styles.dateTimeContainer}>
+                        <FontAwesome5 name="calendar-alt" size={12} color="#6B7280" />
+                        <Text style={styles.dateTimeText}>
+                            {format(new Date(ride.departure_time), 'MMM dd • h:mm a')}
+                        </Text>
+                    </View>
                 </View>
-                <View style={styles.dateContainer}>
-                    <FontAwesome5 name="calendar" size={14} color="#666" />
-                    <Text style={styles.dateText}>
-                        {format(new Date(ride.departure_time), 'MMM dd')}
-                    </Text>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
+                    <FontAwesome5 name={getStatusIcon()} size={10} color="#fff" />
+                    <Text style={styles.statusText}>{getStatusText()}</Text>
                 </View>
             </View>
 
-            {/* Time and Passengers */}
-            <View style={styles.details}>
-                <View style={styles.detailRow}>
-                    <FontAwesome5 name="clock" size={14} color="#666" />
-                    <Text style={styles.detailText}>
-                        {format(new Date(ride.departure_time), 'h:mm a')}
-                    </Text>
-                </View>
-                <View style={styles.detailRow}>
-                    <FontAwesome5 name="users" size={14} color="#666" />
+            {/* Key Details Row */}
+            <View style={styles.detailsRow}>
+                <View style={styles.detailItem}>
+                    <FontAwesome5 name="users" size={12} color="#6B7280" />
                     <Text style={styles.detailText}>
                         {totalPassengers} passenger{totalPassengers !== 1 ? 's' : ''}
                     </Text>
                 </View>
+                <View style={styles.detailDivider} />
+                <View style={styles.detailItem}>
+                    <FontAwesome5 name="money-bill-wave" size={12} color="#6B7280" />
+                    <Text style={styles.detailText}>RWF {ride.price}</Text>
+                </View>
+                <View style={styles.detailDivider} />
+                <View style={styles.detailItem}>
+                    <FontAwesome5 name="car" size={12} color="#6B7280" />
+                    <Text style={styles.detailText}>
+                        {ride.seats - totalPassengers} seats left
+                    </Text>
+                </View>
             </View>
 
-            {/* Payment Status Bar */}
+            {/* Payment Progress (only show if there are passengers) */}
             {totalPassengers > 0 && (
-                <View style={styles.paymentStatusContainer}>
-                    <View style={styles.paymentBar}>
+                <View style={styles.paymentSection}>
+                    <View style={styles.paymentHeader}>
+                        <Text style={styles.paymentLabel}>Payment Status</Text>
+                        <Text style={styles.paymentPercentage}>{paymentPercentage}%</Text>
+                    </View>
+                    <View style={styles.progressBar}>
                         <View
                             style={[
-                                styles.paymentProgress,
-                                { width: `${paymentPercentage}%` }
+                                styles.progressFill,
+                                {
+                                    width: `${paymentPercentage}%`,
+                                    backgroundColor: paymentPercentage === 100 ? '#10B981' : '#3B82F6'
+                                }
                             ]}
                         />
                     </View>
-                    <Text style={styles.paymentText}>
-                        {paidPassengers.length}/{totalPassengers} paid ({paymentPercentage}%)
+                    <Text style={styles.paymentDetails}>
+                        {paidPassengers.length} of {totalPassengers} passengers paid
                     </Text>
                 </View>
             )}
 
-            {/* Price */}
-            <View style={styles.priceContainer}>
-                <Text style={styles.priceText}>RWF {ride.price}/passenger</Text>
-            </View>
-
-            {/* Ride Action Buttons */}
+            {/* Action Buttons */}
             {!isCompleted && (
-                <View style={styles.actionButtonsContainer}>
+                <View style={styles.actionSection}>
                     {isNotStarted && onStartRide && (
                         <TouchableOpacity
-                            style={styles.startButton}
+                            style={[styles.actionButton, styles.startButton]}
                             onPress={onStartRide}
                         >
-                            <View style={styles.buttonContent}>
-                                <FontAwesome5 name="play" size={16} color="#fff" />
-                                <Text style={styles.startButtonText}>Start Ride</Text>
-                            </View>
-                            <View style={styles.buttonGlow} />
+                            <FontAwesome5 name="play" size={14} color="#fff" />
+                            <Text style={styles.actionButtonText}>Start Ride</Text>
                         </TouchableOpacity>
                     )}
 
                     {isInProgress && onFinishRide && (
                         <TouchableOpacity
-                            style={styles.finishButton}
+                            style={[styles.actionButton, styles.finishButton]}
                             onPress={onFinishRide}
                         >
-                            <View style={styles.buttonContent}>
-                                <FontAwesome5 name="flag-checkered" size={16} color="#fff" />
-                                <Text style={styles.finishButtonText}>Finish Ride</Text>
-                            </View>
-                            <View style={styles.buttonGlow} />
+                            <FontAwesome5 name="flag-checkered" size={14} color="#fff" />
+                            <Text style={styles.actionButtonText}>Finish Ride</Text>
                         </TouchableOpacity>
                     )}
                 </View>
             )}
 
+            {/* Completed State */}
             {isCompleted && (
-                <View style={styles.completedContainer}>
-                    <View style={styles.completedIcon}>
-                        <FontAwesome5 name="check-circle" size={20} color="#4CAF50" />
-                    </View>
-                    <Text style={styles.completedText}>Ride Completed</Text>
+                <View style={styles.completedSection}>
+                    <FontAwesome5 name="check-circle" size={16} color="#10B981" />
+                    <Text style={styles.completedText}>Ride completed successfully</Text>
                 </View>
             )}
         </TouchableOpacity>
@@ -139,267 +144,182 @@ const DriverRideCard = ({
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: 'transparent',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 16,
-        shadowColor: 'transparent',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0,
-        shadowRadius: 0,
-        elevation: 0,
-        borderWidth: 0,
-        position: 'relative',
-        overflow: 'hidden',
-    },
-    statusBadgeContainer: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        zIndex: 10,
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#ff9800',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        shadowColor: '#ff9800',
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        paddingRight: 48, // Make space for options button
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
         elevation: 3,
-    },
-    inProgressBadge: {
-        backgroundColor: '#2196F3',
-        shadowColor: '#2196F3',
-    },
-    completedBadge: {
-        backgroundColor: '#4CAF50',
-        shadowColor: '#4CAF50',
-    },
-    statusBadgeText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 'bold',
-        marginLeft: 6,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-        marginTop: 0,
-        gap: 12,
+        alignItems: 'flex-start',
+        marginBottom: 12,
+    },
+    routeInfo: {
+        flex: 1,
+        marginRight: 8, // Reduced from 12 to 8 to give more space for status badge
     },
     routeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        flex: 1,
-        backgroundColor: 'rgba(10, 36, 114, 0.08)',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(10, 36, 114, 0.15)',
+        marginBottom: 4,
     },
     routeText: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#0a2472',
-        marginLeft: 10,
-        flex: 1,
-    },
-    dateContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(76, 175, 80, 0.2)',
-        minWidth: 80,
-    },
-    dateText: {
-        fontSize: 14,
-        color: '#2e7d32',
-        marginLeft: 6,
         fontWeight: '600',
+        color: '#1F2937',
+        marginLeft: 6,
+        flex: 1,
     },
-    details: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-        backgroundColor: 'rgba(248, 250, 252, 0.8)',
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(226, 232, 240, 0.8)',
-        gap: 12,
-    },
-    detailRow: {
+    dateTimeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+    },
+    dateTimeText: {
+        fontSize: 13,
+        color: '#6B7280',
+        marginLeft: 4,
+        fontWeight: '500',
+    },
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0, 0, 0, 0.05)',
+        minWidth: 70,
+        justifyContent: 'center',
+        marginRight: 8, // Add some margin to avoid overlap with options button
+    },
+    statusText: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '600',
+        marginLeft: 4,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    detailsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        paddingHorizontal: 8,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 8,
+        paddingVertical: 10,
+    },
+    detailItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         flex: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        minWidth: 0, // Allow text to wrap if needed
+    },
+    detailDivider: {
+        width: 1,
+        height: 20,
+        backgroundColor: '#E5E7EB',
+        marginHorizontal: 4,
     },
     detailText: {
-        fontSize: 14,
+        fontSize: 13,
         color: '#374151',
-        marginLeft: 8,
+        marginLeft: 6,
+        fontWeight: '500',
+        textAlign: 'center',
+        flexShrink: 1, // Allow text to shrink if needed
+    },
+    paymentSection: {
+        marginBottom: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F3F4F6',
+    },
+    paymentHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    paymentLabel: {
+        fontSize: 13,
+        color: '#6B7280',
+        fontWeight: '500',
+    },
+    paymentPercentage: {
+        fontSize: 13,
+        color: '#1F2937',
         fontWeight: '600',
     },
-    paymentStatusContainer: {
-        marginBottom: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.95)',
+    progressBar: {
+        height: 6,
+        backgroundColor: '#E5E7EB',
+        borderRadius: 3,
+        marginBottom: 4,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 3,
+    },
+    paymentDetails: {
+        fontSize: 12,
+        color: '#6B7280',
+        textAlign: 'center',
+    },
+    actionSection: {
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F3F4F6',
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
     },
-    paymentBar: {
-        height: 10,
-        backgroundColor: 'rgba(224, 224, 224, 0.8)',
-        borderRadius: 6,
-        marginBottom: 10,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(0, 0, 0, 0.05)',
-    },
-    paymentProgress: {
-        height: '100%',
-        backgroundColor: '#4CAF50',
-        borderRadius: 6,
-        shadowColor: '#4CAF50',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-    },
-    paymentText: {
-        fontSize: 13,
-        color: '#374151',
-        textAlign: 'center',
-        fontWeight: '600',
-    },
-    priceContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(76, 175, 80, 0.2)',
-        marginBottom: 16,
-    },
-    priceText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#2e7d32',
-        marginLeft: 8,
-    },
-    actionButtonsContainer: {
-        marginTop: 8,
-    },
     startButton: {
-        backgroundColor: '#4CAF50',
-        borderRadius: 16,
-        padding: 0,
-        overflow: 'hidden',
-        shadowColor: '#4CAF50',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
-        position: 'relative',
+        backgroundColor: '#10B981',
     },
     finishButton: {
-        backgroundColor: '#f44336',
-        borderRadius: 16,
-        padding: 0,
-        overflow: 'hidden',
-        shadowColor: '#f44336',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
-        position: 'relative',
+        backgroundColor: '#EF4444',
     },
-    buttonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 24,
-        backgroundColor: 'transparent',
-        zIndex: 2,
-    },
-    buttonGlow: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: 16,
-    },
-    startButtonText: {
+    actionButtonText: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginLeft: 10,
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 6,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
-    finishButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginLeft: 10,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    completedContainer: {
+    completedSection: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-        paddingVertical: 16,
-        paddingHorizontal: 24,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(76, 175, 80, 0.2)',
-        marginTop: 8,
-    },
-    completedIcon: {
-        marginRight: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F3F4F6',
     },
     completedText: {
-        color: '#4CAF50',
-        fontSize: 16,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        color: '#10B981',
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 6,
     },
 });
 

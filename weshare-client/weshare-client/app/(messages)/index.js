@@ -175,6 +175,12 @@ export default function MessagesScreen() {
                 return { name: 'bell', color: '#9C27B0' };
             case 'completion':
                 return { name: 'flag-checkered', color: '#607D8B' };
+            case 'private_ride_booked':
+                return { name: 'user-plus', color: '#4CAF50' };
+            case 'private_ride_completed':
+                return { name: 'check-double', color: '#4CAF50' };
+            case 'ride_started':
+                return { name: 'play-circle', color: '#2196F3' };
             default:
                 return { name: 'envelope', color: '#757575' };
         }
@@ -194,6 +200,12 @@ export default function MessagesScreen() {
                 return 'Ride Reminder';
             case 'completion':
                 return 'Ride Completed';
+            case 'private_ride_booked':
+                return 'New Passenger';
+            case 'private_ride_completed':
+                return 'Ride Completed';
+            case 'ride_started':
+                return 'Ride Started';
             default:
                 return 'Message';
         }

@@ -771,6 +771,7 @@ export default function PrivateRidesScreen() {
                                     </View>
                                 )} */}
 
+                                {/* My Rides Section */}
                                 {groupedActiveRides.length > 0 && (
                                     <View style={styles.section}>
                                         <TouchableOpacity onPress={() => toggleExpand('myRides')}>
@@ -787,19 +788,12 @@ export default function PrivateRidesScreen() {
                                         {expandedSections.myRides && (
                                             <View style={styles.sectionContent}>
                                                 {groupedActiveRides.map((group) => (
-                                                    <View key={`active-${group.date}`} style={styles.dateGroup}>
-                                                        <View style={styles.myRideDateHeader}>
-                                                            <FontAwesome5
-                                                                name="calendar-alt"
-                                                                size={16}
-                                                                color="#0a2472"
-                                                                style={styles.dateIcon}
-                                                            />
-                                                            <Text style={styles.myRideDateText}>{group.date}</Text>
-                                                            <Text style={styles.myRideTimeRangeText}>{group.timeRange}</Text>
+                                                    <View key={group.date} style={styles.dateGroup}>
+                                                        <View style={styles.dateHeader}>
+                                                            <FontAwesome5 name="calendar-alt" size={14} color="#6B7280" />
+                                                            <Text style={styles.dateTitle}>{group.date}</Text>
                                                         </View>
                                                         {group.rides.map((ride) => {
-                                                            // Calculate ride status and available seats
                                                             const availableSeats = ride.seats - (ride.booked_seats || 0);
                                                             const getRideStatus = (ride) => {
                                                                 if (ride.isPrivate) {
@@ -812,21 +806,19 @@ export default function PrivateRidesScreen() {
                                                             const statusDisplay = getRideStatus(ride);
 
                                                             return (
-                                                                <View key={ride._id} style={styles.rideCardContainer}>
-                                                                    <View style={styles.rideCardHeader}>
-                                                                        <DriverRideCard
-                                                                            ride={ride}
-                                                                            onPress={() => handleRideCardPress(ride)}
-                                                                            onStartRide={() => handleStartRide(ride)}
-                                                                            onFinishRide={() => handleFinishRide(ride)}
-                                                                        />
-                                                                        <TouchableOpacity
-                                                                            style={styles.optionsButton}
-                                                                            onPress={() => handleRideOptionsPress(ride)}
-                                                                        >
-                                                                            <FontAwesome5 name="ellipsis-v" size={16} color="#666" />
-                                                                        </TouchableOpacity>
-                                                                    </View>
+                                                                <View key={ride._id} style={styles.rideCardWrapper}>
+                                                                    <DriverRideCard
+                                                                        ride={ride}
+                                                                        onPress={() => handleRideCardPress(ride)}
+                                                                        onStartRide={() => handleStartRide(ride)}
+                                                                        onFinishRide={() => handleFinishRide(ride)}
+                                                                    />
+                                                                    <TouchableOpacity
+                                                                        style={styles.optionsButton}
+                                                                        onPress={() => handleRideOptionsPress(ride)}
+                                                                    >
+                                                                        <FontAwesome5 name="ellipsis-v" size={14} color="#6B7280" />
+                                                                    </TouchableOpacity>
                                                                 </View>
                                                             );
                                                         })}
@@ -855,10 +847,9 @@ export default function PrivateRidesScreen() {
                                                 {groupedCompletedRides.map((group) => (
                                                     <View key={`completed-${group.date}`} style={styles.dateGroup}>
                                                         <View style={styles.dateHeader}>
-                                                            <FontAwesome5 name="calendar-alt" size={14} color="#0a2472" />
+                                                            <FontAwesome5 name="calendar-alt" size={14} color="#6B7280" />
                                                             <Text style={styles.dateTitle}>{group.date}</Text>
                                                         </View>
-
                                                         {group.rides.map((ride) => {
                                                             const availableSeats = ride.available_seats || (ride.seats - (ride.booked_seats || 0));
                                                             const statusDisplay = ride.statusDisplay || 'Completed';
@@ -899,7 +890,7 @@ export default function PrivateRidesScreen() {
                                     <View style={styles.sectionContent}>
                                         <View style={styles.bookingsSummaryCard}>
                                             <View style={styles.bookingsSummaryHeader}>
-                                                <FontAwesome5 name="ticket-alt" size={20} color="#0a2472" />
+                                                <FontAwesome5 name="ticket-alt" size={18} color="#6B7280" />
                                                 <Text style={styles.bookingsSummaryTitle}>View All Your Bookings</Text>
                                             </View>
                                             <Text style={styles.bookingsSummaryText}>
@@ -918,7 +909,9 @@ export default function PrivateRidesScreen() {
 
                                 {!groupedActiveRides.length && !groupedCompletedRides.length && !groupedAvailableRides.length && (
                                     <View style={styles.emptyContainer}>
+                                        <FontAwesome5 name="car" size={48} color="#D1D5DB" />
                                         <Text style={styles.emptyText}>No private rides found</Text>
+                                        <Text style={styles.emptySubtext}>Create your first private ride to get started</Text>
                                         <TouchableOpacity
                                             style={styles.addButton}
                                             onPress={() => router.push('/(private)/add-private-ride')}
@@ -1000,7 +993,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        backgroundColor: 'transparent', // Ensure container doesn't block header
+        backgroundColor: 'transparent',
     },
     header: {
         flexDirection: 'row',
@@ -1008,10 +1001,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        paddingTop: 20, // Reduced padding for status bar
-        backgroundColor: 'rgba(10, 36, 114, 0.95)', // Semi-transparent blue instead of red
-        zIndex: 1000, // Ensure header is above other elements
-        elevation: 5, // For Android
+        paddingTop: 20,
+        backgroundColor: 'rgba(10, 36, 114, 0.95)',
+        zIndex: 1000,
+        elevation: 5,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     },
@@ -1044,61 +1037,79 @@ const styles = StyleSheet.create({
         padding: 8,
     },
     section: {
-        marginBottom: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        marginBottom: 16,
+        backgroundColor: '#fff',
         borderRadius: 12,
         overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: '#0a2472',
-        padding: 15,
+        padding: 16,
     },
     sectionTitle: {
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '600',
         color: '#fff',
+        letterSpacing: 0.5,
     },
     sectionContent: {
-        padding: 15,
+        padding: 16,
     },
     dateGroup: {
-        marginBottom: 24,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderRadius: 16,
-        padding: 16,
-        paddingBottom: 8,
+        marginBottom: 20,
     },
     dateHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
         paddingBottom: 8,
-        borderBottomWidth: 2,
-        borderBottomColor: 'rgba(255, 255, 255, 0.3)',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
     },
-    dateIcon: {
-        marginRight: 8,
+    dateTitle: {
+        fontWeight: '600',
+        color: '#374151',
+        marginLeft: 8,
+        fontSize: 14,
+        letterSpacing: 0.5,
     },
     dateText: {
-        fontWeight: 'bold',
-        color: '#fff',
+        fontWeight: '600',
+        color: '#0a2472',
         marginRight: 12,
     },
     timeRangeText: {
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: '#6B7280',
         fontSize: 14,
     },
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 20,
+        padding: 40,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        margin: 16,
     },
     emptyText: {
         fontSize: 16,
-        color: '#fff',
+        color: '#6B7280',
+        marginBottom: 20,
+        textAlign: 'center',
+        fontWeight: '500',
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: '#9CA3AF',
         marginBottom: 20,
         textAlign: 'center',
     },
@@ -1138,47 +1149,28 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
     },
-    rideCardContainer: {
-        marginBottom: 20,
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 0,
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        borderWidth: 1,
-        borderColor: '#e8f4fd',
-        overflow: 'hidden',
-    },
-    rideCardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        padding: 20,
-        backgroundColor: 'linear-gradient(135deg, #f8faff 0%, #e8f4fd 100%)',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e1f0ff',
+    rideCardWrapper: {
+        position: 'relative',
+        marginBottom: 12,
     },
     optionsButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#F9FAFB',
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 3,
-        shadowColor: '#0a2472',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        marginLeft: 12,
         borderWidth: 1,
-        borderColor: '#e1f0ff',
+        borderColor: '#E5E7EB',
+        zIndex: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
     },
     actionButton: {
         width: 32,
@@ -1217,12 +1209,6 @@ const styles = StyleSheet.create({
         color: '#666',
         marginLeft: 8,
         fontSize: 12,
-    },
-    dateTitle: {
-        fontWeight: 'bold',
-        color: '#0a2472',
-        marginLeft: 8,
-        fontSize: 14,
     },
     searchSection: {
         marginBottom: 20,
@@ -1356,15 +1342,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#ccc',
     },
     passengersSection: {
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#F9FAFB',
         padding: 12,
         margin: 0,
         marginTop: 8,
-        borderTopWidth: 2,
-        borderTopColor: '#e0e0e0',
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
         borderBottomLeftRadius: 12,
         borderBottomRightRadius: 12,
-        borderLeftWidth: 0,
     },
     passengersSectionHeader: {
         flexDirection: 'row',
@@ -1373,21 +1358,21 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         paddingBottom: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#d1d5db',
+        borderBottomColor: '#E5E7EB',
         flexWrap: 'wrap',
         gap: 8,
     },
     passengersSectionTitle: {
-        fontWeight: 'bold',
-        color: '#0a2472',
-        fontSize: 16,
+        fontWeight: '600',
+        color: '#374151',
+        fontSize: 14,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
         flex: 1,
         minWidth: 120,
     },
     rideCompletedBadge: {
-        backgroundColor: '#38a169',
+        backgroundColor: '#10B981',
         paddingHorizontal: 6,
         paddingVertical: 3,
         borderRadius: 10,
@@ -1403,7 +1388,7 @@ const styles = StyleSheet.create({
         flexShrink: 1,
     },
     partialCompletedBadge: {
-        backgroundColor: '#ff8c00',
+        backgroundColor: '#F59E0B',
         paddingHorizontal: 6,
         paddingVertical: 3,
         borderRadius: 10,
@@ -1420,11 +1405,11 @@ const styles = StyleSheet.create({
     },
     passengerContainer: {
         marginBottom: 8,
-        padding: 8,
+        padding: 12,
         backgroundColor: '#ffffff',
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: '#E5E7EB',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -1444,9 +1429,10 @@ const styles = StyleSheet.create({
     },
     passengerName: {
         marginLeft: 8,
-        color: '#333',
+        color: '#374151',
         fontSize: 14,
         flex: 1,
+        fontWeight: '500',
     },
     statusBadge: {
         paddingHorizontal: 8,
@@ -1460,13 +1446,13 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     completedBadge: {
-        backgroundColor: '#805ad5',
+        backgroundColor: '#8B5CF6',
     },
     checkedInBadge: {
-        backgroundColor: '#3182ce',
+        backgroundColor: '#3B82F6',
     },
     pendingBadge: {
-        backgroundColor: '#ff8c00',
+        backgroundColor: '#F59E0B',
     },
     buttonRow: {
         flexDirection: 'row',
@@ -1474,7 +1460,6 @@ const styles = StyleSheet.create({
         marginTop: 4,
         paddingLeft: 22,
     },
-    // Login prompt styles
     loginPromptContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -1557,11 +1542,11 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     recentSearchItem: {
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#F9FAFB',
         padding: 12,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: '#E5E7EB',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -1592,7 +1577,7 @@ const styles = StyleSheet.create({
     searchCount: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f1f5f9',
+        backgroundColor: '#F1F5F9',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
@@ -1633,7 +1618,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#e1f0ff',
+        borderBottomColor: '#E5E7EB',
         backgroundColor: 'rgba(10, 36, 114, 0.05)',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
@@ -1648,14 +1633,14 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
         borderWidth: 1,
-        borderColor: '#e1f0ff',
+        borderColor: '#E5E7EB',
     },
     optionItem: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 18,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f8ff',
+        borderBottomColor: '#F3F4F6',
         backgroundColor: '#fff',
     },
     optionText: {
@@ -1669,16 +1654,12 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     bookingsSummaryCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 12,
         padding: 20,
         marginTop: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
         borderWidth: 1,
-        borderColor: '#e8f4fd',
+        borderColor: '#E5E7EB',
     },
     bookingsSummaryHeader: {
         flexDirection: 'row',
@@ -1686,17 +1667,17 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         paddingBottom: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#e1f0ff',
+        borderBottomColor: '#E5E7EB',
     },
     bookingsSummaryTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#0a2472',
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#374151',
         marginLeft: 10,
     },
     bookingsSummaryText: {
         fontSize: 14,
-        color: '#666',
+        color: '#6B7280',
         marginBottom: 15,
         lineHeight: 22,
     },

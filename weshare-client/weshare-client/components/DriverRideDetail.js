@@ -176,7 +176,7 @@ const DriverRideDetail = ({
                                                 )}
                                             >
                                                 <FontAwesome5
-                                                    name={passenger.paymentStatus === 'paid' ? 'check' : 'times'}
+                                                    name={passenger.paymentStatus === 'paid' ? 'undo' : 'check'}
                                                     size={14}
                                                     color={passenger.paymentStatus === 'paid' ? '#fff' : '#666'}
                                                 />
@@ -184,7 +184,7 @@ const DriverRideDetail = ({
                                                     styles.paymentToggleText,
                                                     passenger.paymentStatus === 'paid' ? styles.paidToggleText : styles.unpaidToggleText
                                                 ]}>
-                                                    {passenger.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                                                    {passenger.paymentStatus === 'paid' ? 'Mark as Unpaid' : 'Mark as Paid'}
                                                 </Text>
                                             </TouchableOpacity>
                                         </View>
