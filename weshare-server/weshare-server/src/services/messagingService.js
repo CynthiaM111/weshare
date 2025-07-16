@@ -3,6 +3,7 @@ const User = require('../models/user');
 const Agency = require('../models/agency');
 const Ride = require('../models/ride');
 const AfricasTalking = require('africastalking');
+
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -56,12 +57,18 @@ const messageTemplates = {
     private_ride_completed: {
         title: 'Private Ride Completed',
         content: (ride, driver) => `Hi ${driver.name}! Your private ride from ${ride.from} to ${ride.to} has been completed successfully. All passengers have been marked as completed. Thank you for providing a great ride experience!`
+    },
+    ride_started: {
+        title: 'Ride Started',
+        content: (ride, user) => `Hi ${user.name}! Your ride from ${ride.from} to ${ride.to} has started. Have a safe journey!`
     }
 };
 
-// Create and send a message
+// Create and send a message with SMS notification system
 const createAndSendMessage = async (recipientId, recipientModel, rideId, messageType, metadata = {}) => {
     try {
+        console.log(`Creating message for recipient ${recipientId} (${recipientModel}) for ride ${rideId}, type: ${messageType}`);
+
         // Get recipient details
         const recipient = recipientModel === 'User'
             ? await User.findById(recipientId)
@@ -72,12 +79,16 @@ const createAndSendMessage = async (recipientId, recipientModel, rideId, message
             return null;
         }
 
+        console.log(`Found recipient: ${recipient.name} (${recipient.email})`);
+
         // Get ride details
         const ride = await Ride.findById(rideId);
         if (!ride) {
             console.error(`Ride not found: ${rideId}`);
             return null;
         }
+
+        console.log(`Found ride: ${ride.from} to ${ride.to}`);
 
         // Get template
         const template = messageTemplates[messageType];
@@ -91,6 +102,8 @@ const createAndSendMessage = async (recipientId, recipientModel, rideId, message
             ? template.content(ride, recipient, metadata)
             : template.content;
 
+        console.log(`Generated content: ${content.substring(0, 100)}...`);
+
         // Create message record
         const message = new Message({
             recipientId,
@@ -99,25 +112,34 @@ const createAndSendMessage = async (recipientId, recipientModel, rideId, message
             type: messageType,
             title: template.title,
             content,
-            metadata
+            metadata: {
+                ...metadata,
+                notificationPriority: 'info', // Always 'info' as per new logic
+                sentViaSMS: true // Always true as per new logic
+            }
         });
 
         await message.save();
+        console.log(`Message saved to database with ID: ${message._id}`);
 
-        // Send SMS if recipient has a phone number
+        // Send SMS if conditions are met
         if (recipient.contact_number) {
+            console.log(`Attempting to send SMS to ${recipient.contact_number}`);
             try {
                 await sendSMS(recipient.contact_number, content);
                 message.smsSent = true;
                 message.smsSentAt = new Date();
-                await message.save();
                 console.log(`SMS sent successfully to ${recipient.contact_number} for message type: ${messageType}`);
             } catch (smsError) {
                 console.error(`Failed to send SMS to ${recipient.contact_number}:`, smsError);
-                // Don't fail the entire operation if SMS fails
+                message.metadata.smsError = smsError.message;
             }
+        } else {
+            console.log(`SMS not sent: no contact number for ${recipient.name}`);
         }
 
+        await message.save();
+        console.log(`Message updated and saved successfully`);
         return message;
     } catch (error) {
         console.error('Error creating and sending message:', error);
@@ -142,13 +164,51 @@ const sendSMS = async (phoneNumber, message) => {
 };
 
 // Send booking confirmation message
-const sendBookingConfirmation = async (userId, rideId) => {
-    return await createAndSendMessage(userId, 'User', rideId, 'booking_confirmation');
+const sendBookingConfirmation = async (rideId, userId) => {
+    try {
+        console.log(`Sending booking confirmation for ride ${rideId} to user ${userId}`);
+
+        const message = await createAndSendMessage(userId, 'User', rideId, 'booking_confirmation');
+        console.log(`Booking confirmation message sent successfully to user ${userId}`);
+
+        // If it's a private ride, also notify the driver
+        const ride = await Ride.findById(rideId);
+        console.log(`Found ride:`, {
+            rideId,
+            isPrivate: ride?.isPrivate,
+            driverId: ride?.userId,
+            passengerId: userId
+        });
+
+        if (ride && ride.isPrivate && ride.userId) {
+            console.log(`Sending private ride booked notification to driver ${ride.userId}`);
+            await createAndSendMessage(ride.userId, 'User', rideId, 'private_ride_booked', {
+                passengerId: userId
+            });
+            console.log(`Private ride booked notification sent successfully to driver ${ride.userId}`);
+        } else {
+            console.log(`Not sending private ride notification:`, {
+                rideExists: !!ride,
+                isPrivate: ride?.isPrivate,
+                hasDriver: !!ride?.userId
+            });
+        }
+
+        return message;
+    } catch (error) {
+        console.error('Error sending booking confirmation:', error);
+        throw error;
+    }
 };
 
 // Send booking cancellation message
-const sendBookingCancellation = async (userId, rideId) => {
-    return await createAndSendMessage(userId, 'User', rideId, 'booking_cancellation');
+const sendBookingCancellation = async (rideId, userId) => {
+    try {
+        return await createAndSendMessage(userId, 'User', rideId, 'booking_cancellation');
+    } catch (error) {
+        console.error('Error sending booking cancellation:', error);
+        throw error;
+    }
 };
 
 // Send ride update message to all passengers
@@ -160,6 +220,9 @@ const sendRideUpdateToPassengers = async (rideId, updates) => {
             return;
         }
 
+        const userIds = ride.bookedBy.map(booking => booking.userId._id);
+
+        // Send individual messages for tracking
         const messagePromises = ride.bookedBy.map(booking =>
             createAndSendMessage(
                 booking.userId._id,
@@ -180,6 +243,7 @@ const sendRideUpdateToPassengers = async (rideId, updates) => {
 
 // Send ride cancellation message to all passengers
 const sendRideCancellationToPassengers = async (rideId) => {
+    console.log(`Sending ride cancellation message to passengers for ride ${rideId}`);
     try {
         const ride = await Ride.findById(rideId).populate('bookedBy.userId');
         if (!ride) {
@@ -205,67 +269,53 @@ const sendRideCancellationToPassengers = async (rideId) => {
 };
 
 // Send ride completion message
-const sendRideCompletion = async (userId, rideId) => {
-    return await createAndSendMessage(userId, 'User', rideId, 'completion');
+const sendRideCompletion = async (rideId, userId) => {
+    try {
+        return await createAndSendMessage(userId, 'User', rideId, 'completion');
+    } catch (error) {
+        console.error('Error sending ride completion:', error);
+        throw error;
+    }
 };
 
 // Send private ride booked message to driver
-const sendPrivateRideBookedToDriver = async (rideId, passengerId) => {
+const sendPrivateRideBookedToDriver = async (rideId, driverId, passengerId) => {
     try {
-        const ride = await Ride.findById(rideId).populate('userId bookedBy.userId');
-        if (!ride) {
-            console.error(`Ride not found: ${rideId}`);
-            return;
-        }
-
-        const driver = ride.userId;
-        const passenger = ride.bookedBy.find(b => b.userId._id.toString() === passengerId.toString())?.userId;
-
-        if (!driver || !passenger) {
-            console.error('Driver or passenger not found for private ride booking message');
-            return;
-        }
-
-        await createAndSendMessage(
-            driver._id,
-            'User',
-            rideId,
-            'private_ride_booked',
-            { passenger: passenger }
-        );
-
-        console.log(`Private ride booked message sent to driver ${driver._id}`);
+        return await createAndSendMessage(driverId, 'User', rideId, 'private_ride_booked', {
+            passengerId
+        });
     } catch (error) {
-        console.error('Error sending private ride booked message to driver:', error);
+        console.error('Error sending private ride booked to driver:', error);
         throw error;
     }
 };
 
 // Send private ride completed message to driver
-const sendPrivateRideCompletedToDriver = async (rideId) => {
+const sendPrivateRideCompletedToDriver = async (rideId, driverId) => {
     try {
-        const ride = await Ride.findById(rideId).populate('userId');
-        if (!ride) {
-            console.error(`Ride not found: ${rideId}`);
-            return;
-        }
-
-        const driver = ride.userId;
-        if (!driver) {
-            console.error('Driver not found for private ride completion message');
-            return;
-        }
-
-        await createAndSendMessage(
-            driver._id,
-            'User',
-            rideId,
-            'private_ride_completed'
-        );
-
-        console.log(`Private ride completed message sent to driver ${driver._id}`);
+        return await createAndSendMessage(driverId, 'User', rideId, 'private_ride_completed');
     } catch (error) {
-        console.error('Error sending private ride completed message to driver:', error);
+        console.error('Error sending private ride completed to driver:', error);
+        throw error;
+    }
+};
+
+// Send ride started message to passengers
+const sendRideStarted = async (userId, rideId) => {
+    try {
+        return await createAndSendMessage(userId, 'User', rideId, 'ride_started');
+    } catch (error) {
+        console.error('Error sending ride started message:', error);
+        throw error;
+    }
+};
+
+// Send private ride completed message to driver (alias for consistency)
+const sendPrivateRideCompleted = async (driverId, rideId) => {
+    try {
+        return await createAndSendMessage(driverId, 'User', rideId, 'private_ride_completed');
+    } catch (error) {
+        console.error('Error sending private ride completed to driver:', error);
         throw error;
     }
 };
@@ -301,18 +351,19 @@ const sendRideReminders = async () => {
     }
 };
 
-// Get messages for a user
+// Get user messages with pagination
 const getUserMessages = async (userId, page = 1, limit = 20) => {
     try {
         const skip = (page - 1) * limit;
+
         const messages = await Message.find({
             recipientId: userId,
             recipientModel: 'User'
         })
-            .populate('rideId', 'from to departure_time')
             .sort({ created_at: -1 })
             .skip(skip)
-            .limit(limit);
+            .limit(limit)
+            .populate('rideId', 'from to departure_time');
 
         const total = await Message.countDocuments({
             recipientId: userId,
@@ -321,9 +372,12 @@ const getUserMessages = async (userId, page = 1, limit = 20) => {
 
         return {
             messages,
-            total,
-            page,
-            totalPages: Math.ceil(total / limit)
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
         };
     } catch (error) {
         console.error('Error getting user messages:', error);
@@ -354,16 +408,54 @@ const markMessageAsRead = async (messageId, userId) => {
     }
 };
 
-// Get unread message count for a user
+// Get unread message count
 const getUnreadMessageCount = async (userId) => {
     try {
-        return await Message.countDocuments({
+        console.log(`Calculating unread count for user: ${userId}`);
+
+        const count = await Message.countDocuments({
             recipientId: userId,
             recipientModel: 'User',
             isRead: false
         });
+
+        console.log(`Found ${count} unread messages for user ${userId}`);
+        return { count };
     } catch (error) {
         console.error('Error getting unread message count:', error);
+        throw error;
+    }
+};
+
+// Get unread count by priority
+const getUnreadCountByPriority = async (userId) => {
+    try {
+        return await Message.getUnreadCountByPriority(userId);
+    } catch (error) {
+        console.error('Error getting unread count by priority:', error);
+        throw error;
+    }
+};
+
+// Get delivery statistics
+const getDeliveryStats = async (userId, days = 7) => {
+    try {
+        return await Message.getDeliveryStats(userId, days);
+    } catch (error) {
+        console.error('Error getting delivery stats:', error);
+        throw error;
+    }
+};
+
+// Mark all notifications as read
+const markAllAsRead = async (filter) => {
+    try {
+        return await Message.updateMany(filter, {
+            isRead: true,
+            readAt: new Date()
+        });
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
         throw error;
     }
 };
@@ -378,8 +470,13 @@ module.exports = {
     sendRideCompletion,
     sendPrivateRideBookedToDriver,
     sendPrivateRideCompletedToDriver,
+    sendRideStarted,
+    sendPrivateRideCompleted,
     sendRideReminders,
     getUserMessages,
     markMessageAsRead,
-    getUnreadMessageCount
+    getUnreadMessageCount,
+    getUnreadCountByPriority,
+    getDeliveryStats,
+    markAllAsRead
 }; 

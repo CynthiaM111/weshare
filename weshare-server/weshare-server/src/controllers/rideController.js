@@ -1226,7 +1226,7 @@ const cancelRideBooking = async (req, res) => {
 
         // Send booking cancellation message
         try {
-            await messagingService.sendBookingCancellation(userId, rideId);
+            await messagingService.sendBookingCancellation(rideId, userId);
         } catch (messageError) {
             console.error('Failed to send booking cancellation message:', messageError);
             // Don't fail the cancellation if message sending fails
@@ -1762,7 +1762,7 @@ const completeRideWithPin = async (req, res) => {
 
         // Send ride completion message to the passenger
         try {
-            await messagingService.sendRideCompletion(passengerUserId, rideId);
+            await messagingService.sendRideCompletion(rideId, passengerUserId);
         } catch (messageError) {
             console.error('Failed to send ride completion message:', messageError);
             // Don't fail the completion if message sending fails
@@ -2523,7 +2523,7 @@ const finishRide = async (req, res) => {
         // Send completion notifications
         try {
             for (const booking of ride.bookedBy) {
-                await messagingService.sendRideCompletion(booking.userId._id || booking.userId, rideId);
+                await messagingService.sendRideCompletion(rideId, booking.userId._id || booking.userId);
             }
             // Send completion notification to driver
             await messagingService.sendPrivateRideCompleted(driverId, rideId);

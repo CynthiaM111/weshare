@@ -39,9 +39,12 @@ const markMessageAsRead = async (req, res) => {
 const getUnreadMessageCount = async (req, res) => {
     try {
         const userId = req.user.id;
-        const count = await messagingService.getUnreadMessageCount(userId);
+        console.log(`Getting unread count for user: ${userId}`);
 
-        res.status(200).json({ count });
+        const result = await messagingService.getUnreadMessageCount(userId);
+        console.log(`Unread count result:`, result);
+
+        res.status(200).json(result);
     } catch (error) {
         console.error('Error getting unread message count:', error);
         res.status(500).json({ error: 'Failed to get unread count', details: error.message });

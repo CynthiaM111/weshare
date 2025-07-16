@@ -18,7 +18,7 @@ const messageSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['booking_confirmation', 'booking_cancellation', 'ride_update', 'ride_cancellation', 'reminder', 'completion'],
+        enum: ['booking_confirmation', 'booking_cancellation', 'ride_update', 'ride_cancellation', 'reminder', 'completion', 'private_ride_booked', 'private_ride_completed', 'ride_started'],
         required: true
     },
     title: {

@@ -1,12 +1,10 @@
 const dotenv = require('dotenv');
 dotenv.config();
 
-// Notification Configuration
+// Notification Configuration - SMS Only
 const notificationConfig = {
     // Environment flags
     ENABLE_SMS: process.env.ENABLE_SMS === 'true' || process.env.ENABLE_SMS === undefined, // Default to true
-    ENABLE_PUSH: false, // Disable push notifications
-    ENABLE_FOREGROUND_NOTIFICATIONS: false, // Disable foreground notifications
 
     // SMS Configuration
     SMS_PROVIDER: process.env.SMS_PROVIDER || 'africas_talking',
@@ -22,68 +20,48 @@ const notificationConfig = {
         // Info notifications (SMS only)
         booking_confirmation: {
             priority: 'info',
-            push: false,
-            sms: true,
-            foreground: false
+            sms: true
         },
         booking_cancellation: {
             priority: 'info',
-            push: false,
-            sms: true,
-            foreground: false
+            sms: true
         },
         ride_completion: {
             priority: 'info',
-            push: false,
-            sms: true,
-            foreground: false
+            sms: true
         },
         private_ride_booked: {
             priority: 'info',
-            push: false,
-            sms: true,
-            foreground: false
+            sms: true
         },
         private_ride_completed: {
             priority: 'info',
-            push: false,
-            sms: true,
-            foreground: false
+            sms: true
         },
         reminder: {
             priority: 'info',
-            push: false,
-            sms: true,
-            foreground: false
+            sms: true
         },
 
         // Critical notifications (SMS only)
         ride_cancellation: {
             priority: 'critical',
-            push: false,
             sms: true,
-            foreground: false,
             criticalThreshold: 60 // minutes before departure
         },
         ride_update: {
             priority: 'critical',
-            push: false,
             sms: true,
-            foreground: false,
             criticalThreshold: 60 // minutes before departure
         },
         driver_change: {
             priority: 'critical',
-            push: false,
             sms: true,
-            foreground: false,
             criticalThreshold: 60 // minutes before departure
         },
         emergency_cancellation: {
             priority: 'critical',
-            push: false,
             sms: true,
-            foreground: false,
             criticalThreshold: 0 // always critical
         }
     },
@@ -176,24 +154,8 @@ const shouldSendSMS = (notificationType, ride) => {
     return config.sms === true;
 };
 
-const shouldSendPush = (notificationType) => {
-    if (!notificationConfig.ENABLE_PUSH) return false;
-
-    const config = notificationConfig.notificationTypes[notificationType];
-    return config && config.push === true;
-};
-
-const shouldShowForeground = (notificationType) => {
-    if (!notificationConfig.ENABLE_FOREGROUND_NOTIFICATIONS) return false;
-
-    const config = notificationConfig.notificationTypes[notificationType];
-    return config && config.foreground === true;
-};
-
 module.exports = {
     notificationConfig,
     isCriticalEvent,
-    shouldSendSMS,
-    shouldSendPush,
-    shouldShowForeground
+    shouldSendSMS
 }; 

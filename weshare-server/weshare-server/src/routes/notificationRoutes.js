@@ -9,8 +9,6 @@ router.get('/config', authController.protect, async (req, res) => {
     try {
         res.json({
             enableSMS: notificationConfig.ENABLE_SMS,
-            enablePush: notificationConfig.ENABLE_PUSH,
-            enableForeground: notificationConfig.ENABLE_FOREGROUND_NOTIFICATIONS,
             criticalCancellationThreshold: notificationConfig.CRITICAL_CANCELLATION_THRESHOLD,
             criticalUpdateThreshold: notificationConfig.CRITICAL_UPDATE_THRESHOLD
         });
