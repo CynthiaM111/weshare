@@ -20,6 +20,13 @@ export default function ProfileLayout() {
                     headerShown: false,
                 }} 
             />
+            <Stack.Screen 
+                name="help-support" 
+                options={{ 
+                    title: "Help & Support",
+                    headerShown: false,
+                }} 
+            />
         </Stack>
     );
 }

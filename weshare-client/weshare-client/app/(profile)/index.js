@@ -548,7 +548,10 @@ export default function Profile() {
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.menuItem}>
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => router.push('/(profile)/help-support')}
+                            >
                                 <FontAwesome5 name="question-circle" size={18} color="#0a2472" />
                                 <Text style={styles.menuItemText}>Help & Support</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
