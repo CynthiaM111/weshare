@@ -8,22 +8,10 @@ const { v4: uuidv4 } = require('uuid');
 const messagingService = require('../services/messagingService');
 const ruleValidator = require('../Utilities/ruleValidator');
 const FuelCostCalculator = require('../Utilities/fuelCostCalculator');
+const SystemSettings = require('../models/systemSettings');
+const { clearCache } = require('../Utilities/cacheManager');
 
 // Helper function to clear Redis cache
-const clearCache = async () => {
-    try {
-        // Clear multiple cache keys to ensure consistency
-        await Promise.all([
-            redisClient.del('available_rides'),
-            redisClient.del('bookedRides:*'), // Clear user-specific caches
-        ]);
-        console.log('Cache cleared successfully');
-    } catch (error) {
-        console.warn('Failed to clear cache:', error.message);
-    }
-};
-
-// Helper function to warm up cache with fresh data
 const warmCache = async () => {
     try {
         // Force a fresh fetch and cache it
@@ -120,6 +108,10 @@ const createRide = async (req, res) => {
             pricePerLiter
         } = req.body;
 
+        // Get system settings for fuel price and validation (available for all rides)
+        const systemSettings = await SystemSettings.getCurrentSettings();
+        const systemFuelPrice = systemSettings.fuelPricePerLiter;
+
         const currentTime = new Date();
         const twoHoursFromNow = new Date(currentTime.getTime() + (2 * 60 * 60 * 1000));
         const thirtyDaysFromNow = new Date(currentTime.getTime() + (30 * 24 * 60 * 60 * 1000));
@@ -173,6 +165,16 @@ const createRide = async (req, res) => {
             // Check if wheelchair accessibility is specified
             if (req.body.wheelchairAccessible === undefined) {
                 return res.status(400).json({ error: 'Please specify if your vehicle is wheelchair-accessible (yes/no)' });
+            }
+
+            // Validate fuel efficiency against system settings
+            if (fuelEfficiency) {
+                const numFuelEfficiency = parseFloat(fuelEfficiency);
+                if (isNaN(numFuelEfficiency) || !systemSettings.validateFuelEfficiency(numFuelEfficiency)) {
+                    return res.status(400).json({
+                        error: `Fuel efficiency must be between ${systemSettings.fuelEfficiencyMin} and ${systemSettings.fuelEfficiencyMax} L/100km`
+                    });
+                }
             }
 
             // Check if user is verified driver
@@ -325,9 +327,9 @@ const createRide = async (req, res) => {
                 estimatedArrivalTime: new Date(departureTime.getTime() + (parseInt(estimatedArrivalTime) * 60 * 60 * 1000)),
                 seats: seatCount,
                 price: validatedPrice,
-                // Add fuel efficiency and price per liter if available
+                // Add fuel efficiency and system fuel price
                 ...(fuelEfficiency && { fuelEfficiency: parseFloat(fuelEfficiency) }),
-                ...(pricePerLiter && { pricePerLiter: parseFloat(pricePerLiter) }),
+                pricePerLiter: systemFuelPrice, // Always use system fuel price
                 wheelchairAccessible: req.body.wheelchairAccessible,
                 userId: req.user.id,
                 categoryId: null,
@@ -415,10 +417,9 @@ const createRide = async (req, res) => {
         await ride.save();
 
         // Create fuel cost record for private rides with GPS coordinates and fuel parameters
-        if (isPrivate && startLocation && endLocation && fuelEfficiency && pricePerLiter) {
+        if (isPrivate && startLocation && endLocation && fuelEfficiency) {
             try {
-
-                // Calculate distance and fuel cost
+                // Calculate distance and fuel cost using system fuel price
                 const distance = FuelCostCalculator.calculateDistance(
                     startLocation.latitude,
                     startLocation.longitude,
@@ -427,7 +428,7 @@ const createRide = async (req, res) => {
                 );
 
                 const fuelLiters = FuelCostCalculator.calculateFuelConsumption(distance, parseFloat(fuelEfficiency));
-                const totalFuelCost = FuelCostCalculator.calculateFuelCost(fuelLiters, parseFloat(pricePerLiter));
+                const totalFuelCost = FuelCostCalculator.calculateFuelCost(fuelLiters, systemFuelPrice);
 
                 // Create fuel cost record using the utility
                 await FuelCostCalculator.createFuelCostRecord({
@@ -450,7 +451,7 @@ const createRide = async (req, res) => {
                         fuelType: 'petrol',
                         vehicleModel: ''
                     },
-                    fuelPricePerLiter: parseFloat(pricePerLiter),
+                    fuelPricePerLiter: systemFuelPrice, // Use system fuel price
                     driverId: req.user.id,
                     status: 'estimated'
                 });

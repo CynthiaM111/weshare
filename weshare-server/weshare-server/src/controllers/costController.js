@@ -1,6 +1,7 @@
 const FuelCostCalculator = require('../Utilities/fuelCostCalculator');
 const CostSharingCalculator = require('../Utilities/costSharingCalculator');
 const FuelCost = require('../models/fuelCost');
+const SystemSettings = require('../models/systemSettings');
 
 /**
  * Calculate cost sharing for a single ride
@@ -357,19 +358,30 @@ const getAgencyCostSharingStats = async (req, res) => {
  */
 const calculatePricingPreview = async (req, res) => {
     try {
+        console.log('Pricing preview request body:', req.body);
+
         const {
             startLat,
             startLon,
             endLat,
             endLon,
             seats,
-            fuelEfficiency = 7.0,
-            pricePerLiter = 1700
+            fuelEfficiency = 7.0
         } = req.body;
 
+        // Get system settings for fuel price and validation
+        const systemSettings = await SystemSettings.getCurrentSettings();
+        const systemFuelPrice = systemSettings.fuelPricePerLiter;
+
+        console.log('System settings:', {
+            fuelPricePerLiter: systemFuelPrice,
+            fuelEfficiencyMin: systemSettings.fuelEfficiencyMin,
+            fuelEfficiencyMax: systemSettings.fuelEfficiencyMax
+        });
 
         // Validate required parameters
         if (!startLat || !startLon || !endLat || !endLon || !seats) {
+            console.log('Missing required parameters:', { startLat, startLon, endLat, endLon, seats });
             return res.status(400).json({
                 success: false,
                 error: 'Missing required parameters: startLat, startLon, endLat, endLon, seats'
@@ -379,26 +391,22 @@ const calculatePricingPreview = async (req, res) => {
         // Validate numeric values
         const numSeats = parseInt(seats);
         const numFuelEfficiency = parseFloat(fuelEfficiency);
-        const numPricePerLiter = parseFloat(pricePerLiter);
+
+        console.log('Parsed values:', { numSeats, numFuelEfficiency });
 
         if (isNaN(numSeats) || numSeats < 1) {
+            console.log('Invalid seats value:', seats);
             return res.status(400).json({
                 success: false,
                 error: 'Invalid seats value. Must be a positive integer.'
             });
         }
 
-        if (isNaN(numFuelEfficiency) || numFuelEfficiency < 1) {
+        if (isNaN(numFuelEfficiency) || !systemSettings.validateFuelEfficiency(numFuelEfficiency)) {
+            console.log('Invalid fuel efficiency:', numFuelEfficiency);
             return res.status(400).json({
                 success: false,
-                error: 'Invalid fuel efficiency. Must be a positive number.'
-            });
-        }
-
-        if (isNaN(numPricePerLiter) || numPricePerLiter < 1) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid fuel price. Must be a positive number.'
+                error: `Invalid fuel efficiency. Must be between ${systemSettings.fuelEfficiencyMin} and ${systemSettings.fuelEfficiencyMax} L/100km.`
             });
         }
 
@@ -407,15 +415,21 @@ const calculatePricingPreview = async (req, res) => {
             startLat, startLon, endLat, endLon
         );
 
+        console.log('Calculated distance:', distance);
+
         // Calculate fuel consumption
         const fuelLiters = FuelCostCalculator.calculateFuelConsumption(
             distance, numFuelEfficiency
         );
 
-        // Calculate total fuel cost
+        console.log('Calculated fuel liters:', fuelLiters);
+
+        // Calculate total fuel cost using system fuel price
         const totalFuelCost = FuelCostCalculator.calculateFuelCost(
-            fuelLiters, numPricePerLiter
+            fuelLiters, systemFuelPrice
         );
+
+        console.log('Calculated total fuel cost:', totalFuelCost);
 
         // Calculate cost sharing
         const driverShare = totalFuelCost * 0.25; // 25% for driver
@@ -427,7 +441,7 @@ const calculatePricingPreview = async (req, res) => {
             fuelLiters,
             totalFuelCost,
             fuelEfficiency: numFuelEfficiency,
-            pricePerLiter: numPricePerLiter,
+            pricePerLiter: systemFuelPrice, // Use system fuel price
             seats: numSeats,
             costSharing: {
                 driverShare: Math.round(driverShare * 100) / 100,
@@ -448,6 +462,8 @@ const calculatePricingPreview = async (req, res) => {
                 }
             }
         };
+
+        console.log('Pricing data calculated successfully:', pricingData);
 
         res.json({
             success: true,

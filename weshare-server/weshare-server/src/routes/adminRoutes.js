@@ -21,4 +21,8 @@ router.get('/private-rides', adminController.getAllPrivateRides);
 // System statistics routes
 router.get('/stats', adminController.getSystemStats);
 
+// System settings routes
+router.get('/settings', adminController.getSystemSettings);
+router.put('/settings', adminController.updateSystemSettings);
+
 module.exports = router; 

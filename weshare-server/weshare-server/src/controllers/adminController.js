@@ -1,6 +1,7 @@
 const User = require('../models/user');
 const Agency = require('../models/agency');
 const Ride = require('../models/ride');
+const SystemSettings = require('../models/systemSettings');
 
 // Get all users with pagination and filtering
 const getAllUsers = async (req, res) => {
@@ -387,11 +388,100 @@ const getSystemStats = async (req, res) => {
     }
 };
 
+// Get system settings
+const getSystemSettings = async (req, res) => {
+    try {
+        const settings = await SystemSettings.getCurrentSettings();
+
+        // Populate the lastUpdatedBy field if it exists
+        if (settings.lastUpdatedBy) {
+            await settings.populate('lastUpdatedBy', 'name email');
+        }
+
+        res.json({
+            success: true,
+            settings: {
+                fuelPricePerLiter: settings.fuelPricePerLiter,
+                fuelEfficiencyMin: settings.fuelEfficiencyMin,
+                fuelEfficiencyMax: settings.fuelEfficiencyMax,
+                lastUpdatedBy: settings.lastUpdatedBy || null,
+                updatedAt: settings.updatedAt
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching system settings:', error);
+        res.status(500).json({ error: 'Failed to fetch system settings' });
+    }
+};
+
+// Update system settings
+const updateSystemSettings = async (req, res) => {
+    try {
+        const { fuelPricePerLiter, fuelEfficiencyMin, fuelEfficiencyMax } = req.body;
+
+        // Validate input
+        const updates = {};
+
+        if (fuelPricePerLiter !== undefined) {
+            if (typeof fuelPricePerLiter !== 'number' || fuelPricePerLiter < 0) {
+                return res.status(400).json({ error: 'Fuel price must be a positive number' });
+            }
+            updates.fuelPricePerLiter = fuelPricePerLiter;
+        }
+
+        if (fuelEfficiencyMin !== undefined) {
+            if (typeof fuelEfficiencyMin !== 'number' || fuelEfficiencyMin <= 0 || fuelEfficiencyMin > 50) {
+                return res.status(400).json({ error: 'Minimum fuel efficiency must be between 0 and 50 L/100km' });
+            }
+            updates.fuelEfficiencyMin = fuelEfficiencyMin;
+        }
+
+        if (fuelEfficiencyMax !== undefined) {
+            if (typeof fuelEfficiencyMax !== 'number' || fuelEfficiencyMax <= 0 || fuelEfficiencyMax > 50) {
+                return res.status(400).json({ error: 'Maximum fuel efficiency must be between 0 and 50 L/100km' });
+            }
+            updates.fuelEfficiencyMax = fuelEfficiencyMax;
+        }
+
+        // Validate that min <= max if both are provided
+        if (updates.fuelEfficiencyMin !== undefined && updates.fuelEfficiencyMax !== undefined) {
+            if (updates.fuelEfficiencyMin > updates.fuelEfficiencyMax) {
+                return res.status(400).json({ error: 'Minimum fuel efficiency cannot be greater than maximum fuel efficiency' });
+            }
+        }
+
+        // Update settings
+        const updatedSettings = await SystemSettings.updateSettings(updates, req.user.id);
+        
+        // Populate the lastUpdatedBy field if it exists
+        if (updatedSettings.lastUpdatedBy) {
+            await updatedSettings.populate('lastUpdatedBy', 'name email');
+        }
+        
+        res.json({
+            success: true,
+            message: 'System settings updated successfully',
+            settings: {
+                fuelPricePerLiter: updatedSettings.fuelPricePerLiter,
+                fuelEfficiencyMin: updatedSettings.fuelEfficiencyMin,
+                fuelEfficiencyMax: updatedSettings.fuelEfficiencyMax,
+                lastUpdatedBy: updatedSettings.lastUpdatedBy || null,
+                updatedAt: updatedSettings.updatedAt
+            }
+        });
+    } catch (error) {
+        console.error('Error updating system settings:', error);
+        res.status(500).json({ error: 'Failed to update system settings' });
+    }
+};
+
 module.exports = {
     getAllUsers,
     getAllAgencies,
     getAllPrivateRides,
     updateUserStatus,
     deleteUser,
-    getSystemStats
+    getSystemStats,
+    getSystemSettings,
+    updateSystemSettings
 }; 
