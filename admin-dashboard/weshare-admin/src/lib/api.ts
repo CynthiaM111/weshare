@@ -60,6 +60,18 @@ export interface PrivateRide {
     createdAt: string;
 }
 
+export interface SystemSettings {
+    fuelPricePerLiter: number;
+    fuelEfficiencyMin: number;
+    fuelEfficiencyMax: number;
+    lastUpdatedBy?: {
+        _id: string;
+        name: string;
+        email: string;
+    } | null;
+    updatedAt: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api';
 
 export class ApiError extends Error {
@@ -241,6 +253,64 @@ export const api = {
                 throw error;
             }
             throw new ApiError(500, 'Failed to fetch system stats');
+        }
+    },
+
+    async getSystemSettings(): Promise<SystemSettings> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+                headers: getAuthHeaders(),
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUser');
+                    window.location.href = '/login';
+                    throw new ApiError(401, 'Authentication required');
+                }
+                throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.settings;
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw error;
+            }
+            throw new ApiError(500, 'Failed to fetch system settings');
+        }
+    },
+
+    async updateSystemSettings(updates: Partial<SystemSettings>): Promise<SystemSettings> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(updates),
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUser');
+                    window.location.href = '/login';
+                    throw new ApiError(401, 'Authentication required');
+                }
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new ApiError(400, errorData.error || 'Invalid settings data');
+                }
+                throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.settings;
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw error;
+            }
+            throw new ApiError(500, 'Failed to update system settings');
         }
     }
 }; 
