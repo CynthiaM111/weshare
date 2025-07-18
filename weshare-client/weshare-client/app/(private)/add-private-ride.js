@@ -36,6 +36,8 @@ export default function AddPrivateRideScreen() {
     const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
     const [startLocationValid, setStartLocationValid] = useState(false);
     const [endLocationValid, setEndLocationValid] = useState(false);
+    const [systemSettings, setSystemSettings] = useState(null);
+    const [fuelEfficiencyError, setFuelEfficiencyError] = useState('');
 
     // Custom alert state
     const [alertVisible, setAlertVisible] = useState(false);
@@ -58,6 +60,41 @@ export default function AddPrivateRideScreen() {
             buttons: buttons.length > 0 ? buttons : [{ text: 'OK', onPress: () => setAlertVisible(false) }]
         });
         setAlertVisible(true);
+    };
+
+    // Validate fuel efficiency in real-time
+    const validateFuelEfficiency = (value) => {
+        const numValue = parseFloat(value);
+
+        if (!value || value.trim() === '') {
+            setFuelEfficiencyError('Fuel efficiency is required');
+            return false;
+        }
+
+        if (isNaN(numValue)) {
+            setFuelEfficiencyError('Please enter a valid number');
+            return false;
+        }
+
+        if (systemSettings) {
+            if (numValue < systemSettings.fuelEfficiencyMin || numValue > systemSettings.fuelEfficiencyMax) {
+                setFuelEfficiencyError(`Must be between ${systemSettings.fuelEfficiencyMin} and ${systemSettings.fuelEfficiencyMax} L/100km`);
+                return false;
+            }
+        } else {
+            if (numValue < 1 || numValue > 20) {
+                setFuelEfficiencyError('Must be between 1 and 20 L/100km');
+                return false;
+            }
+        }
+
+        setFuelEfficiencyError('');
+        return true;
+    };
+
+    const handleFuelEfficiencyChange = (value) => {
+        setFuelEfficiency(value);
+        validateFuelEfficiency(value);
     };
 
     useEffect(() => {
@@ -117,7 +154,7 @@ export default function AddPrivateRideScreen() {
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Driver profile data for license plate prefill:', data);
+
 
                     // Prefill license plate if driver is verified and license plate is not already set
                     if (data?.verifiedDriver && data?.driverProfile?.vehicleLicensePlate && !licensePlate) {
@@ -132,6 +169,33 @@ export default function AddPrivateRideScreen() {
 
         fetchDriverProfile();
     }, [user, isEditing, licensePlate]);
+
+    // Fetch system settings
+    const { execute: fetchSystemSettings } = useApi(async () => {
+        const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/system/settings`);
+        return response.data.settings;
+    });
+
+    useEffect(() => {
+        if (user?.token) {
+            fetchSystemSettings().then(settings => {
+                setSystemSettings(settings);
+                setPricePerLiter(settings.fuelPricePerLiter.toString());
+                // Validate current fuel efficiency value
+                validateFuelEfficiency(fuelEfficiency);
+            }).catch(error => {
+                console.error('Failed to fetch system settings:', error);
+                // Use default values if fetch fails
+                setSystemSettings({
+                    fuelPricePerLiter: 1700,
+                    fuelEfficiencyMin: 6.0,
+                    fuelEfficiencyMax: 10.0
+                });
+                // Validate current fuel efficiency value with defaults
+                validateFuelEfficiency(fuelEfficiency);
+            });
+        }
+    }, [user?.token]);
 
     const { execute: addPrivateRide, isLoading } = useApi(async (rideData) => {
         const url = isEditing
@@ -200,13 +264,23 @@ export default function AddPrivateRideScreen() {
             return;
         }
 
-        if (isNaN(numFuelEfficiency) || numFuelEfficiency < 1) {
-            showAlert('Invalid Fuel Efficiency', 'Please enter a valid fuel efficiency (minimum 1 L/100km)', 'warning');
-            return;
+        // Validate fuel efficiency against system settings
+        if (systemSettings) {
+            if (isNaN(numFuelEfficiency) ||
+                numFuelEfficiency < systemSettings.fuelEfficiencyMin ||
+                numFuelEfficiency > systemSettings.fuelEfficiencyMax) {
+                showAlert(
+                    'Invalid Fuel Efficiency',
+                    `Fuel efficiency must be between ${systemSettings.fuelEfficiencyMin} and ${systemSettings.fuelEfficiencyMax} L/100km`,
+                    'warning'
+                );
+                return;
+            }
         }
 
-        if (isNaN(numPricePerLiter) || numPricePerLiter < 1) {
-            showAlert('Invalid Fuel Price', 'Please enter a valid fuel price (minimum 1 RWF/L)', 'warning');
+        // Remove fuel price validation since it's now system-controlled
+        if (isNaN(numFuelEfficiency) || numFuelEfficiency < 1) {
+            showAlert('Invalid Fuel Efficiency', 'Please enter a valid fuel efficiency (minimum 1 L/100km)', 'warning');
             return;
         }
 
@@ -500,27 +574,45 @@ export default function AddPrivateRideScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Fuel Efficiency (L/100km)</Text>
+                                <Text style={styles.label}>
+                                    Fuel Efficiency (L/100km)
+                                    {systemSettings && (
+                                        <Text style={styles.validationText}>
+                                            {' '}({systemSettings.fuelEfficiencyMin}-{systemSettings.fuelEfficiencyMax})
+                                        </Text>
+                                    )}
+                                </Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[
+                                        styles.input,
+                                        fuelEfficiencyError && styles.inputError
+                                    ]}
                                     value={fuelEfficiency}
-                                    onChangeText={setFuelEfficiency}
+                                    onChangeText={handleFuelEfficiencyChange}
                                     placeholder="e.g., 7.0"
                                     placeholderTextColor="#64748b"
                                     keyboardType="numeric"
                                 />
+                                {fuelEfficiencyError && (
+                                    <Text style={styles.errorText}>{fuelEfficiencyError}</Text>
+                                )}
+                                {!fuelEfficiencyError && systemSettings && (
+                                    <Text style={styles.helperText}>
+                                        Valid range: {systemSettings.fuelEfficiencyMin}-{systemSettings.fuelEfficiencyMax} L/100km
+                                    </Text>
+                                )}
                             </View>
 
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>Fuel Price (RWF/L)</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, styles.disabledInput]}
                                     value={pricePerLiter}
-                                    onChangeText={setPricePerLiter}
-                                    placeholder="e.g., 1700"
+                                    editable={false}
+                                    placeholder="Set by admin"
                                     placeholderTextColor="#64748b"
-                                    keyboardType="numeric"
                                 />
+                                <Text style={styles.disabledText}>Set by system administrator</Text>
                             </View>
                         </View>
 
@@ -545,9 +637,12 @@ export default function AddPrivateRideScreen() {
 
                         {/* Submit Button */}
                         <TouchableOpacity
-                            style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+                            style={[
+                                styles.submitButton,
+                                (isLoading || fuelEfficiencyError) && styles.submitButtonDisabled
+                            ]}
                             onPress={handleSubmit}
-                            disabled={isLoading}
+                            disabled={isLoading || !!fuelEfficiencyError}
                         >
                             <Text style={styles.submitButtonText}>
                                 {isLoading ? 'Creating...' : (isEditing ? 'Update Ride' : 'Create Ride')}
@@ -705,6 +800,15 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#1f2937',
     },
+    inputError: {
+        borderColor: '#ef4444',
+        borderWidth: 2,
+    },
+    errorText: {
+        fontSize: 14,
+        color: '#ef4444',
+        marginTop: 8,
+    },
     textArea: {
         height: 100,
         textAlignVertical: 'top',
@@ -786,5 +890,26 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#374151',
         marginBottom: 8,
+    },
+    disabledInput: {
+        backgroundColor: '#f3f4f6', // A light gray background for disabled inputs
+        color: '#9ca3af', // A muted color for disabled text
+        opacity: 0.7, // Slightly transparent for disabled effect
+    },
+    disabledText: {
+        fontSize: 14,
+        color: '#9ca3af',
+        marginTop: 8,
+        textAlign: 'center',
+    },
+    validationText: {
+        fontSize: 14,
+        color: '#ef4444',
+        marginLeft: 8,
+    },
+    helperText: {
+        fontSize: 14,
+        color: '#6b7280',
+        marginTop: 8,
     },
 }); 

@@ -1,30 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
+import { useAuth } from '../app/context/AuthContext';
 
 const PricingPreview = ({
     startLocation,
     endLocation,
     seats,
-    fuelEfficiency = 7.0, // Default 7L/100km
-    pricePerLiter = 1700, // Default 1700 RWF/L
+    fuelEfficiency,
+    pricePerLiter,
     onPriceCalculated,
     style = {}
 }) => {
-    const [pricing, setPricing] = useState(null);
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [systemFuelPrice, setSystemFuelPrice] = useState(null);
+    const [pricing, setPricing] = useState(null);
     const [error, setError] = useState(null);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [systemSettings, setSystemSettings] = useState(null);
+
+    // Fetch system fuel price on component mount
+    useEffect(() => {
+        fetchSystemFuelPrice();
+    }, []);
+
+    const fetchSystemFuelPrice = async () => {
+        try {
+            const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/system/settings`);
+            setSystemFuelPrice(response.data.settings.fuelPricePerLiter);
+            setSystemSettings(response.data.settings);
+        } catch (error) {
+            console.error('Failed to fetch system fuel price:', error);
+            // Use default if fetch fails
+            setSystemFuelPrice(1700);
+            setSystemSettings({
+                fuelPricePerLiter: 1700,
+                fuelEfficiencyMin: 6.0,
+                fuelEfficiencyMax: 10.0
+            });
+        }
+    };
+
+    // Check if fuel efficiency is valid
+    const isFuelEfficiencyValid = () => {
+        if (!systemSettings || !fuelEfficiency) return true;
+        const numFuelEfficiency = parseFloat(fuelEfficiency);
+        return !isNaN(numFuelEfficiency) &&
+            numFuelEfficiency >= systemSettings.fuelEfficiencyMin &&
+            numFuelEfficiency <= systemSettings.fuelEfficiencyMax;
+    };
+
+    // Use system fuel price if available, otherwise fall back to provided price
+    const effectiveFuelPrice = systemFuelPrice || pricePerLiter;
 
     useEffect(() => {
-        if (startLocation?.latitude && endLocation?.latitude && seats > 0) {
+        if (startLocation?.latitude && endLocation?.latitude && seats > 0 && isFuelEfficiencyValid()) {
             calculatePricing();
         } else {
             setPricing(null);
             setError(null);
         }
-    }, [startLocation, endLocation, seats, fuelEfficiency, pricePerLiter]);
+    }, [startLocation, endLocation, seats, fuelEfficiency, effectiveFuelPrice]);
 
     const calculatePricing = async () => {
         if (!startLocation?.latitude || !endLocation?.latitude || !seats) {
@@ -34,19 +72,24 @@ const PricingPreview = ({
         setLoading(true);
         setError(null);
 
+        const requestData = {
+            startLat: startLocation.latitude,
+            startLon: startLocation.longitude,
+            endLat: endLocation.latitude,
+            endLon: endLocation.longitude,
+            seats: parseInt(seats),
+            fuelEfficiency: parseFloat(fuelEfficiency)
+        };
+
+        console.log('Sending pricing calculation request:', requestData);
+
         try {
             const response = await axios.post(
                 `${process.env.EXPO_PUBLIC_API_URL}/cost/calculate/preview`,
-                {
-                    startLat: startLocation.latitude,
-                    startLon: startLocation.longitude,
-                    endLat: endLocation.latitude,
-                    endLon: endLocation.longitude,
-                    seats: parseInt(seats),
-                    fuelEfficiency: parseFloat(fuelEfficiency),
-                    pricePerLiter: parseFloat(pricePerLiter)
-                }
+                requestData
             );
+
+            console.log('Pricing calculation response:', response.data);
 
             if (response.data.success) {
                 const pricingData = response.data.data;
@@ -59,7 +102,29 @@ const PricingPreview = ({
             }
         } catch (err) {
             console.error('Pricing calculation error:', err);
-            setError('Unable to calculate pricing');
+            if (err.response) {
+                console.error('Error response:', err.response.data);
+
+                // Handle specific validation errors
+                if (err.response.status === 400) {
+                    const errorMessage = err.response.data.error;
+                    if (errorMessage.includes('fuel efficiency')) {
+                        setError(`Fuel efficiency validation error: ${errorMessage}`);
+                    } else if (errorMessage.includes('Missing required parameters')) {
+                        setError('Please fill in all required fields (locations, seats, fuel efficiency)');
+                    } else {
+                        setError(errorMessage);
+                    }
+                } else if (err.response.status === 500) {
+                    setError('Server error. Please try again later.');
+                } else {
+                    setError('Unable to calculate pricing. Please check your inputs.');
+                }
+            } else if (err.request) {
+                setError('Network error. Please check your connection.');
+            } else {
+                setError('Unable to calculate pricing');
+            }
         } finally {
             setLoading(false);
         }
@@ -102,6 +167,15 @@ const PricingPreview = ({
                 </View>
             )}
 
+            {!isFuelEfficiencyValid() && !error && (
+                <View style={styles.warningContainer}>
+                    <FontAwesome5 name="exclamation-triangle" size={14} color="#ff9800" />
+                    <Text style={styles.warningText}>
+                        Fuel efficiency ({fuelEfficiency} L/100km) is outside the valid range ({systemSettings?.fuelEfficiencyMin}-{systemSettings?.fuelEfficiencyMax} L/100km)
+                    </Text>
+                </View>
+            )}
+
             {pricing && !loading && !error && (
                 <View style={styles.pricingContainer}>
                     {/* Route Information */}
@@ -141,7 +215,7 @@ const PricingPreview = ({
                             </View>
                             <View style={styles.fuelRow}>
                                 <Text style={styles.fuelLabel}>Price per Liter:</Text>
-                                <Text style={styles.fuelValue}>{pricePerLiter?.toLocaleString() || '0'} RWF</Text>
+                                <Text style={styles.fuelValue}>{effectiveFuelPrice?.toLocaleString() || '0'} RWF</Text>
                             </View>
                             <View style={[styles.fuelRow, styles.totalRow]}>
                                 <Text style={styles.totalLabel}>Total Fuel Cost:</Text>
@@ -266,6 +340,21 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         fontSize: 14,
         color: '#f44336',
+    },
+    warningContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        backgroundColor: '#fffbe6',
+        borderRadius: 6,
+        margin: 12,
+        borderLeftWidth: 3,
+        borderLeftColor: '#ff9800',
+    },
+    warningText: {
+        marginLeft: 8,
+        fontSize: 14,
+        color: '#ff9800',
     },
     pricingContainer: {
         padding: 12,
