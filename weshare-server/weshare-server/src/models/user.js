@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     email: { type: String, unique: true, trim: true, lowercase: true, sparse: true },
     password: { type: String, required: true, minlength: 6 },
-    role: { type: String, enum: ['user', 'agency_employee'], default: 'user' }, // Only normal users here
+    role: { type: String, enum: ['user', 'agency_employee', 'super_admin'], default: 'user' },
     name: { type: String, required: true },
     contact_number: { type: String, required: true, unique: true, match: [/^\+2507[2389]\d{7}$/, 'Please enter a valid Rwandan phone number'] },
     photoUrl: { type: String, trim: true }, // Profile photo URL
@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
     verificationCodeExpires: { type: Date },
     agencyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Agency' },
     destinationCategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'DestinationCategory' },
+    status: { type: String, enum: ['active', 'suspended'], default: 'active' }, // Admin management
     created_at: { type: Date, default: Date.now },
     booked_rides: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -77,7 +78,6 @@ const ensureIndexes = async () => {
     }
 };
 
-// Call ensureIndexes when the model is loaded
 ensureIndexes();
 
 module.exports = User;

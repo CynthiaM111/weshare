@@ -12,6 +12,7 @@ import reminderRoutes from './src/routes/reminderRoutes.js';
 import bookingRoutes from './src/routes/bookingRoutes.js';
 import costSharingRoutes from './src/routes/costSharing.js';
 import driverVerificationRoutes from './src/routes/driverVerification.js';
+import adminRoutes from './src/routes/adminRoutes.js';
 import cronService from './src/services/cronService.js';
 import { warmCache } from './src/controllers/rideController.js';
 
@@ -50,6 +51,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/cost', costSharingRoutes);
 app.use('/api/driver-verification', driverVerificationRoutes);
+app.use('/api/admin', adminRoutes);
 // Start the reminder scheduler
 cronService.startReminderScheduler();
 

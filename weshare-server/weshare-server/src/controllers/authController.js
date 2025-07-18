@@ -164,16 +164,30 @@ const login = async (req, res) => {
         let role = 'agency';
 
         if (!user) {
-            // If not agency, check User (using contact number)
-            if (!contact_number) {
-                return res.status(400).json({ error: 'Contact number is required for user login' });
+            // If not agency, check User (using contact number or email)
+            if (!contact_number && !email) {
+                return res.status(400).json({ error: 'Contact number or email is required for user login' });
             }
-            user = await User.findOne({ contact_number });
+
+            // Try to find user by email first (for super admin), then by contact number
+            if (email) {
+                user = await User.findOne({ email });
+            }
+            if (!user && contact_number) {
+                user = await User.findOne({ contact_number });
+            }
             role = user ? user.role : null;
         }
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        // Check if user is suspended (only for regular users, not agencies)
+        if (role !== 'agency' && user.status === 'suspended') {
+            return res.status(403).json({
+                error: 'Account suspended. Please contact support for assistance.'
+            });
         }
 
         if (!password) {
@@ -206,6 +220,19 @@ const login = async (req, res) => {
             contact_number: user.contact_number,
             photoUrl: user.photoUrl,
         };
+
+        // Add user object for admin dashboard
+        if (role === 'super_admin') {
+            responseData.user = {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                contact_number: user.contact_number,
+                status: user.status || 'active',
+                createdAt: user.createdAt
+            };
+        }
 
         if (role === 'agency_employee') {
             responseData.agencyId = user.agencyId;
@@ -294,6 +321,47 @@ const employeeOnly = (req, res, next) => {
         return res.status(403).json({ error: 'Access denied. Agency employee only.' });
     }
     next();
+};
+
+// Super admin middleware
+const superAdminOnly = async (req, res, next) => {
+    try {
+        // Get token from Authorization header
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Access denied. No token provided.' });
+        }
+
+        const token = authHeader.split(' ')[1];
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Check if user exists and is super admin
+        let user;
+        if (decoded.role === 'agency') {
+            user = await Agency.findById(decoded.id);
+        } else {
+            user = await User.findById(decoded.id);
+        }
+
+        if (!user) {
+            return res.status(401).json({ error: 'Access denied. User not found.' });
+        }
+
+        // Check if user is super admin
+        if (user.role !== 'super_admin') {
+            return res.status(403).json({ error: 'Access denied. Super admin privileges required.' });
+        }
+
+        // Add user to request object
+        req.user = user;
+        next();
+    } catch (error) {
+        console.error('Super admin middleware error:', error);
+        res.status(401).json({ error: 'Access denied. Invalid token.' });
+    }
 };
 
 // Updated: Fetch agencies for signup
@@ -635,5 +703,6 @@ module.exports = {
     resendVerificationCode,
     sendOTP,
     getUsers,
-    updateUserProfile
+    updateUserProfile,
+    superAdminOnly
 };
