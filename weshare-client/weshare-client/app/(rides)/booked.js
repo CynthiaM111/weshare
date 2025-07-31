@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { useApi } from '../../hooks/useApi';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 // Safely import QRCode with error handling
 let QRCode = null;
@@ -17,6 +19,28 @@ try {
 }
 
 export default function BookedRidesScreen() {
+    const { t } = useTranslation();
+
+    // Function to translate status
+    const translateStatus = (status) => {
+        switch (status) {
+            case 'Available':
+                return t('common.status.available');
+            case 'Nearly Full':
+                return t('common.status.nearlyFull');
+            case 'Full':
+                return t('common.status.full');
+            case 'Inactive':
+                return t('common.status.inactive');
+            case 'Completed':
+                return t('common.status.completed');
+            case 'Pending':
+                return t('common.status.pending');
+            default:
+                return status;
+        }
+    };
+
     const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
     const [selectedRideId, setSelectedRideId] = useState(null);
     const [expandedSections, setExpandedSections] = useState({
@@ -40,8 +64,10 @@ export default function BookedRidesScreen() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                             <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>My Booked Rides</Text>
-                        <View style={styles.headerPlaceholder} />
+                        <Text style={styles.headerTitle}>{t('bookedRides.header.title')}</Text>
+                        <View style={styles.headerPlaceholder}>
+                            <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                        </View>
                     </View>
 
                     <View style={styles.loginPromptContainer}>
@@ -49,16 +75,16 @@ export default function BookedRidesScreen() {
                             <View style={styles.loginPromptIcon}>
                                 <FontAwesome5 name="ticket-alt" size={48} color="#0a2472" />
                             </View>
-                            <Text style={styles.loginPromptTitle}>Login Required</Text>
+                            <Text style={styles.loginPromptTitle}>{t('bookedRides.loginRequired.title')}</Text>
                             <Text style={styles.loginPromptText}>
-                                Please login to view and manage your booked rides.
+                                {t('bookedRides.loginRequired.subtitle')}
                             </Text>
                             <TouchableOpacity
                                 style={styles.loginPromptButton}
                                 onPress={() => router.push('/(auth)/login')}
                             >
                                 <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
-                                <Text style={styles.loginPromptButtonText}>LOGIN / SIGN UP</Text>
+                                <Text style={styles.loginPromptButtonText}>{t('bookedRides.loginRequired.button')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -309,7 +335,7 @@ export default function BookedRidesScreen() {
                                         Seats: {item.seats - item.booked_seats}/{item.seats}
                                     </Text>
                                     <Text style={[styles.detailText, { color: statusColor, fontWeight: 'bold' }]}>
-                                        Status: {item.statusDisplay}
+                                        Status: {translateStatus(item.statusDisplay)}
                                     </Text>
                                     {isMissed && (
                                         <Text style={styles.missedMessage}>
@@ -365,8 +391,10 @@ export default function BookedRidesScreen() {
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                         <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>My Booked Rides</Text>
-                    <View style={styles.headerPlaceholder} />
+                    <Text style={styles.headerTitle}>{t('bookedRides.header.title')}</Text>
+                    <View style={styles.headerPlaceholder}>
+                        <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                    </View>
                 </View>
 
                 <FlatList
@@ -384,13 +412,13 @@ export default function BookedRidesScreen() {
                     contentContainerStyle={styles.scrollContent}
                     ListHeaderComponent={
                         <View>
-                            {renderRideSection(publicBookings, 'Public Rides', 'bus-outline', 'public', '#2196F3')}
-                            {renderRideSection(privateBookings, 'Private Rides', 'car-outline', 'private', '#d65108')}
+                            {renderRideSection(publicBookings, t('bookedRides.sections.public.title'), 'bus-outline', 'public', '#2196F3')}
+                            {renderRideSection(privateBookings, t('bookedRides.sections.private.title'), 'car-outline', 'private', '#d65108')}
                             {sortedRides.length === 0 && !isLoadingRides && (
                                 <View style={styles.emptyContainer}>
                                     <FontAwesome5 name="calendar-times" size={64} color="rgba(255, 255, 255, 0.6)" />
-                                    <Text style={styles.emptyText}>No booked rides found</Text>
-                                    <Text style={styles.emptySubText}>Book a ride to see it here</Text>
+                                    <Text style={styles.emptyText}>{t('bookedRides.emptyState.title')}</Text>
+                                    <Text style={styles.emptySubText}>{t('bookedRides.emptyState.subtitle')}</Text>
                                 </View>
                             )}
                         </View>

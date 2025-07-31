@@ -9,8 +9,11 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function RidesScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuth();
     const params = useLocalSearchParams();
@@ -158,21 +161,21 @@ export default function RidesScreen() {
     useEffect(() => {
         if (bookingsError && bookingsError.statusCode !== 404) {
             Alert.alert(
-                'Error Loading Bookings',
-                bookingsError.userMessage || 'We encountered an error while loading your booked rides. Please try again.',
+                t('rides.errorLoadingBookings'),
+                bookingsError.userMessage || t('rides.errorLoadingBookingsMessage'),
                 [
                     {
-                        text: 'Cancel',
+                        text: t('common.cancel'),
                         style: 'cancel'
                     },
                     {
-                        text: 'Retry',
+                        text: t('common.retry'),
                         onPress: () => retryFetchBookings()
                     }
                 ]
             );
         }
-    }, [bookingsError]);
+    }, [bookingsError, t]);
 
     // Separate available rides and booked rides
     // Filter out missed rides from active bookings as they should not appear in search results
@@ -230,13 +233,14 @@ export default function RidesScreen() {
                                 <Ionicons name="car-sport" size={32} color="#fbbf24" />
                             </View>
                             <View>
-                                <Text style={styles.headerTitle}>Available Rides</Text>
+                                <Text style={styles.headerTitle}>{t('rides.header.title')}</Text>
                                 <Text style={styles.headerSubtitle}>
-                                    {hasSearchResults ? `${(searchResults || []).length} rides found` : 'Find your perfect ride'}
+                                    {hasSearchResults ? t('rides.header.ridesFound', { count: (searchResults || []).length }) : t('rides.header.subtitle')}
                                 </Text>
                             </View>
                         </View>
                         <View style={styles.headerRight}>
+                            <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
                             <Ionicons name="star" size={20} color="#fbbf24" />
                         </View>
                     </View>
@@ -271,12 +275,12 @@ export default function RidesScreen() {
                                     <Text style={styles.emptySearchEmoji}>🎯</Text>
                                 </View>
                                 <Text style={styles.welcomeTitle}>
-                                    {hasBookings ? "Ready for your next adventure?" : "Welcome to WeShare!"}
+                                    {hasBookings ? t('rides.emptyState.hasBookings.title') : t('rides.emptyState.noSearchYet.title')}
                                 </Text>
                                 <Text style={styles.emptySearchText}>
                                     {hasBookings
-                                        ? "Search for rides to discover new destinations and connect with fellow travelers."
-                                        : 'Find shared rides to your destination and start your journey with us.'}
+                                        ? t('rides.emptyState.hasBookings.subtitle')
+                                        : t('rides.emptyState.noSearchYet.subtitle')}
                                 </Text>
                                 <LinearGradient
                                     colors={['#3b82f6', '#1d4ed8']}
@@ -289,7 +293,7 @@ export default function RidesScreen() {
                                         onPress={handleSearchPress}
                                     >
                                         <Ionicons name="search" size={20} color="#fff" />
-                                        <Text style={styles.searchButtonText}>Search for Rides</Text>
+                                        <Text style={styles.searchButtonText}>{t('rides.emptyState.noSearchYet.button')}</Text>
                                     </TouchableOpacity>
                                 </LinearGradient>
                             </View>
@@ -301,9 +305,9 @@ export default function RidesScreen() {
                                 <View style={styles.noResultsIcon}>
                                     <Text style={styles.noResultsEmoji}>🔍</Text>
                                 </View>
-                                <Text style={styles.noResultsTitle}>No rides found</Text>
+                                <Text style={styles.noResultsTitle}>{t('rides.emptyState.noResults.title')}</Text>
                                 <Text style={styles.noResultsText}>
-                                    We couldn't find any rides matching your search criteria. Try adjusting your search or check back later.
+                                    {t('rides.emptyState.noResults.subtitle')}
                                 </Text>
                                 <LinearGradient
                                     colors={['#3b82f6', '#1d4ed8']}
@@ -316,7 +320,7 @@ export default function RidesScreen() {
                                         onPress={handleSearchPress}
                                     >
                                         <Ionicons name="search" size={20} color="#fff" />
-                                        <Text style={styles.newSearchText}>Try New Search</Text>
+                                        <Text style={styles.newSearchText}>{t('rides.emptyState.noResults.button')}</Text>
                                     </TouchableOpacity>
                                 </LinearGradient>
 
@@ -329,7 +333,7 @@ export default function RidesScreen() {
                                                 onPress={handleBookedPress}
                                             >
                                                 <Ionicons name="ticket" size={16} color="#3b82f6" />
-                                                <Text style={styles.emptyResultButtonText}>My Bookings</Text>
+                                                <Text style={styles.emptyResultButtonText}>{t('rides.emptyState.noResults.myBookings')}</Text>
                                             </TouchableOpacity>
                                         )}
                                     </View>
@@ -344,7 +348,7 @@ export default function RidesScreen() {
                                 {groupedBookedRides.length > 0 && (
                                     <View style={styles.bookedNotice}>
                                         <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-                                        <Text style={styles.bookedNoticeText}>Already booked</Text>
+                                        <Text style={styles.bookedNoticeText}>{t('rides.actions.alreadyBooked')}</Text>
                                     </View>
                                 )}
 
@@ -356,7 +360,7 @@ export default function RidesScreen() {
                                             onPress={handleBookedPress}
                                         >
                                             <Ionicons name="ticket" size={16} color="#3b82f6" />
-                                            <Text style={styles.compactButtonText}>Bookings</Text>
+                                            <Text style={styles.compactButtonText}>{t('rides.actions.bookings')}</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -375,7 +379,7 @@ export default function RidesScreen() {
                                         <View style={styles.sectionHeader}>
                                             <View style={styles.sectionHeaderLeft}>
                                                 <Text style={styles.sectionEmoji}>✅</Text>
-                                                <Text style={styles.sectionTitle}>Available Rides ({(availableRides || []).length})</Text>
+                                                <Text style={styles.sectionTitle}>{t('rides.sections.available.title')} ({(availableRides || []).length})</Text>
                                             </View>
                                             <Ionicons
                                                 name={expandedSections.available ? 'chevron-up' : 'chevron-down'}
@@ -424,7 +428,7 @@ export default function RidesScreen() {
                                         <View style={styles.sectionHeader}>
                                             <View style={styles.sectionHeaderLeft}>
                                                 <Text style={styles.sectionEmoji}>🚫</Text>
-                                                <Text style={styles.sectionTitle}>Full Rides ({(fullRides || []).length})</Text>
+                                                <Text style={styles.sectionTitle}>{t('rides.sections.full.title')} ({(fullRides || []).length})</Text>
                                             </View>
                                             <Ionicons
                                                 name={expandedSections.full ? 'chevron-up' : 'chevron-down'}
@@ -475,7 +479,7 @@ export default function RidesScreen() {
                                         onPress={handleBookedPress}
                                     >
                                         <Ionicons name="ticket" size={20} color="#fff" />
-                                        <Text style={styles.bookedButtonText}>View Booked Rides</Text>
+                                        <Text style={styles.bookedButtonText}>{t('rides.actions.viewBookedRides')}</Text>
                                     </TouchableOpacity>
                                 </LinearGradient>
                             </View>
@@ -515,6 +519,8 @@ const styles = StyleSheet.create({
         marginRight: 16,
     },
     headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
         padding: 8,
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderRadius: 12,
@@ -882,5 +888,8 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1f2937',
         marginLeft: 8,
+    },
+    languageSwitcher: {
+        marginRight: 10,
     },
 });

@@ -70,9 +70,10 @@ const getSpecificErrorMessage = (error, errorCode) => {
             if (serverMessage.toLowerCase().includes('hour')) {
                 return "Rides must be scheduled at least 2 hours in advance.";
             }
-            if (serverMessage.toLowerCase().includes('time')) {
-                return "Please select a valid time. Rides are available from 6:00 AM to 10:00 PM.";
-            }
+            // Remove the generic time validation that incorrectly applies to bookings
+            // if (serverMessage.toLowerCase().includes('time')) {
+            //     return "Please select a valid time. Rides are available from 6:00 AM to 10:00 PM.";
+            // }
             if (serverMessage.toLowerCase().includes('date')) {
                 return "Please select a valid date.";
             }

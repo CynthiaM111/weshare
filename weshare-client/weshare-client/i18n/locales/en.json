@@ -1,0 +1,476 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "cancel": "Cancel",
+        "ok": "OK",
+        "save": "Save",
+        "edit": "Edit",
+        "delete": "Delete",
+        "back": "Back",
+        "next": "Next",
+        "submit": "Submit",
+        "close": "Close",
+        "retry": "Retry",
+        "refresh": "Refresh",
+        "search": "Search",
+        "filter": "Filter",
+        "sort": "Sort",
+        "clear": "Clear",
+        "done": "Done",
+        "yes": "Yes",
+        "no": "No",
+        "required": "Required",
+        "optional": "Optional",
+        "status": {
+            "available": "Available",
+            "nearlyFull": "Nearly Full",
+            "full": "Full",
+            "inactive": "Inactive",
+            "completed": "Completed",
+            "pending": "Pending"
+        }
+    },
+    "home": {
+        "goodMorning": "Good morning! ☀️",
+        "goodAfternoon": "Good afternoon! 🌤️",
+        "goodEvening": "Good evening! 🌙",
+        "traveler": "Traveler",
+        "findYourRide": "Find Your Ride",
+        "whereWouldYouLikeToGo": "Where would you like to go today?",
+        "from": "From",
+        "to": "To",
+        "searching": "Searching...",
+        "searchRides": "Search Rides",
+        "recentSearches": "Recent Searches",
+        "times": "{{count}} times",
+        "quickActions": "Quick Actions",
+        "createPrivateRide": "Create Private Ride",
+        "createPrivateRideSubtitle": "Offer your car",
+        "bookPrivateRide": "Book Private Ride",
+        "bookPrivateRideSubtitle": "Find available rides",
+        "offerRide": "Offer Ride",
+        "shareYourCar": "Share your car",
+        "travelTips": "Travel Tips",
+        "bookEarlyForBetterPrices": "Book early for better prices",
+        "shareRidesToMeetNewPeople": "Share rides to meet new people",
+        "rateYourDriverToHelpOthers": "Rate your driver to help others"
+    },
+    "rides": {
+        "header": {
+            "title": "Available Rides",
+            "subtitle": "Find your perfect ride",
+            "ridesFound": "{{count}} rides found"
+        },
+        "emptyState": {
+            "noSearchYet": {
+                "title": "Ready for your next adventure?",
+                "subtitle": "Search for rides to discover new destinations and connect with fellow travelers.",
+                "button": "Search for Rides"
+            },
+            "hasBookings": {
+                "title": "Ready for your next adventure?",
+                "subtitle": "Search for rides to discover new destinations and connect with fellow travelers.",
+                "button": "Search for Rides"
+            },
+            "noResults": {
+                "title": "No rides found",
+                "subtitle": "We couldn't find any rides matching your search criteria. Try adjusting your search or check back later.",
+                "button": "Try New Search",
+                "myBookings": "My Bookings"
+            }
+        },
+        "sections": {
+            "available": {
+                "title": "Available Rides",
+                "count": "{{count}} rides"
+            },
+            "booked": {
+                "title": "Booked Rides",
+                "count": "{{count}} rides"
+            },
+            "full": {
+                "title": "Full Rides",
+                "count": "{{count}} rides"
+            }
+        },
+        "actions": {
+            "bookings": "Bookings",
+            "alreadyBooked": "Already booked",
+            "viewBookedRides": "View Booked Rides"
+        },
+        "errors": {
+            "loadingBookings": "Error Loading Bookings",
+            "loadingBookingsMessage": "We encountered an error while loading your booked rides. Please try again."
+        }
+    },
+    "privateRides": {
+        "header": {
+            "title": "Private Rides",
+            "subtitle": "Search or offer private rides"
+        },
+        "search": {
+            "title": "Search Available Private Rides",
+            "from": "From",
+            "to": "To",
+            "fromPlaceholder": "From...",
+            "toPlaceholder": "To...",
+            "searchButton": "Search",
+            "clearButton": "Clear",
+            "searching": "Searching..."
+        },
+        "recentSearches": {
+            "title": "Recent Searches",
+            "times": "{{count}} times"
+        },
+        "emptyState": {
+            "noRides": {
+                "title": "No private rides found",
+                "subtitle": "Create your first private ride to get started",
+                "button": "Add Private Ride"
+            },
+            "noSearchResults": {
+                "title": "No private rides found",
+                "subtitle": "No private rides found matching your search criteria."
+            }
+        },
+        "sections": {
+            "myRides": {
+                "title": "My Rides",
+                "count": "{{count}} rides"
+            },
+            "availableRides": {
+                "title": "Available Private Rides",
+                "count": "{{count}} rides"
+            },
+            "myBookings": {
+                "title": "My Bookings",
+                "count": "{{count}} rides",
+                "summaryTitle": "View All Your Bookings",
+                "summaryText": "See all your public and private ride bookings in one place, including ride status, payment info, and more.",
+                "viewButton": "View Bookings"
+            }
+        },
+        "actions": {
+            "addRide": "Add Ride",
+            "editRide": "Edit Ride",
+            "deleteRide": "Delete Ride",
+            "startRide": "Start Ride",
+            "finishRide": "Finish Ride",
+            "viewBookings": "View Bookings"
+        },
+        "errors": {
+            "loadingRides": "Error Loading Rides",
+            "loadingRidesMessage": "We encountered an error while loading your rides. Please try again.",
+            "searchRequired": "Search Required",
+            "searchRequiredMessage": "Please enter at least a departure or destination location to search for rides."
+        }
+    },
+    "bookedRides": {
+        "header": {
+            "title": "My Booked Rides",
+            "subtitle": "View and manage your booked rides"
+        },
+        "loginRequired": {
+            "title": "Login Required",
+            "subtitle": "Please login to view and manage your booked rides.",
+            "button": "LOGIN / SIGN UP"
+        },
+        "emptyState": {
+            "title": "No booked rides found",
+            "subtitle": "Book a ride to see it here"
+        },
+        "sections": {
+            "public": {
+                "title": "Public Rides",
+                "count": "{{count}} rides"
+            },
+            "private": {
+                "title": "Private Rides",
+                "count": "{{count}} rides"
+            }
+        },
+        "actions": {
+            "cancelBooking": "Cancel Booking",
+            "viewQRCode": "View QR Code",
+            "checkIn": "Check In"
+        },
+        "status": {
+            "confirmed": "Confirmed",
+            "cancelled": "Cancelled",
+            "completed": "Completed",
+            "missed": "Missed"
+        }
+    },
+    "navigation": {
+        "home": "Home",
+        "rides": "Rides",
+        "profile": "Profile",
+        "settings": "Settings",
+        "notifications": "Notifications",
+        "messages": "Messages",
+        "bookings": "Bookings",
+        "history": "History",
+        "admin": "Admin"
+    },
+    "auth": {
+        "login": "Login",
+        "logout": "Logout",
+        "register": "Register",
+        "signup": "Sign Up",
+        "email": "Email",
+        "password": "Password",
+        "confirmPassword": "Confirm Password",
+        "forgotPassword": "Forgot Password?",
+        "resetPassword": "Reset Password",
+        "loginSuccess": "Login successful",
+        "logoutSuccess": "Logout successful",
+        "invalidCredentials": "Invalid email or password",
+        "emailRequired": "Email is required",
+        "passwordRequired": "Password is required",
+        "passwordMinLength": "Password must be at least 6 characters",
+        "passwordsDoNotMatch": "Passwords do not match",
+        "emailInvalid": "Please enter a valid email address",
+        "welcomeBack": "Welcome Back!",
+        "signInToContinue": "Sign in to continue your journey",
+        "phoneNumber": "Phone Number",
+        "phoneFormat": "Format: 7XXXXXXXX (e.g. 785123456)",
+        "signIn": "SIGN IN",
+        "dontHaveAccount": "Don't have an account?",
+        "signUp": "Sign up",
+        "loginFailed": "Login Failed",
+        "loginFailedMessage": "We couldn't log you in at this time. Check your credentials and try again.",
+        "tryAgain": "Try Again",
+        "joinWeShare": "Join WeShare!",
+        "createAccountToStart": "Create your account to start sharing rides",
+        "fullName": "Full Name",
+        "selectRole": "Select Role",
+        "normalUser": "Normal User",
+        "agencyEmployee": "Agency Employee",
+        "selectAgency": "Select Agency",
+        "selectCategory": "Select Category",
+        "to": "to",
+        "createAccount": "CREATE ACCOUNT",
+        "alreadyHaveAccount": "Already have an account?",
+        "signupFailed": "Signup Failed",
+        "signupFailedMessage": "We couldn't sign you up at this time. Check your credentials and try again.",
+        "failedToLoadCategories": "Failed to load categories"
+    },
+    "rideForm": {
+        "locationDetails": "Location Details",
+        "tripDetails": "Trip Details",
+        "vehicleDetails": "Vehicle Details",
+        "fuelDetails": "Fuel Details",
+        "pricingPreview": "Pricing Preview",
+        "pickupLocation": "Pickup Location",
+        "destination": "Destination",
+        "enterPickupLocation": "Enter pickup location...",
+        "enterDestination": "Enter destination...",
+        "date": "Date",
+        "time": "Time",
+        "description": "Description",
+        "descriptionPlaceholder": "Where are you meeting with the passenger(s)? (e.g., Kigali Heights Mall entrance, Remera bus stop, etc.)",
+        "estimatedTravelTime": "Estimated Travel Time (hours)",
+        "licensePlate": "License Plate",
+        "licensePlatePlaceholder": "e.g., RAA123A",
+        "availableSeats": "Available Seats",
+        "seatsPlaceholder": "e.g., 3",
+        "wheelchairAccessible": "Wheelchair Accessible",
+        "fuelEfficiency": "Fuel Efficiency (L/100km)",
+        "fuelEfficiencyPlaceholder": "e.g., 7.0",
+        "fuelPrice": "Fuel Price (RWF/L)",
+        "setByAdmin": "Set by system administrator",
+        "validRange": "Valid range: {{min}}-{{max}} L/100km",
+        "creating": "Creating...",
+        "updating": "Updating...",
+        "createRide": "Create Ride",
+        "updateRide": "Update Ride",
+        "createPrivateRide": "Create Private Ride",
+        "updatePrivateRide": "Update Private Ride",
+        "pricePerSeat": "Price per Seat",
+        "priceLabel": "Price (RWF)",
+        "pricePlaceholder": "Enter price per seat",
+        "priceTip": "Tip: Riders see the most affordable rides first. The lower your price, the higher your ride appears in search results — and the more likely it is to get booked!"
+    },
+    "validation": {
+        "required": "This field is required",
+        "invalidEmail": "Please enter a valid email address",
+        "invalidPhone": "Please enter a valid phone number",
+        "invalidLicensePlate": "Please enter a valid license plate number (2-7 characters, letters and numbers only)",
+        "invalidSeats": "Please enter a valid number of seats (minimum 1)",
+        "invalidETA": "Please enter a valid ETA in hours (minimum 1)",
+        "invalidFuelEfficiency": "Please enter a valid fuel efficiency (minimum 1 L/100km)",
+        "fuelEfficiencyRange": "Fuel efficiency must be between {{min}} and {{max}} L/100km",
+        "fuelEfficiencyRequired": "Fuel efficiency is required",
+        "invalidNumber": "Please enter a valid number",
+        "mustBeBetween": "Must be between {{min}} and {{max}} L/100km",
+        "missingInformation": "Please fill in all required fields including GPS coordinates",
+        "invalidLocations": "Please select valid locations from the suggestions for both pickup and destination"
+    },
+    "alerts": {
+        "profilePictureRequired": "Profile Picture Required",
+        "profilePictureMessage": "Please add a profile picture before creating a ride. This helps passengers identify you as their driver.",
+        "addProfilePicture": "Add Profile Picture",
+        "invalidSeats": "Invalid Seats",
+        "invalidSeatsMessage": "Please enter a valid number of seats (minimum 1)",
+        "invalidETA": "Invalid ETA",
+        "invalidETAMessage": "Please enter a valid ETA in hours (minimum 1)",
+        "invalidFuelEfficiency": "Invalid Fuel Efficiency",
+        "invalidFuelEfficiencyMessage": "Fuel efficiency must be between {{min}} and {{max}} L/100km",
+        "success": "Success!",
+        "rideCreatedMessage": "Private ride {{action}} successfully with automatic pricing",
+        "viewMyRides": "View My Rides",
+        "unexpectedError": "An unexpected error occurred"
+    },
+    "pricing": {
+        "routeDetails": "Route Details",
+        "fuelCostCalculation": "Fuel Cost Calculation",
+        "costSharingBreakdown": "Cost Sharing Breakdown",
+        "pricingSummary": "Pricing Summary",
+        "vehicleSettings": "Vehicle Settings",
+        "distance": "Distance",
+        "fuelNeeded": "Fuel Needed",
+        "pricePerLiter": "Price per Liter",
+        "totalFuelCost": "Total Fuel Cost",
+        "driverContribution": "Driver Contribution (25%)",
+        "passengerShare": "Passenger Share (75%)",
+        "perSeatCost": "Per Seat Cost",
+        "driverPays": "Driver Pays",
+        "eachPassengerPays": "Each Passenger Pays",
+        "seats": "Seats",
+        "efficiency": "Efficiency",
+        "fuelPrice": "Fuel Price"
+    },
+    "language": {
+        "english": "English",
+        "kinyarwanda": "Kinyarwanda",
+        "language": "Language",
+        "selectLanguage": "Select Language"
+    },
+    "settings": {
+        "general": "General",
+        "notifications": "Notifications",
+        "privacy": "Privacy",
+        "security": "Security",
+        "about": "About",
+        "help": "Help",
+        "contact": "Contact",
+        "termsOfService": "Terms of Service",
+        "privacyPolicy": "Privacy Policy",
+        "version": "Version"
+    },
+    "profile": {
+        "personalInfo": "Personal Information",
+        "driverProfile": "Driver Profile",
+        "vehicleInfo": "Vehicle Information",
+        "preferences": "Preferences",
+        "firstName": "First Name",
+        "lastName": "Last Name",
+        "phoneNumber": "Phone Number",
+        "dateOfBirth": "Date of Birth",
+        "gender": "Gender",
+        "address": "Address",
+        "profilePicture": "Profile Picture",
+        "changePicture": "Change Picture",
+        "removePicture": "Remove Picture",
+        "saveChanges": "Save Changes",
+        "changesSaved": "Changes saved successfully",
+        "errorLoadingProfile": "Something went wrong loading your profile.",
+        "mustBeLoggedIn": "You must be logged in to upload a photo",
+        "photoUpdatedSuccessfully": "Profile photo updated successfully!",
+        "photoUploaded": "Photo Uploaded",
+        "photoUploadedButUpdateFailed": "Photo uploaded but profile update failed. Photo will be saved locally.",
+        "failedToUploadPhoto": "Failed to upload photo. Please try again.",
+        "removePhoto": "Remove Photo",
+        "areYouSureYouWantToRemoveYourProfilePhoto": "Are you sure you want to remove your profile photo?",
+        "remove": "Remove",
+        "photoRemovedSuccessfully": "Profile photo removed successfully!",
+        "photoRemoved": "Photo Removed",
+        "photoRemovedLocallyButBackendUpdateFailed": "Photo removed locally but backend update failed. Photo will be removed from your profile.",
+        "failedToRemovePhoto": "Failed to remove photo. Please try again.",
+        "logout": "Logout",
+        "areYouSureYouWantToLogout": "Are you sure you want to logout?",
+        "errorLoadingProfileDetails": "Error Loading Profile Details",
+        "weEncounteredAnErrorWhileLoadingYourProfileDetails": "We encountered an error while loading your profile details. Please try again.",
+        "profile": "Profile",
+        "signInToWeShare": "Sign in to WeShare",
+        "accessYourProfileManageYourRidesAndMore": "Access your profile, manage your rides, and more",
+        "loginSignUp": "LOGIN / SIGN UP",
+        "normalUser": "Normal User",
+        "agencyEmployee": "Agency Employee",
+        "agencyInformation": "Agency Information",
+        "agency": "Agency",
+        "loading": "Loading...",
+        "notSet": "Not set",
+        "destinationRoute": "Destination Route",
+        "driverVerification": "Driver Verification",
+        "verifiedDriver": "Verified Driver",
+        "youAreVerifiedAsADriverAndCanPostPrivateRides": "You are verified as a driver and can post private rides.",
+        "licensePlate": "License Plate",
+        "editDriverProfile": "Edit Driver Profile",
+        "notVerified": "Not Verified",
+        "completeDriverVerificationToStartPostingPrivateRidesAndEarnMoney": "Complete driver verification to start posting private rides and earn money.",
+        "completeVerification": "Complete Verification",
+        "account": "Account",
+        "notifications": "Notifications",
+        "settings": "Settings",
+        "helpSupport": "Help & Support",
+        "rideHistory": "Ride History",
+        "profilePhoto": "Profile Photo",
+        "changePhoto": "Change Photo"
+    },
+    "messages": {
+        "messages": "Messages",
+        "errorLoadingMessages": "Error Loading Messages",
+        "errorLoadingMessagesMessage": "We encountered an error while loading your messages. Please try again.",
+        "failedToMarkMessageAsRead": "Failed to mark message as read.",
+        "bookingConfirmed": "Booking Confirmed",
+        "bookingCancelled": "Booking Cancelled",
+        "rideUpdated": "Ride Updated",
+        "rideCancelled": "Ride Cancelled",
+        "rideReminder": "Ride Reminder",
+        "rideCompleted": "Ride Completed",
+        "privateRideBooked": "New Passenger",
+        "privateRideCompleted": "Ride Completed",
+        "rideStarted": "Ride Started",
+        "message": "Message",
+        "noMessagesYet": "No Messages Yet",
+        "noMessagesYetMessage": "You'll receive notifications here when you book rides, get updates, or receive reminders."
+    },
+    "rideDetails": {
+        "header": {
+            "title": "Ride Details"
+        },
+        "loading": {
+            "text": "Loading ride details..."
+        },
+        "errors": {
+            "loadingRide": "Error Loading Ride Details",
+            "loadingRideMessage": "We encountered an error while loading the ride details. Please try again.",
+            "bookingRide": "Error Booking Ride",
+            "bookingRideMessage": "We encountered an error while booking the ride. Please try again.",
+            "loginRequired": "Login Required",
+            "loginRequiredMessage": "Please login before you can book a ride."
+        },
+        "details": {
+            "departure": "Departure",
+            "estimatedArrival": "Est. Arrival",
+            "availableSeats": "Available Seats",
+            "price": "Price",
+            "perSeat": "per seat",
+            "booked": "booked"
+        },
+        "agency": {
+            "driver": "Driver",
+            "operatedBy": "Operated by",
+            "unknownDriver": "Unknown Driver",
+            "unknownAgency": "Unknown Agency"
+        },
+        "booking": {
+            "booking": "Booking...",
+            "rideFull": "Ride Full",
+            "bookThisRide": "Book This Ride"
+        }
+    }
+}

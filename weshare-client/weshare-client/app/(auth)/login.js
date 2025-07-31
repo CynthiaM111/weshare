@@ -7,8 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
+    const { t } = useTranslation();
     const [password, setPassword] = useState('');
     const [contact_number, setContact_number] = useState('');
     const [loading, setLoading] = useState(false);
@@ -38,21 +40,21 @@ export default function Login() {
             const userMessage =
                 loginError?.userMessage ||
                 loginError?.response?.data?.error ||
-                "We couldn't log you in at this time. Check your credentials and try again.";
+                t('auth.loginFailedMessage');
 
-            Alert.alert('Login Failed', userMessage, [
+            Alert.alert(t('auth.loginFailed'), userMessage, [
                 {
-                    text: 'Try Again',
+                    text: t('auth.tryAgain'),
                     onPress: () => {
                         // Clear any stored data on failed login attempt
                         logout();
                         router.push('/(auth)/login');
                     }
                 },
-                { text: 'Cancel', style: 'cancel' }
+                { text: t('common.cancel'), style: 'cancel' }
             ]);
         }
-    }, [loginError]);
+    }, [loginError, t]);
 
     return (
         <LinearGradient
@@ -85,8 +87,8 @@ export default function Login() {
                                 <View style={styles.logoGlow} />
                             </View>
 
-                            <Text style={styles.title}>Welcome Back! 🚗</Text>
-                            <Text style={styles.subtitle}>Sign in to continue your journey</Text>
+                            <Text style={styles.title}>{t('auth.welcomeBack')} 🚗</Text>
+                            <Text style={styles.subtitle}>{t('auth.signInToContinue')}</Text>
 
                             {/* Phone Number Input with enhanced styling */}
                             <View style={styles.inputContainer}>
@@ -97,7 +99,7 @@ export default function Login() {
                                     <Text style={styles.phonePrefix}>+250</Text>
                                     <Input
                                         style={styles.phoneInput}
-                                        placeholder="Phone Number"
+                                        placeholder={t('auth.phoneNumber')}
                                         value={contact_number}
                                         onChangeText={setContact_number}
                                         autoCapitalize="none"
@@ -108,7 +110,7 @@ export default function Login() {
                                         textStyle={styles.inputText}
                                     />
                                 </LinearGradient>
-                                <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
+                                <Text style={styles.phoneHint}>{t('auth.phoneFormat')}</Text>
                             </View>
 
                             {/* Password Input with enhanced styling */}
@@ -119,7 +121,7 @@ export default function Login() {
                                 >
                                     <Input
                                         style={styles.passwordInput}
-                                        placeholder="Password"
+                                        placeholder={t('auth.password')}
                                         value={password}
                                         onChangeText={setPassword}
                                         secureTextEntry={!showPassword}
@@ -157,13 +159,13 @@ export default function Login() {
                                     activeOpacity={0.8}
                                 >
                                     <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
-                                    <Text style={styles.loginButtonText}>SIGN IN</Text>
+                                    <Text style={styles.loginButtonText}>{t('auth.signIn')}</Text>
                                 </TouchableOpacity>
                             </LinearGradient>
 
                             {/* Enhanced Sign Up Link */}
                             <Link href="/(auth)/signup" style={styles.link}>
-                                <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkHighlight}>Sign up</Text></Text>
+                                <Text style={styles.linkText}>{t('auth.dontHaveAccount')} <Text style={styles.linkHighlight}>{t('auth.signUp')}</Text></Text>
                             </Link>
                         </View>
                     </ScrollView>

@@ -9,6 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { format } from 'date-fns';
 import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 const PrivateHistoryScreen = () => {
     const router = useRouter();
@@ -287,7 +289,9 @@ const PrivateHistoryScreen = () => {
                         <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Private Ride History</Text>
-                    <View style={styles.headerPlaceholder} />
+                    <View style={styles.headerPlaceholder}>
+                        <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                    </View>
                 </View>
 
                 <FlatList

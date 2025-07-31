@@ -10,8 +10,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import PhotoPicker from '../../components/PhotoPicker';
 import CustomAlert from '../../components/CustomAlert';
 import { uploadProfilePhoto, deleteProfilePhoto } from '../../utils/photoUpload';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function Profile() {
+    const { t } = useTranslation();
     const { user, logout, updateUser } = useAuth();
     const router = useRouter();
     const [agencyName, setAgencyName] = useState('');
@@ -47,12 +50,12 @@ export default function Profile() {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>Something went wrong loading your profile.</Text>
+                    <Text style={styles.errorText}>{t('profile.errorLoadingProfile')}</Text>
                     <TouchableOpacity
                         style={styles.retryButton}
                         onPress={() => setHasError(false)}
                     >
-                        <Text style={styles.retryButtonText}>Retry</Text>
+                        <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -120,7 +123,7 @@ export default function Profile() {
     // Handle photo upload
     const handlePhotoSelected = async (photo) => {
         if (!user?.token) {
-            showAlert('Error', 'You must be logged in to upload a photo', 'error');
+            showAlert(t('common.error'), t('profile.mustBeLoggedIn'), 'error');
             return;
         }
 
@@ -148,7 +151,7 @@ export default function Profile() {
                 );
 
                 if (response.status === 200) {
-                    showAlert('Success', 'Profile photo updated successfully!', 'success');
+                    showAlert(t('common.success'), t('profile.photoUpdatedSuccessfully'), 'success');
                 } else {
                     throw new Error('Failed to update profile');
                 }
@@ -165,23 +168,23 @@ export default function Profile() {
                         );
 
                         if (response.status === 200) {
-                            showAlert('Success', 'Profile photo updated successfully!', 'success');
+                            showAlert(t('common.success'), t('profile.photoUpdatedSuccessfully'), 'success');
                         } else {
                             throw new Error('Failed to update profile');
                         }
                     } catch (altError) {
                         // Backend update failed, but photo is uploaded and local state is updated
                         showAlert(
-                            'Photo Uploaded',
-                            'Photo uploaded but profile update failed. Photo will be saved locally.',
+                            t('profile.photoUploaded'),
+                            t('profile.photoUploadedButUpdateFailed'),
                             'warning'
                         );
                     }
                 } else {
                     // Backend update failed, but photo is uploaded and local state is updated
                     showAlert(
-                        'Photo Uploaded',
-                        'Photo uploaded but profile update failed. Photo will be saved locally.',
+                        t('profile.photoUploaded'),
+                        t('profile.photoUploadedButUpdateFailed'),
                         'warning'
                     );
                 }
@@ -189,7 +192,7 @@ export default function Profile() {
         } catch (error) {
             // If Firebase upload fails, revert to original state
             updateUser({ ...user, photoUrl: user.photoUrl });
-            showAlert('Error', 'Failed to upload photo. Please try again.', 'error');
+            showAlert(t('common.error'), t('profile.failedToUploadPhoto'), 'error');
         } finally {
             setIsUploadingPhoto(false);
         }
@@ -198,17 +201,17 @@ export default function Profile() {
     // Handle photo removal
     const handleRemovePhoto = async () => {
         showAlert(
-            'Remove Photo',
-            'Are you sure you want to remove your profile photo?',
+            t('profile.removePhoto'),
+            t('profile.areYouSureYouWantToRemoveYourProfilePhoto'),
             'warning',
             [
                 {
-                    text: 'Cancel',
+                    text: t('common.cancel'),
                     style: 'cancel',
                     onPress: () => setAlertVisible(false)
                 },
                 {
-                    text: 'Remove',
+                    text: t('profile.remove'),
                     style: 'destructive',
                     onPress: async () => {
                         setAlertVisible(false);
@@ -231,7 +234,7 @@ export default function Profile() {
                                 if (response.status === 200) {
                                     // Update local user state
                                     updateUser({ ...user, photoUrl: null });
-                                    showAlert('Success', 'Profile photo removed successfully!', 'success');
+                                    showAlert(t('common.success'), t('profile.photoRemovedSuccessfully'), 'success');
                                 } else {
                                     throw new Error('Failed to remove photo');
                                 }
@@ -249,7 +252,7 @@ export default function Profile() {
                                     if (response.status === 200) {
                                         // Update local user state
                                         updateUser({ ...user, photoUrl: null });
-                                        showAlert('Success', 'Profile photo removed successfully!', 'success');
+                                        showAlert(t('common.success'), t('profile.photoRemovedSuccessfully'), 'success');
                                     } else {
                                         throw new Error('Failed to remove photo');
                                     }
@@ -257,14 +260,14 @@ export default function Profile() {
                                     // If both endpoints fail, still update local state since Firebase deletion succeeded
                                     updateUser({ ...user, photoUrl: null });
                                     showAlert(
-                                        'Photo Removed',
-                                        'Photo removed locally but backend update failed. Photo will be removed from your profile.',
+                                        t('profile.photoRemoved'),
+                                        t('profile.photoRemovedLocallyButBackendUpdateFailed'),
                                         'info'
                                     );
                                 }
                             }
                         } catch (error) {
-                            showAlert('Error', 'Failed to remove photo. Please try again.', 'error');
+                            showAlert(t('common.error'), t('profile.failedToRemovePhoto'), 'error');
                         }
                     }
                 }
@@ -278,18 +281,18 @@ export default function Profile() {
 
     const handleLogout = () => {
         showAlert(
-            "Logout",
-            "Are you sure you want to logout?",
+            t('profile.logout'),
+            t('profile.areYouSureYouWantToLogout'),
             'warning',
             [
                 {
-                    text: "Cancel",
-                    style: "cancel",
+                    text: t('common.cancel'),
+                    style: 'cancel',
                     onPress: () => setAlertVisible(false)
                 },
                 {
-                    text: "Logout",
-                    style: "destructive",
+                    text: t('profile.logout'),
+                    style: 'destructive',
                     onPress: () => {
                         setAlertVisible(false);
                         logout();
@@ -309,17 +312,17 @@ export default function Profile() {
     useEffect(() => {
         if (agencyError) {
             showAlert(
-                'Error Loading Profile Details',
-                agencyError.userMessage || 'We encountered an error while loading your profile details. Please try again.',
+                t('profile.errorLoadingProfileDetails'),
+                agencyError.userMessage || t('profile.weEncounteredAnErrorWhileLoadingYourProfileDetails'),
                 'error',
                 [
                     {
-                        text: 'Cancel',
+                        text: t('common.cancel'),
                         style: 'cancel',
                         onPress: () => setAlertVisible(false)
                     },
                     {
-                        text: 'Retry',
+                        text: t('common.retry'),
                         onPress: () => {
                             setAlertVisible(false);
                             retryFetchAgency();
@@ -345,20 +348,20 @@ export default function Profile() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                             <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Profile</Text>
+                        <Text style={styles.headerTitle}>{t('profile.profile')}</Text>
                         <View style={styles.headerPlaceholder} />
                     </View>
 
                     <ScrollView contentContainerStyle={styles.scrollContent}>
                         <View style={styles.loginCard}>
                             <FontAwesome5 name="user-circle" size={80} color="rgba(255, 255, 255, 0.8)" style={styles.loginIcon} />
-                            <Text style={styles.loginTitle}>Sign in to WeShare</Text>
+                            <Text style={styles.loginTitle}>{t('profile.signInToWeShare')}</Text>
                             <Text style={styles.loginSubtitle}>
-                                Access your profile, manage your rides, and more
+                                {t('profile.accessYourProfileManageYourRidesAndMore')}
                             </Text>
                             <TouchableOpacity onPress={handleLogin} style={styles.loginButton}>
                                 <FontAwesome5 name="sign-in-alt" size={16} color="#fff" />
-                                <Text style={styles.loginButtonText}>LOGIN / SIGN UP</Text>
+                                <Text style={styles.loginButtonText}>{t('profile.loginSignUp')}</Text>
                             </TouchableOpacity>
                         </View>
                     </ScrollView>
@@ -379,8 +382,10 @@ export default function Profile() {
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                         <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Profile</Text>
-                    <View style={styles.headerPlaceholder} />
+                    <Text style={styles.headerTitle}>{t('profile.profile')}</Text>
+                    <View style={styles.headerPlaceholder}>
+                        <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                    </View>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -433,7 +438,7 @@ export default function Profile() {
                                         color="#0a2472"
                                     />
                                     <Text style={styles.roleText}>
-                                        {user.role === 'user' ? 'Normal User' : 'Agency Employee'}
+                                        {user.role === 'user' ? t('profile.normalUser') : t('profile.agencyEmployee')}
                                     </Text>
                                 </View>
                             </View>
@@ -443,14 +448,14 @@ export default function Profile() {
                         {user.role === 'agency_employee' && (
                             <View style={styles.agencySection}>
                                 <View style={styles.sectionDivider} />
-                                <Text style={styles.sectionTitle}>Agency Information</Text>
+                                <Text style={styles.sectionTitle}>{t('profile.agencyInformation')}</Text>
 
                                 <View style={styles.infoRow}>
                                     <FontAwesome5 name="building" size={16} color="#0a2472" />
                                     <View style={styles.infoContent}>
-                                        <Text style={styles.infoLabel}>Agency</Text>
+                                        <Text style={styles.infoLabel}>{t('profile.agency')}</Text>
                                         <Text style={styles.infoValue}>
-                                            {isLoadingAgency ? 'Loading...' : agencyName || 'Not set'}
+                                            {isLoadingAgency ? t('profile.loading') : agencyName || t('profile.notSet')}
                                         </Text>
                                     </View>
                                 </View>
@@ -458,14 +463,14 @@ export default function Profile() {
                                 <View style={styles.infoRow}>
                                     <FontAwesome5 name="route" size={16} color="#0a2472" />
                                     <View style={styles.infoContent}>
-                                        <Text style={styles.infoLabel}>Destination Route</Text>
+                                        <Text style={styles.infoLabel}>{t('profile.destinationRoute')}</Text>
                                         <View style={styles.destinationContainer}>
                                             <Text style={styles.infoValue}>
-                                                {isLoadingAgency ? 'Loading...' : destinationCategory?.split(' to ')[0] || 'Not set'}
+                                                {isLoadingAgency ? t('profile.loading') : destinationCategory?.split(' to ')[0] || t('profile.notSet')}
                                             </Text>
                                             <FontAwesome5 name="arrow-right" size={12} color="#666" style={styles.arrowIcon} />
                                             <Text style={styles.infoValue}>
-                                                {isLoadingAgency ? 'Loading...' : destinationCategory?.split(' to ')[1] || 'Not set'}
+                                                {isLoadingAgency ? t('profile.loading') : destinationCategory?.split(' to ')[1] || t('profile.notSet')}
                                             </Text>
                                         </View>
                                     </View>
@@ -476,20 +481,20 @@ export default function Profile() {
                         {/* Driver Verification Status */}
                         <View style={styles.verificationSection}>
                             <View style={styles.sectionDivider} />
-                            <Text style={styles.sectionTitle}>Driver Verification</Text>
+                            <Text style={styles.sectionTitle}>{t('profile.driverVerification')}</Text>
 
                             {driverProfile?.verifiedDriver ? (
                                 <View style={styles.verificationCard}>
                                     <View style={styles.verificationHeader}>
                                         <FontAwesome5 name="check-circle" size={20} color="#4CAF50" />
-                                        <Text style={styles.verificationStatus}>Verified Driver</Text>
+                                        <Text style={styles.verificationStatus}>{t('profile.verifiedDriver')}</Text>
                                     </View>
                                     <View style={styles.verificationInfo}>
                                         <Text style={styles.verificationText}>
-                                            You are verified as a driver and can post private rides.
+                                            {t('profile.youAreVerifiedAsADriverAndCanPostPrivateRides')}
                                         </Text>
                                         <Text style={styles.verificationDetails}>
-                                            License Plate: {driverProfile.driverProfile.vehicleLicensePlate}
+                                            {t('profile.licensePlate')}: {driverProfile.driverProfile.vehicleLicensePlate}
                                         </Text>
                                     </View>
                                     <TouchableOpacity
@@ -497,18 +502,18 @@ export default function Profile() {
                                         onPress={() => router.push('/(auth)/driver-verification')}
                                     >
                                         <FontAwesome5 name="edit" size={16} color="#fff" />
-                                        <Text style={styles.verificationButtonText}>Edit Driver Profile</Text>
+                                        <Text style={styles.verificationButtonText}>{t('profile.editDriverProfile')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : (
                                 <View style={styles.verificationCard}>
                                     <View style={styles.verificationHeader}>
                                         <FontAwesome5 name="clock" size={20} color="#FF9800" />
-                                        <Text style={styles.verificationStatus}>Not Verified</Text>
+                                        <Text style={styles.verificationStatus}>{t('profile.notVerified')}</Text>
                                     </View>
                                     <View style={styles.verificationInfo}>
                                         <Text style={styles.verificationText}>
-                                            Complete driver verification to start posting private rides and earn money.
+                                            {t('profile.completeDriverVerificationToStartPostingPrivateRidesAndEarnMoney')}
                                         </Text>
                                     </View>
                                     <TouchableOpacity
@@ -516,7 +521,7 @@ export default function Profile() {
                                         onPress={() => router.push('/(auth)/driver-verification')}
                                     >
                                         <FontAwesome5 name="user-check" size={16} color="#fff" />
-                                        <Text style={styles.verificationButtonText}>Complete Verification</Text>
+                                        <Text style={styles.verificationButtonText}>{t('profile.completeVerification')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -525,26 +530,26 @@ export default function Profile() {
                         {/* Menu Options */}
                         <View style={styles.menuSection}>
                             <View style={styles.sectionDivider} />
-                            <Text style={styles.sectionTitle}>Account</Text>
+                            <Text style={styles.sectionTitle}>{t('profile.account')}</Text>
 
                             <TouchableOpacity style={styles.menuItem}
                                 onPress={() => router.push('/(auth)/driver-verification')}
                             >
 
                                 <FontAwesome5 name="car" size={18} color="#0a2472" />
-                                <Text style={styles.menuItemText}>Driver Verification</Text>
+                                <Text style={styles.menuItemText}>{t('profile.driverVerification')}</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.menuItem}>
                                 <FontAwesome5 name="bell" size={18} color="#0a2472" />
-                                <Text style={styles.menuItemText}>Notifications</Text>
+                                <Text style={styles.menuItemText}>{t('profile.notifications')}</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.menuItem}>
                                 <FontAwesome5 name="cog" size={18} color="#0a2472" />
-                                <Text style={styles.menuItemText}>Settings</Text>
+                                <Text style={styles.menuItemText}>{t('profile.settings')}</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
 
@@ -553,7 +558,7 @@ export default function Profile() {
                                 onPress={() => router.push('/(profile)/help-support')}
                             >
                                 <FontAwesome5 name="question-circle" size={18} color="#0a2472" />
-                                <Text style={styles.menuItemText}>Help & Support</Text>
+                                <Text style={styles.menuItemText}>{t('profile.helpSupport')}</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
 
@@ -562,7 +567,7 @@ export default function Profile() {
                                 onPress={() => router.push('/(rides)/booked')}
                             >
                                 <FontAwesome5 name="history" size={18} color="#0a2472" />
-                                <Text style={styles.menuItemText}>Ride History</Text>
+                                <Text style={styles.menuItemText}>{t('profile.rideHistory')}</Text>
                                 <FontAwesome5 name="chevron-right" size={16} color="#666" />
                             </TouchableOpacity>
                         </View>
@@ -572,7 +577,7 @@ export default function Profile() {
                             <View style={styles.sectionDivider} />
                             <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
                                 <FontAwesome5 name="sign-out-alt" size={18} color="#fff" />
-                                <Text style={styles.logoutButtonText}>Logout</Text>
+                                <Text style={styles.logoutButtonText}>{t('profile.logout')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -594,7 +599,7 @@ export default function Profile() {
                 <View style={styles.overlay}>
                     <View style={styles.modal}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Profile Photo</Text>
+                            <Text style={styles.modalTitle}>{t('profile.profilePhoto')}</Text>
                             <TouchableOpacity onPress={() => setPhotoOptionsVisible(false)} style={styles.closeButton}>
                                 <FontAwesome5 name="times" size={20} color="#666" />
                             </TouchableOpacity>
@@ -611,7 +616,7 @@ export default function Profile() {
                                 <View style={styles.modalOptionIcon}>
                                     <FontAwesome5 name="images" size={24} color="#667eea" />
                                 </View>
-                                <Text style={styles.modalOptionText}>Change Photo</Text>
+                                <Text style={styles.modalOptionText}>{t('profile.changePhoto')}</Text>
                             </TouchableOpacity>
 
                             {user?.photoUrl && (
@@ -625,7 +630,7 @@ export default function Profile() {
                                     <View style={[styles.modalOptionIcon, styles.removeIcon]}>
                                         <FontAwesome5 name="trash" size={24} color="#dc3545" />
                                     </View>
-                                    <Text style={[styles.modalOptionText, styles.removeText]}>Remove Photo</Text>
+                                    <Text style={[styles.modalOptionText, styles.removeText]}>{t('profile.removePhoto')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -634,7 +639,7 @@ export default function Profile() {
                             style={styles.modalCancelButton}
                             onPress={() => setPhotoOptionsVisible(false)}
                         >
-                            <Text style={styles.modalCancelText}>Cancel</Text>
+                            <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

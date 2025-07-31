@@ -42,6 +42,7 @@
       "@react-native-firebase/crashlytics",
       "@react-native-firebase/storage",
       "@react-native-firebase/perf",
+      "@react-native-firebase/analytics",
       [
         "expo-build-properties",
         {

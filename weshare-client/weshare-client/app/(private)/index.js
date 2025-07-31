@@ -14,8 +14,32 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomAlert from '../../components/CustomAlert';
 import LocationPicker from '../../components/LocationPicker';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function PrivateRidesScreen() {
+    const { t } = useTranslation();
+
+    // Function to translate status
+    const translateStatus = (status) => {
+        switch (status) {
+            case 'Available':
+                return t('common.status.available');
+            case 'Nearly Full':
+                return t('common.status.nearlyFull');
+            case 'Full':
+                return t('common.status.full');
+            case 'Inactive':
+                return t('common.status.inactive');
+            case 'Completed':
+                return t('common.status.completed');
+            case 'Pending':
+                return t('common.status.pending');
+            default:
+                return status;
+        }
+    };
+
     const router = useRouter();
     const { user } = useAuth();
     const [expandedSections, setExpandedSections] = useState({
@@ -182,7 +206,7 @@ export default function PrivateRidesScreen() {
 
     const handleSearch = async (prefilledFrom = searchFrom, prefilledTo = searchTo) => {
         if (!prefilledFrom && !prefilledTo) {
-            showAlert('Search Required', 'Please enter at least a departure or destination location to search for rides.', 'warning');
+            showAlert(t('privateRides.errors.searchRequired'), t('privateRides.errors.searchRequiredMessage'), 'warning');
             return;
         }
 
@@ -539,7 +563,7 @@ export default function PrivateRidesScreen() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                             <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Private Rides</Text>
+                        <Text style={styles.headerTitle}>{t('privateRides.header.title')}</Text>
                         <View style={styles.headerPlaceholder} />
                     </View>
 
@@ -603,8 +627,9 @@ export default function PrivateRidesScreen() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                             <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Private Rides</Text>
+                        <Text style={styles.headerTitle}>{t('privateRides.header.title')}</Text>
                         <View style={styles.headerActions}>
+                            <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
                             <TouchableOpacity onPress={handleViewBookings} style={styles.bookingsButton}>
                                 <FontAwesome5 name="ticket-alt" size={16} color="#fff" />
                             </TouchableOpacity>
@@ -633,14 +658,14 @@ export default function PrivateRidesScreen() {
                             <View>
                                 {/* Search Section for Available Private Rides */}
                                 <View style={styles.searchSection}>
-                                    <Text style={styles.searchTitle}>Search Available Private Rides</Text>
+                                    <Text style={styles.searchTitle}>{t('privateRides.search.title')}</Text>
                                     <View style={styles.searchContainer}>
                                         <View style={styles.inputColumn}>
                                             <View style={styles.inputWrapper}>
                                                 <LocationPicker
                                                     value={searchFrom ? { name: searchFrom } : null}
                                                     onLocationSelect={(location) => setSearchFrom(location.name)}
-                                                    placeholder="From..."
+                                                    placeholder={t('privateRides.search.fromPlaceholder')}
                                                     label=""
                                                     style={styles.locationPickerStyle}
                                                 />
@@ -649,7 +674,7 @@ export default function PrivateRidesScreen() {
                                                 <LocationPicker
                                                     value={searchTo ? { name: searchTo } : null}
                                                     onLocationSelect={(location) => setSearchTo(location.name)}
-                                                    placeholder="To..."
+                                                    placeholder={t('privateRides.search.toPlaceholder')}
                                                     label=""
                                                     style={styles.locationPickerStyle}
                                                 />
@@ -662,7 +687,7 @@ export default function PrivateRidesScreen() {
                                                 disabled={isLoadingAvailableRides}
                                             >
                                                 <Text style={styles.searchButtonText}>
-                                                    {isLoadingAvailableRides ? 'Searching...' : 'Search'}
+                                                    {isLoadingAvailableRides ? t('privateRides.search.searching') : t('privateRides.search.searchButton')}
                                                 </Text>
                                             </TouchableOpacity>
                                             {(searchFrom || searchTo) && (
@@ -670,7 +695,7 @@ export default function PrivateRidesScreen() {
                                                     style={styles.clearButton}
                                                     onPress={clearSearch}
                                                 >
-                                                    <Text style={styles.clearButtonText}>Clear</Text>
+                                                    <Text style={styles.clearButtonText}>{t('privateRides.search.clearButton')}</Text>
                                                 </TouchableOpacity>
                                             )}
                                         </View>
@@ -680,7 +705,7 @@ export default function PrivateRidesScreen() {
                                 {/* Recent Searches Section */}
                                 {recentSearches.length > 0 && !hasSearched && (
                                     <View style={styles.recentSearchesSection}>
-                                        <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
+                                        <Text style={styles.recentSearchesTitle}>{t('privateRides.recentSearches.title')}</Text>
                                         <View style={styles.recentSearchesList}>
                                             {recentSearches.map((search, index) => (
                                                 <TouchableOpacity
@@ -697,7 +722,7 @@ export default function PrivateRidesScreen() {
                                                         </View>
                                                         <View style={styles.searchCount}>
                                                             <Ionicons name="time-outline" size={14} color="#64748b" />
-                                                            <Text style={styles.countText}>{search.count} times</Text>
+                                                            <Text style={styles.countText}>{t('privateRides.recentSearches.times', { count: search.count })}</Text>
                                                         </View>
                                                     </View>
                                                 </TouchableOpacity>
@@ -711,7 +736,7 @@ export default function PrivateRidesScreen() {
                                     <View style={styles.section}>
                                         <TouchableOpacity onPress={() => toggleExpand('available')}>
                                             <View style={styles.sectionHeader}>
-                                                <Text style={styles.sectionTitle}>Available Private Rides ({availableRides.length})</Text>
+                                                <Text style={styles.sectionTitle}>{t('privateRides.sections.availableRides.title')} ({availableRides.length})</Text>
                                                 <FontAwesome5
                                                     name={expandedSections.available ? 'chevron-up' : 'chevron-down'}
                                                     size={16}
@@ -757,7 +782,7 @@ export default function PrivateRidesScreen() {
                                 {hasSearched && availableRides.length === 0 && !isLoadingAvailableRides && (
                                     <View style={styles.noResultsContainer}>
                                         <Text style={styles.noResultsText}>
-                                            No private rides found matching your search criteria.
+                                            {t('privateRides.emptyState.noSearchResults.subtitle')}
                                         </Text>
                                     </View>
                                 )}
@@ -776,7 +801,7 @@ export default function PrivateRidesScreen() {
                                     <View style={styles.section}>
                                         <TouchableOpacity onPress={() => toggleExpand('myRides')}>
                                             <View style={styles.sectionHeader}>
-                                                <Text style={styles.sectionTitle}>My Rides ({activeRides.length})</Text>
+                                                <Text style={styles.sectionTitle}>{t('privateRides.sections.myRides.title')} ({activeRides.length})</Text>
                                                 <FontAwesome5
                                                     name={expandedSections.myRides ? 'chevron-up' : 'chevron-down'}
                                                     size={16}
@@ -797,11 +822,11 @@ export default function PrivateRidesScreen() {
                                                             const availableSeats = ride.seats - (ride.booked_seats || 0);
                                                             const getRideStatus = (ride) => {
                                                                 if (ride.isPrivate) {
-                                                                    return ride.status === 'active' ? 'Available' : 'Inactive';
+                                                                    return ride.status === 'active' ? translateStatus('Available') : translateStatus('Inactive');
                                                                 }
-                                                                if (availableSeats === 0) return 'Full';
-                                                                if (availableSeats <= ride.seats * 0.3) return 'Nearly Full';
-                                                                return 'Available';
+                                                                if (availableSeats === 0) return translateStatus('Full');
+                                                                if (availableSeats <= ride.seats * 0.3) return translateStatus('Nearly Full');
+                                                                return translateStatus('Available');
                                                             };
                                                             const statusDisplay = getRideStatus(ride);
 
@@ -878,7 +903,7 @@ export default function PrivateRidesScreen() {
                                 <View style={styles.section}>
                                     <TouchableOpacity onPress={handleViewBookings}>
                                         <View style={styles.sectionHeader}>
-                                            <Text style={styles.sectionTitle}>My Bookings</Text>
+                                            <Text style={styles.sectionTitle}>{t('privateRides.sections.myBookings.title')}</Text>
                                             <FontAwesome5
                                                 name="arrow-right"
                                                 size={16}
@@ -891,17 +916,17 @@ export default function PrivateRidesScreen() {
                                         <View style={styles.bookingsSummaryCard}>
                                             <View style={styles.bookingsSummaryHeader}>
                                                 <FontAwesome5 name="ticket-alt" size={18} color="#6B7280" />
-                                                <Text style={styles.bookingsSummaryTitle}>View All Your Bookings</Text>
+                                                <Text style={styles.bookingsSummaryTitle}>{t('privateRides.sections.myBookings.summaryTitle')}</Text>
                                             </View>
                                             <Text style={styles.bookingsSummaryText}>
-                                                See all your public and private ride bookings in one place, including ride status, payment info, and more.
+                                                {t('privateRides.sections.myBookings.summaryText')}
                                             </Text>
                                             <TouchableOpacity
                                                 style={styles.viewBookingsButton}
                                                 onPress={handleViewBookings}
                                             >
                                                 <FontAwesome5 name="external-link-alt" size={14} color="#fff" />
-                                                <Text style={styles.viewBookingsButtonText}>View Bookings</Text>
+                                                <Text style={styles.viewBookingsButtonText}>{t('privateRides.sections.myBookings.viewButton')}</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>
@@ -910,14 +935,14 @@ export default function PrivateRidesScreen() {
                                 {!groupedActiveRides.length && !groupedCompletedRides.length && !groupedAvailableRides.length && (
                                     <View style={styles.emptyContainer}>
                                         <FontAwesome5 name="car" size={48} color="#D1D5DB" />
-                                        <Text style={styles.emptyText}>No private rides found</Text>
-                                        <Text style={styles.emptySubtext}>Create your first private ride to get started</Text>
+                                        <Text style={styles.emptyText}>{t('privateRides.emptyState.noRides.title')}</Text>
+                                        <Text style={styles.emptySubtext}>{t('privateRides.emptyState.noRides.subtitle')}</Text>
                                         <TouchableOpacity
                                             style={styles.addButton}
                                             onPress={() => router.push('/(private)/add-private-ride')}
                                         >
                                             <FontAwesome5 name="plus" size={16} color="#fff" style={styles.addIcon} />
-                                            <Text style={styles.addButtonText}>Add Private Ride</Text>
+                                            <Text style={styles.addButtonText}>{t('privateRides.emptyState.noRides.button')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}

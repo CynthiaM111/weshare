@@ -7,14 +7,17 @@ import {
     TouchableOpacity,
     SafeAreaView,
     Alert,
-    ScrollView
+    ScrollView,
+    Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function DriverVerification() {
     const router = useRouter();
@@ -141,7 +144,9 @@ export default function DriverVerification() {
                         <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Driver Verification</Text>
-                    <View style={styles.headerPlaceholder} />
+                    <View style={styles.headerPlaceholder}>
+                        <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                    </View>
                 </View>
 
                 <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

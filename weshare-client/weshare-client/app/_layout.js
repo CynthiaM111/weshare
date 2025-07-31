@@ -9,6 +9,7 @@ import * as eva from '@eva-design/eva';
 import { ApplicationProvider } from '@ui-kitten/components';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ErrorProvider, useError } from './context/ErrorContext';
+import '../i18n'; // Initialize i18n
 
 // Custom Profile Tab Icon with verification badge
 function ProfileTabIcon({ color, size, focused }) {
@@ -308,7 +309,7 @@ function RootLayoutNav() {
               />
             ),
             tabBarLabel: 'Rides',
-            tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'flex' },
+            tabBarItemStyle: user?.role === 'agency_employee' ? { display: 'none' } : { display: 'none' },
             tabBarButton: ({ children, onPress, ...props }) => {
               return (
                 <TouchableOpacity

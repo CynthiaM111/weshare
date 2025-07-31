@@ -1,0 +1,476 @@
+{
+    "common": {
+        "loading": "Tegereza gato...",
+        "error": "Ikibazo",
+        "success": "Byagenze neza",
+        "cancel": "Hagarika",
+        "ok": "Sawa",
+        "save": "Bika",
+        "edit": "Hindura",
+        "delete": "Siba",
+        "back": "Subira inyuma",
+        "next": "Ibikurikira",
+        "submit": "Ohereza",
+        "close": "Funga",
+        "retry": "Ongera ugerageze",
+        "refresh": "Ongera ubanza",
+        "search": "Shakisha",
+        "filter": "Shungura",
+        "sort": "Shungura",
+        "clear": "Sukura",
+        "done": "Byarangiye",
+        "yes": "Yego",
+        "no": "Oya",
+        "required": "Bikenewe",
+        "optional": "Bishobora kuba",
+        "status": {
+            "available": "Ntago Iruzura",
+            "nearlyFull": "Yenda Kuzura",
+            "full": "Zuzuye",
+            "inactive": "Ntibikora",
+            "completed": "Byarangiye",
+            "pending": "Bitegereje"
+        }
+    },
+    "home": {
+        "goodMorning": "Mwaramutse! ☀️",
+        "goodAfternoon": "Mwiriwe! 🌤️",
+        "goodEvening": "Mwiriwe! 🌙",
+        "traveler": "Umugenzi!",
+        "findYourRide": "Shaka Imodoka!",
+        "whereWouldYouLikeToGo": "Ushaka kujya he uyu munsi?",
+        "from": "Kuva he?",
+        "to": "Kujya he?",
+        "searching": "Gushakisha...",
+        "searchRides": "Shaka Imodoka",
+        "recentSearches": "Imodoka uherutse gushakisha",
+        "times": "inshuro {{count}}",
+        "quickActions": "Ibikorwa by'ihuse!!",
+        "createPrivateRide": "Twara abagenzi mu modoka yawe",
+        "createPrivateRideSubtitle": "Fatanya nabandi urugendo",
+        "bookPrivateRide": "Katisha imodoka ya pirive",
+        "bookPrivateRideSubtitle": "Shakisha imodoka zihari",
+        "offerRide": "Tanga Imodoka",
+        "shareYourCar": "Sangira imodoka yawe",
+        "travelTips": "Inama zo Kugenda",
+        "bookEarlyForBetterPrices": "Iyandikishe vuba kugira ngo ubone ibiciro byiza",
+        "shareRidesToMeetNewPeople": "Sangira imodoka kugira ngo uhure n'abantu bashya",
+        "rateYourDriverToHelpOthers": "Tanga igitekerezo cyawe kuri shoferi wawe kugira ngo ufashe abandi"
+    },
+    "rides": {
+        "header": {
+            "title": "Imodoka Zihari",
+            "subtitle": "Shaka imodoka yawe!",
+            "ridesFound": "Habonetse imodoka {{count}}!"
+        },
+        "emptyState": {
+            "noSearchYet": {
+                "title": "Ushaka kujya he?",
+                "subtitle": "Shakisha imodoka kugira ngo witegure urugendo rwawe hakiri kare.",
+                "button": "Shakisha Imodoka"
+            },
+            "hasBookings": {
+                "title": "Ushaka kujya he?",
+                "subtitle": "Shakisha imodoka kugira ngo witegure urugendo rwawe hakiri kare.",
+                "button": "Shakisha Imodoka"
+            },
+            "noResults": {
+                "title": "Nta modoka yabonetse",
+                "subtitle": "Ntibishobotse kubona imodoka zihura n'ishakisha ryawe. Reba ko ishakisha ryawe ari ryo cyangwa wongera ugerageze.",
+                "button": "Ongera Ushakishe",
+                "myBookings": "Amatike Yanjye"
+            }
+        },
+        "sections": {
+            "available": {
+                "title": "Imodoka Zihari",
+                "count": "{{count}} imodoka"
+            },
+            "booked": {
+                "title": "Imodoka Ziyandikishijwe",
+                "count": "{{count}} imodoka"
+            },
+            "full": {
+                "title": "Imodoka Zuzuye",
+                "count": "{{count}} imodoka"
+            }
+        },
+        "actions": {
+            "bookings": "Kwiyandikisha",
+            "alreadyBooked": "Yiyandikishijwe",
+            "viewBookedRides": "Reba Imodoka Wakatishije"
+        },
+        "errors": {
+            "loadingBookings": "Ikibazo mu Kureba Kwiyandikisha",
+            "loadingBookingsMessage": "Hari ikibazo cyabaye iyo dureba imodoka zawe ziyandikishijwe. Ongera ugerageze."
+        }
+    },
+    "privateRides": {
+        "header": {
+            "title": "Imodoka Za Pirive",
+            "subtitle": "Shakisha cyangwa tanga imodoka za pirive"
+        },
+        "search": {
+            "title": "Shakisha Imodoka Za Pirive Zihari",
+            "from": "Kuva he?",
+            "to": "Kujya he?",
+            "fromPlaceholder": "Kuva he...",
+            "toPlaceholder": "Kujya he...",
+            "searchButton": "Shakisha",
+            "clearButton": "Sukura",
+            "searching": "Shakisha..."
+        },
+        "recentSearches": {
+            "title": "Ushakisha Bwanyuma",
+            "times": "{{count}} ibihe"
+        },
+        "emptyState": {
+            "noRides": {
+                "title": "Nta modoka ya pirive yabonetse",
+                "subtitle": "Kora imodoka yawe ya mbere kugira ngo utangire",
+                "button": "Ongera Imodoka Ya Pirive"
+            },
+            "noSearchResults": {
+                "title": "Nta modoka ya pirive yabonetse",
+                "subtitle": "Nta modoka ya pirive ihura n'ubushakisha bwawe yabonetse."
+            }
+        },
+        "sections": {
+            "myRides": {
+                "title": "Imodoka Zanjye",
+                "count": "{{count}} imodoka"
+            },
+            "availableRides": {
+                "title": "Imodoka Za Pirive Zihari",
+                "count": "{{count}} imodoka"
+            },
+            "myBookings": {
+                "title": "Amatike Yawe",
+                "count": "{{count}} imodoka",
+                "summaryTitle": "Reba Amatike Yawe",
+                "summaryText": "Reba Amatike yawe y'imodoka rusange ni za pirive ahantu hamwe",
+                "viewButton": "Reba Amatike Yawe"
+            }
+        },
+        "actions": {
+            "addRide": "Ongera Imodoka",
+            "editRide": "Hindura Imodoka",
+            "deleteRide": "Siba Imodoka",
+            "startRide": "Tangira Imodoka",
+            "finishRide": "Rangiza Imodoka",
+            "viewBookings": "Reba Kwiyandikisha"
+        },
+        "errors": {
+            "loadingRides": "Ikibazo mu Kureba Imodoka",
+            "loadingRidesMessage": "Hari ikibazo cyabaye iyo dureba imodoka zawe. Ongera ugerageze.",
+            "searchRequired": "Ushakisha Bikenewe",
+            "searchRequiredMessage": "Banza andika aho uva cyangwa aho uja kugira ngo ushakishe imodoka."
+        }
+    },
+    "bookedRides": {
+        "header": {
+            "title": "Imodoka Wakatishije",
+            "subtitle": "Reba imodoka zawe wakatishije"
+        },
+        "loginRequired": {
+            "title": "Kwinjira Bikenewe",
+            "subtitle": "Banza winjire kugira ngo ubone kandi uyobore imodoka zawe ziyandikishijwe.",
+            "button": "INJIRA / IYANDIKISHE"
+        },
+        "emptyState": {
+            "title": "Nta modoka yiyandikishijwe yabonetse",
+            "subtitle": "Iyandikishe imodoka kugira ngo ubone hano"
+        },
+        "sections": {
+            "public": {
+                "title": "Imodoka Rusange",
+                "count": "{{count}} imodoka"
+            },
+            "private": {
+                "title": "Imodoka Za Pirive",
+                "count": "{{count}} imodoka"
+            }
+        },
+        "actions": {
+            "cancelBooking": "Hagarika Kwiyandikisha",
+            "viewQRCode": "Reba QR Code",
+            "checkIn": "Injira"
+        },
+        "status": {
+            "confirmed": "Byemejwe",
+            "cancelled": "Byahagaritswe",
+            "completed": "Byarangiriwe",
+            "missed": "Byanze"
+        }
+    },
+    "navigation": {
+        "home": "Ahabanza",
+        "rides": "Imodoka",
+        "profile": "Umwirondoro",
+        "settings": "Igenamiterere",
+        "notifications": "Imenyesha",
+        "messages": "Ubutumwa",
+        "bookings": "Kwiyandikisha",
+        "history": "Amateka",
+        "admin": "Umuyobozi"
+    },
+    "auth": {
+        "login": "Injira",
+        "logout": "Sohoka",
+        "register": "Iyandikishe",
+        "signup": "Iyandikishe",
+        "email": "Imeyili",
+        "password": "Ijambo banga",
+        "confirmPassword": "Emeza ijambo banga",
+        "forgotPassword": "Wibagiwe ijambo banga?",
+        "resetPassword": "Ongera ubanze ijambo banga",
+        "loginSuccess": "Winjiye neza",
+        "logoutSuccess": "Wasohotse neza",
+        "invalidCredentials": "Imeyili cyangwa ijambo banga sibyo",
+        "emailRequired": "Ineyili ikenewe",
+        "passwordRequired": "Ijambo banga rikenewe",
+        "passwordMinLength": "Ijambo banga kigomba kuba inyuguti 6 byibura",
+        "passwordsDoNotMatch": "Amagambo banga ntabwo ahura",
+        "emailInvalid": "Andika imeyili yemewe",
+        "welcomeBack": "Subira inyuma!",
+        "signInToContinue": "Injira kugira ngo ukoze urugendo rwawe",
+        "phoneNumber": "Telefoni",
+        "phoneFormat": "Urukurikirane: 7XXXXXXXX (urugero: 785123456)",
+        "signIn": "INJIRA",
+        "dontHaveAccount": "Ntugira konti?",
+        "signUp": "Iyandikishe",
+        "loginFailed": "Kwinjira Byanze",
+        "loginFailedMessage": "Ntibyashoboka kukunyinjiza ubu. Reba amakuru yawe kandi ongera ugerageze.",
+        "tryAgain": "Ongera Ugerageze",
+        "joinWeShare": "Injira muri WeShare!",
+        "createAccountToStart": "Kora konti yawe kugira ngo utangire gusangira imodoka",
+        "fullName": "Amazina Yose",
+        "selectRole": "Hitamo Uruhare",
+        "normalUser": "Umukoresha Rusange",
+        "agencyEmployee": "Umukozi w'Umuyobozi",
+        "selectAgency": "Hitamo Umuyobozi",
+        "selectCategory": "Hitamo Ubwoko",
+        "to": "kuri",
+        "createAccount": "KORA KONTI",
+        "alreadyHaveAccount": "Ufite konti?",
+        "signupFailed": "Kwiyandikisha Byanze",
+        "signupFailedMessage": "Ntibyashoboka kukuyandikisha ubu. Reba amakuru yawe kandi ongera ugerageze.",
+        "failedToLoadCategories": "Gushyiraho ubwoko byanze"
+    },
+    "rideForm": {
+        "locationDetails": "Ibisobanura by'ahantu",
+        "tripDetails": "Ibisobanura by'urugendo",
+        "vehicleDetails": "Ibisobanura by'imodoka",
+        "fuelDetails": "Ibisobanura by'amavuta",
+        "pricingPreview": "Reba amafaranga",
+        "pickupLocation": "Aho ufata abantu",
+        "destination": "Aho ujya",
+        "enterPickupLocation": "Andika aho ufata abantu...",
+        "enterDestination": "Andika aho ujya...",
+        "date": "Itariki",
+        "time": "Isaha",
+        "description": "Aho urahurira nabagenzi",
+        "descriptionPlaceholder": "Aho uhurira n'abantu? (urugero: Kuri sonatube, kuri T-2000, ku kagari ka Remera, n'ibindi)",
+        "estimatedTravelTime": "Igihe gisubirwaho cyo kugenda (amasaha)",
+        "licensePlate": "Purake y'imodoka",
+        "licensePlatePlaceholder": "urugero: RAA123A",
+        "availableSeats": "Intebe/Imyanya zihari",
+        "seatsPlaceholder": "urugero: 3",
+        "wheelchairAccessible": "Ushobora gutwara abafite ubumuga",
+        "fuelEfficiency": "Uko amavuta akoreshwa (L/100km)",
+        "fuelEfficiencyPlaceholder": "urugero: 7.0",
+        "fuelPrice": "Igiciro cy'amavuta (RWF/L)",
+        "setByAdmin": "Bishyirwa na nyir'ububiko",
+        "validRange": "Urukurikirane rwemewe: {{min}}-{{max}} L/100km",
+        "creating": "Birakora...",
+        "updating": "Birahindura...",
+        "createRide": "Kora imodoka",
+        "updateRide": "Hindura imodoka",
+        "createPrivateRide": "Kora Imodoka Ya Pirive",
+        "updatePrivateRide": "Hindura Imodoka Ya Pirive",
+        "pricePerSeat": "Igiciro Kuri Buri Mwanya/ntebe",
+        "priceLabel": "Igiciro (RWF)",
+        "pricePlaceholder": "Andika igiciro kuri intebe",
+        "priceTip": "Inama: Uko igiciro cyawe kigabanuka ugereranyije n'abandi bashoferi niko wiyongerera amahirwe yo kubona abagenzi benshi!"
+    },
+    "validation": {
+        "required": "Iki gice gikenewe",
+        "invalidEmail": "Andika imeyili yemewe",
+        "invalidPhone": "Andika telefoni yemewe",
+        "invalidLicensePlate": "Andika imatungo y'imodoka yemewe (inyuguti 2-7, inyuguti n'imibare gusa)",
+        "invalidSeats": "Andika umubare w'intebe wemewe (byibura 1)",
+        "invalidETA": "Andika igihe gisubirwaho cyemewe mu masaha (byibura 1)",
+        "invalidFuelEfficiency": "Andika uko amavuta akoreshwa kwemewe (byibura 1 L/100km)",
+        "fuelEfficiencyRange": "Uko amavuta akoreshwa kugomba kuba hagati ya {{min}} na {{max}} L/100km",
+        "fuelEfficiencyRequired": "Uko amavuta akoreshwa akenewe",
+        "invalidNumber": "Andika umubare wemewe",
+        "mustBeBetween": "Kugomba kuba hagati ya {{min}} na {{max}} L/100km",
+        "missingInformation": "Uzuza ibice byose bikenewe harimo koordinati za GPS",
+        "invalidLocations": "Hitamo ahantu hemeza ku nteganyo ya buri wese"
+    },
+    "alerts": {
+        "profilePictureRequired": "Ifoto y'umwirondoro ikenewe",
+        "profilePictureMessage": "Banza ongera ifoto y'umwirondoro mbere yo gukora imodoka. Ibi bifasha abantu kumenya ko uri umushoferi wabo.",
+        "addProfilePicture": "Ongera ifoto y'umwirondoro",
+        "invalidSeats": "Intebe sizemewe",
+        "invalidSeatsMessage": "Andika umubare w'intebe wemewe (byibura 1)",
+        "invalidETA": "Igihe gisubirwaho sizemewe",
+        "invalidETAMessage": "Andika igihe gisubirwaho cyemewe mu masaha (byibura 1)",
+        "invalidFuelEfficiency": "Uko amavuta akoreshwa sizemewe",
+        "invalidFuelEfficiencyMessage": "Uko amavuta akoreshwa kugomba kuba hagati ya {{min}} na {{max}} L/100km",
+        "success": "Byagenze neza!",
+        "rideCreatedMessage": "Imodoka yawe {{action}} neza hamwe n'amafaranga y'ubwenge",
+        "viewMyRides": "Reba imodoka zanjye",
+        "unexpectedError": "Hari ikibazo kitazwi cyabaye"
+    },
+    "pricing": {
+        "routeDetails": "Ibisobanura by'inzira",
+        "fuelCostCalculation": "Kubara amafaranga y'amavuta",
+        "costSharingBreakdown": "Uko amafaranga agabanywa",
+        "pricingSummary": "Inkingi y'amafaranga",
+        "vehicleSettings": "Igenamiterere ry'imodoka",
+        "distance": "Uburambe",
+        "fuelNeeded": "Amavuta akenewe",
+        "pricePerLiter": "Igiciro kuri litiro",
+        "totalFuelCost": "Amafaranga yose y'amavuta",
+        "driverContribution": "Uwo mushoferi atanga (25%)",
+        "passengerShare": "Uwo abantu bagabana (75%)",
+        "perSeatCost": "Amafaranga kuri intebe",
+        "driverPays": "Umushoferi ahera",
+        "eachPassengerPays": "Buriwese wa bagenzi ahera",
+        "seats": "Intebe",
+        "efficiency": "Uko bikora",
+        "fuelPrice": "Igiciro cy'amavuta"
+    },
+    "language": {
+        "english": "Icyongereza",
+        "kinyarwanda": "Ikinyarwanda",
+        "language": "Ururimi",
+        "selectLanguage": "Hitamo ururimi"
+    },
+    "settings": {
+        "general": "Rusange",
+        "notifications": "Imenyesha",
+        "privacy": "Ibanga",
+        "security": "Umutekano",
+        "about": "Ibyerekeye",
+        "help": "Ubufasha",
+        "contact": "Twandikire",
+        "termsOfService": "Amabwiriza yo gukoresha",
+        "privacyPolicy": "Politiki y'ibanga",
+        "version": "Verisiyo"
+    },
+    "profile": {
+        "personalInfo": "Amakuru y'umuntu",
+        "driverProfile": "Umwirondoro w'umushoferi",
+        "vehicleInfo": "Amakuru y'imodoka",
+        "preferences": "Ibigushimishije",
+        "firstName": "Izina rya mbere",
+        "lastName": "Izina rya nyuma",
+        "phoneNumber": "Telefoni",
+        "dateOfBirth": "Itariki y'amavuko",
+        "gender": "Ubwoko",
+        "address": "Aderesi",
+        "profilePicture": "Ifoto y'umwirondoro",
+        "changePicture": "Hindura ifoto",
+        "removePicture": "Kuraho ifoto",
+        "saveChanges": "Bika impinduka",
+        "changesSaved": "Impinduka zabitswe neza",
+        "errorLoadingProfile": "Hari ikibazo cyabaye turi kureba umwirondoro wawe.",
+        "mustBeLoggedIn": "Ukeneye kwinjira kugira ngo uhindure ifoto y'umwirondoro",
+        "photoUpdatedSuccessfully": "Ifoto y'umwirondoro yahindutse neza!",
+        "photoUploaded": "Ifoto Yabitswe",
+        "photoUploadedButUpdateFailed": "Ifoto yashyizwe ariko guhindura umwirondoro byanze. Ifoto izabitswa nyuma.",
+        "failedToUploadPhoto": "Guhindura ifoto byanze. Ongera ugerageze.",
+        "removePhoto": "Kuraho Ifoto",
+        "areYouSureYouWantToRemoveYourProfilePhoto": "Uzi neza ko ushaka gukuraho ifoto y'umwirondoro wawe?",
+        "remove": "Kuraho",
+        "photoRemovedSuccessfully": "Ifoto y'umwirondoro yakuweho neza!",
+        "photoRemoved": "Ifoto Yakuweho",
+        "photoRemovedLocallyButBackendUpdateFailed": "Ifoto yakuweho mu giti cye ariko guhindura ububiko byanze. Ifoto izakuwa mu mwirondoro wawe.",
+        "failedToRemovePhoto": "Gukuramo ifoto byanze. Ongera ugerageze.",
+        "logout": "Sohoka",
+        "areYouSureYouWantToLogout": "Uzi neza ko ushaka gusohoka?",
+        "errorLoadingProfileDetails": "Ikibazo mu Kureba Ibisobanura by'Umwirondoro",
+        "weEncounteredAnErrorWhileLoadingYourProfileDetails": "Hari ikibazo cyabaye iyo dureba ibisobanura by'umwirondoro wawe. Ongera ugerageze.",
+        "profile": "Umwirondoro",
+        "signInToWeShare": "Injira muri WeShare",
+        "accessYourProfileManageYourRidesAndMore": "Kugera kuri umwirondoro wawe, kuyobora imodoka zawe, n'ibindi",
+        "loginSignUp": "INJIRA / IYANDIKISHE",
+        "normalUser": "Umukoresha Rusange",
+        "agencyEmployee": "Umukozi w'Umuyobozi",
+        "agencyInformation": "Amakuru y'Umuyobozi",
+        "agency": "Umuyobozi",
+        "loading": "Birabanza...",
+        "notSet": "Ntibishyizwe",
+        "destinationRoute": "Inzira yo Kujya",
+        "driverVerification": "Kugenzura Umushoferi",
+        "verifiedDriver": "Umushoferi Wagenzuwe",
+        "youAreVerifiedAsADriverAndCanPostPrivateRides": "Kuberako wagenzuwe nk'umushoferi, ubu ushobora gukora imodoka ya pirive uko ubyifuza.",
+        "licensePlate": "Purake y'Imodoka",
+        "editDriverProfile": "Hindura Umwirondoro w'Umushoferi",
+        "notVerified": "Ntago ugenzuye",
+        "completeDriverVerificationToStartPostingPrivateRidesAndEarnMoney": "Igenzuze kugira ngo utangire gutwara abagenzi mu modoka ya pirive.",
+        "completeVerification": "Uzuza Kugenzura",
+        "account": "Konti",
+        "notifications": "Imenyesha",
+        "settings": "Igenamiterere",
+        "helpSupport": "Ubufasha & Gufasha",
+        "rideHistory": "Amateka y'Imodoka",
+        "profilePhoto": "Ifoto y'Umwirondoro",
+        "changePhoto": "Hindura Ifoto"
+    },
+    "messages": {
+        "messages": "Ubutumwa",
+        "errorLoadingMessages": "Ikibazo mu Kureba Ubutumwa",
+        "errorLoadingMessagesMessage": "Hari ikibazo cyabaye iyo dureba ubutumwa bwawe. Ongera ugerageze.",
+        "failedToMarkMessageAsRead": "Gukuraho ubutumwa nk'ubusoma byanze.",
+        "bookingConfirmed": "Kwiyandikisha Byemejwe",
+        "bookingCancelled": "Kwiyandikisha Byahagaritswe",
+        "rideUpdated": "Imodoka Yahindutse",
+        "rideCancelled": "Imodoka Yahagaritswe",
+        "rideReminder": "Ibyibutso by'Imodoka",
+        "rideCompleted": "Imodoka Yarangiriwe",
+        "privateRideBooked": "Umugenzi Mushya",
+        "privateRideCompleted": "Imodoka Yarangiriwe",
+        "rideStarted": "Imodoka Yatangiriwe",
+        "message": "Ubutumwa",
+        "noMessagesYet": "Nta Butumwa Bihari",
+        "noMessagesYetMessage": "Uzahabwa imenyesha hano iyo uyandikisha imodoka, ubone impinduka, cyangwa uhabwe ibyibutso."
+    },
+    "rideDetails": {
+        "header": {
+            "title": "Ibisobanura by'Imodoka"
+        },
+        "loading": {
+            "text": "Birabanza ibisobanura by'imodoka..."
+        },
+        "errors": {
+            "loadingRide": "Ikibazo mu Kureba Ibisobanura by'Imodoka",
+            "loadingRideMessage": "Hari ikibazo cyabaye iyo dureba ibisobanura by'imodoka. Ongera ugerageze.",
+            "bookingRide": "Ikibazo mu Kwiyandikisha Imodoka",
+            "bookingRideMessage": "Hari ikibazo cyabaye iyo dukuyandikisha imodoka. Ongera ugerageze.",
+            "loginRequired": "Kwinjira Bikenewe",
+            "loginRequiredMessage": "Banza winjire mbere yo gukatisha imodoka."
+        },
+        "details": {
+            "departure": "Guhaguruka",
+            "estimatedArrival": "Kugerayo",
+            "availableSeats": "Imyanya Ihari",
+            "price": "Igiciro",
+            "perSeat": "kuri buri muntu",
+            "booked": "Yakatishijwe"
+        },
+        "agency": {
+            "driver": "Umushoferi",
+            "operatedBy": "Ikorwa na",
+            "unknownDriver": "Umushoferi Utazwi",
+            "unknownAgency": "Umuyobozi Utazwi"
+        },
+        "booking": {
+            "booking": "Birakatisha...",
+            "rideFull": "Imodoka Yuzuye",
+            "bookThisRide": "Katisha Iyi Modoka"
+        }
+    }
+}

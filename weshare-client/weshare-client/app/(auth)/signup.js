@@ -11,8 +11,10 @@ import { useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 export default function Signup() {
+    const { t } = useTranslation();
     const [name, setName] = useState('');
     const [password, setPassword] = useState('');
     const [contactNumber, setContactNumber] = useState('');
@@ -52,7 +54,7 @@ export default function Signup() {
 
                 } catch (error) {
                     console.error('Error fetching categories:', error);
-                    setError('Failed to load categories');
+                    setError(t('auth.failedToLoadCategories'));
                 }
             };
             fetchCategories();
@@ -60,18 +62,18 @@ export default function Signup() {
             setCategories([]);
             setDestinationCategoryId('');
         }
-    }, [agencyId]);
+    }, [agencyId, t]);
 
     // Memoize Select values
-    const roleDisplay = useMemo(() => (role === 'user' ? 'Normal User' : 'Agency Employee'), [role]);
+    const roleDisplay = useMemo(() => (role === 'user' ? t('auth.normalUser') : t('auth.agencyEmployee')), [role, t]);
     const agencyDisplay = useMemo(() => {
         const agency = agencies.find(a => a._id === agencyId);
-        return agency ? agency.name : 'Select Agency';
-    }, [agencyId, agencies]);
+        return agency ? agency.name : t('auth.selectAgency');
+    }, [agencyId, agencies, t]);
     const categoryDisplay = useMemo(() => {
         const category = categories.find(c => c._id === destinationCategoryId);
-        return category ? `${category.from} to ${category.to}` : 'Select Category';
-    }, [destinationCategoryId, categories]);
+        return category ? `${category.from} ${t('auth.to')} ${category.to}` : t('auth.selectCategory');
+    }, [destinationCategoryId, categories, t]);
 
     const handleSignup = async () => {
         try {
@@ -103,17 +105,17 @@ export default function Signup() {
                 const userMessage =
                     signupError?.userMessage ||
                     signupError?.response?.data?.error ||
-                    "We couldn't sign you up at this time. Check your credentials and try again.";
+                    t('auth.signupFailedMessage');
 
-                Alert.alert('Signup Failed', userMessage, [
-                    { text: 'Try Again', onPress: () => router.push('/(auth)/signup') },
-                    { text: 'Cancel', style: 'cancel' },
+                Alert.alert(t('auth.signupFailed'), userMessage, [
+                    { text: t('auth.tryAgain'), onPress: () => router.push('/(auth)/signup') },
+                    { text: t('common.cancel'), style: 'cancel' },
                 ]);
             }
             return () => {
                 hasShownAlert.current = false; // Reset on focus change or unmount
             };
-        }, [signupError, router])
+        }, [signupError, router, t])
     );
 
     return (
@@ -147,8 +149,8 @@ export default function Signup() {
                                 <View style={styles.logoGlow} />
                             </View>
 
-                            <Text style={styles.title}>Join WeShare! 🚀</Text>
-                            <Text style={styles.subtitle}>Create your account to start sharing rides</Text>
+                            <Text style={styles.title}>{t('auth.joinWeShare')} 🚀</Text>
+                            <Text style={styles.subtitle}>{t('auth.createAccountToStart')}</Text>
 
                             {/* Name Input with enhanced styling */}
                             <View style={styles.inputContainer}>
@@ -158,7 +160,7 @@ export default function Signup() {
                                 >
                                     <Input
                                         style={styles.input}
-                                        placeholder="Full Name"
+                                        placeholder={t('auth.fullName')}
                                         value={name}
                                         onChangeText={setName}
                                         textStyle={styles.inputText}
@@ -175,7 +177,7 @@ export default function Signup() {
                                     <Text style={styles.phonePrefix}>+250</Text>
                                     <TextInput
                                         style={styles.phoneInput}
-                                        placeholder="Phone Number"
+                                        placeholder={t('auth.phoneNumber')}
                                         value={contactNumber}
                                         onChangeText={setContactNumber}
                                         keyboardType="phone-pad"
@@ -183,7 +185,7 @@ export default function Signup() {
                                         placeholderTextColor="#0a2472"
                                     />
                                 </LinearGradient>
-                                <Text style={styles.phoneHint}>Format: 7XXXXXXXX (e.g. 785123456)</Text>
+                                <Text style={styles.phoneHint}>{t('auth.phoneFormat')}</Text>
                             </View>
 
                             {/* Password Input with enhanced styling */}
@@ -194,7 +196,7 @@ export default function Signup() {
                                 >
                                     <Input
                                         style={styles.passwordInput}
-                                        placeholder="Password"
+                                        placeholder={t('auth.password')}
                                         value={password}
                                         onChangeText={setPassword}
                                         secureTextEntry={!showPassword}
@@ -215,62 +217,68 @@ export default function Signup() {
 
                             {/* Role Selection */}
                             <View style={styles.inputContainer}>
-                                <Select
-                                    style={styles.selectInput}
-                                    placeholder="Select Role"
-                                    value={roleDisplay}
-                                    onSelect={index => {
-                                        const newRole = index.row === 0 ? 'user' : 'agency_employee';
-                                        setRole(newRole);
-                                    }}
-                                    textStyle={styles.inputText}
+                                <LinearGradient
+                                    colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                    style={styles.selectWrapper}
                                 >
-                                    <SelectItem title="Normal User" />
-                                    <SelectItem title="Agency Employee" />
-                                </Select>
+                                    <Select
+                                        style={styles.select}
+                                        placeholder={t('auth.selectRole')}
+                                        value={roleDisplay}
+                                        onSelect={(index) => setRole(index.row === 0 ? 'user' : 'agency_employee')}
+                                        textStyle={styles.selectText}
+                                    >
+                                        <SelectItem title={t('auth.normalUser')} />
+                                        <SelectItem title={t('auth.agencyEmployee')} />
+                                    </Select>
+                                </LinearGradient>
                             </View>
 
-                            {/* Agency Employee Fields */}
+                            {/* Agency Selection (only for agency employees) */}
                             {role === 'agency_employee' && (
-                                <>
-                                    <View style={styles.inputContainer}>
+                                <View style={styles.inputContainer}>
+                                    <LinearGradient
+                                        colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                        style={styles.selectWrapper}
+                                    >
                                         <Select
-                                            style={styles.selectInput}
-                                            placeholder="Select Agency"
+                                            style={styles.select}
+                                            placeholder={t('auth.selectAgency')}
                                             value={agencyDisplay}
-                                            onSelect={index => {
-                                                const newAgencyId = agencies[index.row]?._id || '';
-                                                setAgencyId(newAgencyId);
-                                            }}
-                                            disabled={agencies.length === 0}
-                                            textStyle={styles.inputText}
+                                            onSelect={(index) => setAgencyId(agencies[index.row]?._id || '')}
+                                            textStyle={styles.selectText}
                                         >
-                                            {agencies.map(agency => (
+                                            {agencies.map((agency) => (
                                                 <SelectItem key={agency._id} title={agency.name} />
                                             ))}
                                         </Select>
-                                    </View>
-                                    <View style={styles.inputContainer}>
-                                        <Select
-                                            style={styles.selectInput}
-                                            placeholder="Select Destination Category"
-                                            value={categoryDisplay}
-                                            onSelect={index => {
-                                                const newCategoryId = categories[index.row]?._id || '';
-                                                setDestinationCategoryId(newCategoryId);
-                                            }}
-                                            disabled={!agencyId || categories.length === 0}
-                                            textStyle={styles.inputText}
-                                        >
-                                            {categories.map(category => (
-                                                <SelectItem key={category._id} title={`${category.from} to ${category.to}`} />
-                                            ))}
-                                        </Select>
-                                    </View>
-                                </>
+                                    </LinearGradient>
+                                </View>
                             )}
 
-                            {/* Enhanced Sign Up Button */}
+                            {/* Category Selection (only for agency employees) */}
+                            {role === 'agency_employee' && agencyId && (
+                                <View style={styles.inputContainer}>
+                                    <LinearGradient
+                                        colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+                                        style={styles.selectWrapper}
+                                    >
+                                        <Select
+                                            style={styles.select}
+                                            placeholder={t('auth.selectCategory')}
+                                            value={categoryDisplay}
+                                            onSelect={(index) => setDestinationCategoryId(categories[index.row]?._id || '')}
+                                            textStyle={styles.selectText}
+                                        >
+                                            {categories.map((category) => (
+                                                <SelectItem key={category._id} title={`${category.from} ${t('auth.to')} ${category.to}`} />
+                                            ))}
+                                        </Select>
+                                    </LinearGradient>
+                                </View>
+                            )}
+
+                            {/* Enhanced Signup Button */}
                             <LinearGradient
                                 colors={['#0a2472', '#1E90FF']}
                                 start={{ x: 0, y: 0 }}
@@ -287,13 +295,13 @@ export default function Signup() {
                                     activeOpacity={0.8}
                                 >
                                     <FontAwesome5 name="user-plus" size={16} color="#fff" />
-                                    <Text style={styles.signupButtonText}>SIGN UP</Text>
+                                    <Text style={styles.signupButtonText}>{t('auth.createAccount')}</Text>
                                 </TouchableOpacity>
                             </LinearGradient>
 
                             {/* Enhanced Login Link */}
                             <Link href="/(auth)/login" style={styles.link}>
-                                <Text style={styles.linkText}>Already have an account? <Text style={styles.linkHighlight}>Login</Text></Text>
+                                <Text style={styles.linkText}>{t('auth.alreadyHaveAccount')} <Text style={styles.linkHighlight}>{t('auth.signIn')}</Text></Text>
                             </Link>
                         </View>
                     </ScrollView>
@@ -437,7 +445,7 @@ const styles = StyleSheet.create({
         top: 12,
         padding: 4,
     },
-    selectInput: {
+    selectWrapper: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderRadius: 16,
         borderWidth: 0,
@@ -446,6 +454,15 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 8,
         elevation: 4,
+    },
+    select: {
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+    },
+    selectText: {
+        fontSize: 16,
+        color: '#0a2472',
+        fontWeight: '500',
     },
     inputText: {
         fontSize: 16,

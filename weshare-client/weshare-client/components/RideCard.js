@@ -3,7 +3,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import CostSharingBreakdown from './CostSharingBreakdown';
+import { useTranslation } from 'react-i18next';
 
 const RideCard = React.memo(({
     ride,
@@ -19,7 +19,9 @@ const RideCard = React.memo(({
     isPrivate,
     showDriverInfo
 }) => {
-    const [showCostBreakdown, setShowCostBreakdown] = useState(false);
+    const { t } = useTranslation();
+
+    // const [showCostBreakdown, setShowCostBreakdown] = useState(false);
 
     // Ensure we have valid numbers for calculations
     const totalSeats = parseInt(ride.seats) || 1;
@@ -30,6 +32,26 @@ const RideCard = React.memo(({
     const calculatedAvailableSeats = availableSeats !== undefined
         ? availableSeats
         : totalSeats - bookedSeats;
+
+    // Function to translate status
+    const translateStatus = (status) => {
+        switch (status) {
+            case 'Available':
+                return t('common.status.available');
+            case 'Nearly Full':
+                return t('common.status.nearlyFull');
+            case 'Full':
+                return t('common.status.full');
+            case 'Inactive':
+                return t('common.status.inactive');
+            case 'Completed':
+                return t('common.status.completed');
+            case 'Pending':
+                return t('common.status.pending');
+            default:
+                return status;
+        }
+    };
 
     // Calculate status if not provided
     const calculatedStatusDisplay = statusDisplay || (() => {
@@ -81,9 +103,9 @@ const RideCard = React.memo(({
 
     const statusColor = getStatusColor(calculatedStatusDisplay);
 
-    const toggleCostBreakdown = () => {
-        setShowCostBreakdown(!showCostBreakdown);
-    };
+    // const toggleCostBreakdown = () => {
+    //     setShowCostBreakdown(!showCostBreakdown);
+    // };
 
     // Get location names for display
     const getLocationName = (location) => {
@@ -195,7 +217,7 @@ const RideCard = React.memo(({
                             <Text style={styles.detailLabel}>Status</Text>
                         </View>
                         <Text style={[styles.detailValue, { color: statusColor, fontWeight: 'bold' }]}>
-                            {calculatedStatusDisplay}
+                            {translateStatus(calculatedStatusDisplay)}
                         </Text>
                     </View>
 
@@ -290,15 +312,6 @@ const RideCard = React.memo(({
                     )}
                 </View>
             </TouchableOpacity>
-
-            {/* Cost Sharing Breakdown for Private Rides */}
-            {isPrivate && (
-                <CostSharingBreakdown
-                    ride={ride}
-                    isExpanded={showCostBreakdown}
-                    onToggle={toggleCostBreakdown}
-                />
-            )}
         </View>
     );
 });

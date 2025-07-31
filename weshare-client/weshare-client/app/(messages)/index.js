@@ -15,9 +15,14 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../../hooks/useApi';
 import axios from 'axios';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
+import { useRouter } from 'expo-router';
 
 export default function MessagesScreen() {
+    const { t } = useTranslation();
     const { user } = useAuth();
+    const router = useRouter();
     const [messages, setMessages] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [page, setPage] = useState(1);
@@ -77,15 +82,15 @@ export default function MessagesScreen() {
     useEffect(() => {
         if (messagesError) {
             Alert.alert(
-                'Error Loading Messages',
-                messagesError.userMessage || 'We encountered an error while loading your messages. Please try again.',
+                t('messages.errorLoadingMessages'),
+                messagesError.userMessage || t('messages.errorLoadingMessagesMessage'),
                 [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Retry', onPress: retryMessages }
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('common.retry'), onPress: retryMessages }
                 ]
             );
         }
-    }, [messagesError]);
+    }, [messagesError, t]);
 
     useEffect(() => {
         if (unreadError) {
@@ -96,12 +101,12 @@ export default function MessagesScreen() {
     useEffect(() => {
         if (markReadError) {
             Alert.alert(
-                'Error',
-                markReadError.userMessage || 'Failed to mark message as read.',
-                [{ text: 'OK' }]
+                t('common.error'),
+                markReadError.userMessage || t('messages.failedToMarkMessageAsRead'),
+                [{ text: t('common.ok') }]
             );
         }
-    }, [markReadError]);
+    }, [markReadError, t]);
 
     const loadMessages = async (pageNum = 1) => {
         try {
@@ -189,25 +194,25 @@ export default function MessagesScreen() {
     const getMessageTypeLabel = (type) => {
         switch (type) {
             case 'booking_confirmation':
-                return 'Booking Confirmed';
+                return t('messages.bookingConfirmed');
             case 'booking_cancellation':
-                return 'Booking Cancelled';
+                return t('messages.bookingCancelled');
             case 'ride_update':
-                return 'Ride Updated';
+                return t('messages.rideUpdated');
             case 'ride_cancellation':
-                return 'Ride Cancelled';
+                return t('messages.rideCancelled');
             case 'reminder':
-                return 'Ride Reminder';
+                return t('messages.rideReminder');
             case 'completion':
-                return 'Ride Completed';
+                return t('messages.rideCompleted');
             case 'private_ride_booked':
-                return 'New Passenger';
+                return t('messages.privateRideBooked');
             case 'private_ride_completed':
-                return 'Ride Completed';
+                return t('messages.privateRideCompleted');
             case 'ride_started':
-                return 'Ride Started';
+                return t('messages.rideStarted');
             default:
-                return 'Message';
+                return t('messages.message');
         }
     };
 
@@ -256,9 +261,9 @@ export default function MessagesScreen() {
     const renderEmptyState = () => (
         <View style={styles.emptyState}>
             <FontAwesome5 name="envelope-open" size={48} color="#ccc" />
-            <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
+            <Text style={styles.emptyStateTitle}>{t('messages.noMessagesYet')}</Text>
             <Text style={styles.emptyStateText}>
-                You'll receive notifications here when you book rides, get updates, or receive reminders.
+                {t('messages.noMessagesYetMessage')}
             </Text>
         </View>
     );
@@ -272,12 +277,18 @@ export default function MessagesScreen() {
         >
             <SafeAreaView style={styles.container}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Messages</Text>
-                    {unreadCount > 0 && (
-                        <View style={styles.unreadBadge}>
-                            <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
-                        </View>
-                    )}
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>{t('messages.messages')}</Text>
+                    <View style={styles.headerRight}>
+                        <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                        {unreadCount > 0 && (
+                            <View style={styles.unreadBadge}>
+                                <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
 
                 <FlatList
@@ -438,5 +449,19 @@ const styles = StyleSheet.create({
         color: '#999',
         textAlign: 'center',
         lineHeight: 20,
+    },
+    backButton: {
+        padding: 8,
+    },
+    headerPlaceholder: {
+        width: 32,
+        height: 32,
+    },
+    languageSwitcher: {
+        // Add any specific styles for the compact LanguageSwitcher if needed
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
 }); 

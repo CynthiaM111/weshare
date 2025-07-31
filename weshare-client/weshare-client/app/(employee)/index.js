@@ -7,6 +7,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useApi } from '../../hooks/useApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 // Memoized booking item component for better performance
 const BookingItem = React.memo(({ item, onCheckIn, isCheckingIn }) => {
@@ -74,6 +75,28 @@ const BookingItem = React.memo(({ item, onCheckIn, isCheckingIn }) => {
 
 // Memoized ride item component for better performance
 const RideItem = React.memo(({ item, onStartCheckIn, onStartManualCheckIn, isCheckingIn }) => {
+    const { t } = useTranslation();
+
+    // Function to translate status
+    const translateStatus = (status) => {
+        switch (status) {
+            case 'Available':
+                return t('common.status.available');
+            case 'Nearly Full':
+                return t('common.status.nearlyFull');
+            case 'Full':
+                return t('common.status.full');
+            case 'Inactive':
+                return t('common.status.inactive');
+            case 'Completed':
+                return t('common.status.completed');
+            case 'Pending':
+                return t('common.status.pending');
+            default:
+                return status;
+        }
+    };
+
     const handleStartCheckIn = useCallback(() => {
         try {
             if (item?._id && onStartCheckIn) {
@@ -131,7 +154,7 @@ const RideItem = React.memo(({ item, onStartCheckIn, onStartManualCheckIn, isChe
                     </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusInfo.backgroundColor }]}>
-                    <Text style={[styles.statusText, { color: statusInfo.color }]}>{statusInfo.status}</Text>
+                    <Text style={[styles.statusText, { color: statusInfo.color }]}>{translateStatus(statusInfo.status)}</Text>
                 </View>
             </View>
 

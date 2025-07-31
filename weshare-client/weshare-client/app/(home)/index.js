@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 const rwandaDistricts = [
     "Burera",
@@ -47,6 +49,7 @@ const rwandaDistricts = [
 ];
 
 export default function HomeScreen() {
+    const { t } = useTranslation();
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const [frequentSearches, setFrequentSearches] = useState([]);
@@ -283,9 +286,13 @@ export default function HomeScreen() {
 
     const getGreeting = () => {
         const hour = new Date().getHours();
-        if (hour < 12) return "Good morning! ☀️";
-        if (hour < 17) return "Good afternoon! 🌤️";
-        return "Good evening! 🌙";
+        if (hour < 12) {
+            return t('home.goodMorning');
+        } else if (hour < 17) {
+            return t('home.goodAfternoon');
+        } else {
+            return t('home.goodEvening');
+        }
     };
 
     useEffect(() => {
@@ -341,29 +348,34 @@ export default function HomeScreen() {
             >
                 <View style={styles.header}>
                     <View style={styles.headerContent}>
-                        <View>
-                            <Text style={styles.greeting}>{getGreeting()},</Text>
-                            <Text style={styles.userName}>{user?.name || 'Traveler'}</Text>
+                        <View style={styles.headerLeft}>
+                            <View>
+                                <Text style={styles.greeting}>{getGreeting()},</Text>
+                                <Text style={styles.userName}>{user?.name || t('home.traveler')}</Text>
+                            </View>
                         </View>
-                        <TouchableOpacity
-                            style={styles.notificationButton}
-                            onPress={handleNotificationPress}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="notifications-outline" size={24} color="#ffffff" />
-                            {unreadCount > 0 && (
-                                <Animated.View
-                                    style={[
-                                        styles.notificationBadge,
-                                        { transform: [{ scale: pulseAnim }] }
-                                    ]}
-                                >
-                                    <Text style={styles.badgeText}>
-                                        {unreadCount > 99 ? '99+' : unreadCount}
-                                    </Text>
-                                </Animated.View>
-                            )}
-                        </TouchableOpacity>
+                        <View style={styles.headerRight}>
+                            <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                            <TouchableOpacity
+                                style={styles.notificationButton}
+                                onPress={handleNotificationPress}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="notifications-outline" size={24} color="#ffffff" />
+                                {unreadCount > 0 && (
+                                    <Animated.View
+                                        style={[
+                                            styles.notificationBadge,
+                                            { transform: [{ scale: pulseAnim }] }
+                                        ]}
+                                    >
+                                        <Text style={styles.badgeText}>
+                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                        </Text>
+                                    </Animated.View>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </LinearGradient>
@@ -376,8 +388,8 @@ export default function HomeScreen() {
             >
                 {/* Search Section with Gradient Card */}
                 <View style={styles.searchSection}>
-                    <Text style={styles.sectionTitle}>Find Your Ride</Text>
-                    <Text style={styles.sectionSubtitle}>Where would you like to go today?</Text>
+                    <Text style={styles.sectionTitle}>{t('home.findYourRide')}</Text>
+                    <Text style={styles.sectionSubtitle}>{t('home.whereWouldYouLikeToGo')}</Text>
 
                     <LinearGradient
                         colors={['rgba(10, 36, 114, 0.05)', 'rgba(30, 144, 255, 0.05)']}
@@ -392,7 +404,7 @@ export default function HomeScreen() {
                                     <TextInput
                                         ref={fromInputRef}
                                         style={styles.input}
-                                        placeholder="From"
+                                        placeholder={t('home.from')}
                                         value={from}
                                         onChangeText={handleFromChange}
                                         placeholderTextColor="#94a3b8"
@@ -430,7 +442,7 @@ export default function HomeScreen() {
                                     <TextInput
                                         ref={toInputRef}
                                         style={styles.input}
-                                        placeholder="To"
+                                        placeholder={t('home.to')}
                                         value={to}
                                         onChangeText={handleToChange}
                                         placeholderTextColor="#94a3b8"
@@ -476,12 +488,12 @@ export default function HomeScreen() {
                                     {isSearching ? (
                                         <View style={styles.loadingContainer}>
                                             <View style={styles.loadingSpinner} />
-                                            <Text style={styles.searchButtonText}>Searching...</Text>
+                                            <Text style={styles.searchButtonText}>{t('home.searching')}</Text>
                                         </View>
                                     ) : (
                                         <>
                                             <Ionicons name="search" size={18} color="#fff" />
-                                            <Text style={styles.searchButtonText}>Search Rides</Text>
+                                            <Text style={styles.searchButtonText}>{t('home.searchRides')}</Text>
                                         </>
                                     )}
                                 </TouchableOpacity>
@@ -493,7 +505,7 @@ export default function HomeScreen() {
                 {/* Recent Searches */}
                 {frequentSearches.length > 0 && (
                     <View style={styles.recentSearchesSection}>
-                        <Text style={styles.sectionTitle}>Recent Searches</Text>
+                        <Text style={styles.sectionTitle}>{t('home.recentSearches')}</Text>
                         <View style={styles.recentSearchesList}>
                             {frequentSearches.slice(0, 2).map((search, index) => (
                                 <TouchableOpacity
@@ -510,7 +522,7 @@ export default function HomeScreen() {
                                         </View>
                                         <View style={styles.searchCount}>
                                             <Ionicons name="time-outline" size={14} color="#64748b" />
-                                            <Text style={styles.countText}>{search.count} times</Text>
+                                            <Text style={styles.countText}>{t('home.times', { count: search.count })}</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -521,7 +533,7 @@ export default function HomeScreen() {
 
                 {/* Quick Actions */}
                 <View style={styles.quickActionsSection}>
-                    <Text style={styles.sectionTitle}>Quick Actions</Text>
+                    <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
                     <View style={styles.quickActionsGrid}>
                         <LinearGradient
                             colors={['rgba(217, 119, 6, 0.1)', 'rgba(245, 158, 11, 0.1)']}
@@ -531,14 +543,14 @@ export default function HomeScreen() {
                         >
                             <TouchableOpacity
                                 style={styles.quickActionCard}
-                                onPress={handleBookPrivateRide}
+                                onPress={handleAddPrivateRide}
                                 activeOpacity={0.8}
                             >
                                 <View style={[styles.actionIcon, { backgroundColor: '#fef3c7' }]}>
                                     <Ionicons name="car-sport" size={16} color="#d97706" />
                                 </View>
-                                <Text style={styles.actionTitle}>Book Private</Text>
-                                <Text style={styles.actionSubtitle}>VIP experience</Text>
+                                <Text style={styles.actionTitle}>{t('home.createPrivateRide')}</Text>
+                                <Text style={styles.actionSubtitle}>{t('home.createPrivateRideSubtitle')}</Text>
                             </TouchableOpacity>
                         </LinearGradient>
 
@@ -550,14 +562,14 @@ export default function HomeScreen() {
                         >
                             <TouchableOpacity
                                 style={styles.quickActionCard}
-                                onPress={handleAddPrivateRide}
+                                onPress={handleBookPrivateRide}
                                 activeOpacity={0.8}
                             >
                                 <View style={[styles.actionIcon, { backgroundColor: '#dbeafe' }]}>
                                     <Ionicons name="add-circle" size={16} color="#2563eb" />
                                 </View>
-                                <Text style={styles.actionTitle}>Offer Ride</Text>
-                                <Text style={styles.actionSubtitle}>Share your car</Text>
+                                <Text style={styles.actionTitle}>{t('home.bookPrivateRide')}</Text>
+                                <Text style={styles.actionSubtitle}>{t('home.bookPrivateRideSubtitle')}</Text>
                             </TouchableOpacity>
                         </LinearGradient>
                     </View>
@@ -565,25 +577,25 @@ export default function HomeScreen() {
 
                 {/* Tips Section */}
                 <View style={styles.tipsSection}>
-                    <Text style={styles.sectionTitle}>Travel Tips</Text>
+                    <Text style={styles.sectionTitle}>{t('home.travelTips')}</Text>
                     <View style={styles.tipsList}>
                         <View style={styles.tipItem}>
                             <View style={[styles.tipIcon, { backgroundColor: '#f0f9ff' }]}>
                                 <Ionicons name="time" size={16} color="#0284c7" />
                             </View>
-                            <Text style={styles.tipText}>Book early for better prices</Text>
+                            <Text style={styles.tipText}>{t('home.bookEarlyForBetterPrices')}</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <View style={[styles.tipIcon, { backgroundColor: '#f0fdf4' }]}>
                                 <Ionicons name="people" size={16} color="#16a34a" />
                             </View>
-                            <Text style={styles.tipText}>Share rides to meet new people</Text>
+                            <Text style={styles.tipText}>{t('home.shareRidesToMeetNewPeople')}</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <View style={[styles.tipIcon, { backgroundColor: '#fef7ff' }]}>
                                 <Ionicons name="star" size={16} color="#9333ea" />
                             </View>
-                            <Text style={styles.tipText}>Rate your driver to help others</Text>
+                            <Text style={styles.tipText}>{t('home.rateYourDriverToHelpOthers')}</Text>
                         </View>
                     </View>
                 </View>
@@ -613,6 +625,14 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         width: '100%',
     },
+    headerLeft: {
+        flex: 1,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
     greeting: {
         fontSize: 16,
         color: 'rgba(255, 255, 255, 0.9)',
@@ -622,6 +642,9 @@ export const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: '700',
         color: '#ffffff',
+    },
+    languageSwitcher: {
+        marginRight: 10,
     },
     notificationButton: {
         padding: 12,
@@ -816,6 +839,14 @@ export const styles = StyleSheet.create({
         borderColor: 'rgba(0, 0, 0, 0.03)',
     },
     actionIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    actionIconContainer: {
         width: 32,
         height: 32,
         borderRadius: 16,

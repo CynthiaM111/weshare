@@ -10,8 +10,32 @@ import { useApi } from '../../hooks/useApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import DriverContactModal from '../../components/DriverContactModal';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function RideDetails() {
+    const { t } = useTranslation();
+
+    // Function to translate status
+    const translateStatus = (status) => {
+        switch (status) {
+            case 'Available':
+                return t('common.status.available');
+            case 'Nearly Full':
+                return t('common.status.nearlyFull');
+            case 'Full':
+                return t('common.status.full');
+            case 'Inactive':
+                return t('common.status.inactive');
+            case 'Completed':
+                return t('common.status.completed');
+            case 'Pending':
+                return t('common.status.pending');
+            default:
+                return status;
+        }
+    };
+
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { user } = useAuth();
@@ -64,35 +88,35 @@ export default function RideDetails() {
 
     useEffect(() => {
         if (rideError) {
-            Alert.alert('Error Loading Ride Details', rideError.userMessage || 'We encountered an error while loading the ride details. Please try again.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Retry', onPress: retryFetchRide }
+            Alert.alert(t('rideDetails.errors.loadingRide'), rideError.userMessage || t('rideDetails.errors.loadingRideMessage'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.retry'), onPress: retryFetchRide }
             ]);
         }
-    }, [rideError]);
+    }, [rideError, t]);
 
     useEffect(() => {
         if (bookingError) {
-            Alert.alert('Error Booking Ride', bookingError.userMessage || 'We encountered an error while booking the ride. Please try again.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Retry', onPress: retryBooking }
+            Alert.alert(t('rideDetails.errors.bookingRide'), bookingError.userMessage || t('rideDetails.errors.bookingRideMessage'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.retry'), onPress: retryBooking }
             ]);
         }
-    }, [bookingError]);
+    }, [bookingError, t]);
 
     const handleBookRide = async () => {
         // Check if user is authenticated
         if (!user) {
             Alert.alert(
-                'Login Required',
-                'Please login before you can book a ride.',
+                t('rideDetails.errors.loginRequired'),
+                t('rideDetails.errors.loginRequiredMessage'),
                 [
                     {
-                        text: 'Cancel',
+                        text: t('common.cancel'),
                         style: 'cancel'
                     },
                     {
-                        text: 'Login',
+                        text: t('auth.login'),
                         style: 'default',
                         onPress: () => router.push('/(auth)/login')
                     }
@@ -138,7 +162,7 @@ export default function RideDetails() {
                 <SafeAreaView style={styles.container}>
                     <View style={styles.loadingContainer}>
                         <FontAwesome5 name="spinner" size={32} color="#fff" />
-                        <Text style={styles.loadingText}>Loading ride details...</Text>
+                        <Text style={styles.loadingText}>{t('rideDetails.loading.text')}</Text>
                     </View>
                 </SafeAreaView>
             </LinearGradient>
@@ -166,8 +190,10 @@ export default function RideDetails() {
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                         <FontAwesome5 name="arrow-left" size={20} color="#fff" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Ride Details</Text>
-                    <View style={styles.headerPlaceholder} />
+                    <Text style={styles.headerTitle}>{t('rideDetails.header.title')}</Text>
+                    <View style={styles.headerPlaceholder}>
+                        <LanguageSwitcher style={styles.languageSwitcher} compact={true} />
+                    </View>
                 </View>
 
                 <View style={styles.content}>
@@ -187,7 +213,7 @@ export default function RideDetails() {
 
                         {/* Status Badge */}
                         <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                            <Text style={styles.statusText}>{ride.statusDisplay}</Text>
+                            <Text style={styles.statusText}>{translateStatus(ride.statusDisplay)}</Text>
                         </View>
 
                         {/* Details Grid */}
@@ -196,7 +222,7 @@ export default function RideDetails() {
                                 <View style={styles.detailIcon}>
                                     <FontAwesome5 name="calendar-alt" size={16} color="#2196F3" />
                                 </View>
-                                <Text style={styles.detailLabel}>Departure</Text>
+                                <Text style={styles.detailLabel}>{t('rideDetails.details.departure')}</Text>
                                 <Text style={styles.detailValue}>
                                     {format(new Date(ride.departure_time), 'MMM dd, yyyy')}
                                 </Text>
@@ -209,7 +235,7 @@ export default function RideDetails() {
                                 <View style={styles.detailIcon}>
                                     <FontAwesome5 name="clock" size={16} color="#FF9800" />
                                 </View>
-                                <Text style={styles.detailLabel}>Est. Arrival</Text>
+                                <Text style={styles.detailLabel}>{t('rideDetails.details.estimatedArrival')}</Text>
                                 <Text style={styles.detailValue}>
                                     {format(new Date(ride.estimatedArrivalTime), 'MMM dd, yyyy')}
                                 </Text>
@@ -222,22 +248,22 @@ export default function RideDetails() {
                                 <View style={styles.detailIcon}>
                                     <FontAwesome5 name="users" size={16} color="#9C27B0" />
                                 </View>
-                                <Text style={styles.detailLabel}>Available Seats</Text>
+                                <Text style={styles.detailLabel}>{t('rideDetails.details.availableSeats')}</Text>
                                 <Text style={styles.detailValue}>
                                     {ride.available_seats} / {ride.seats}
                                 </Text>
                                 <Text style={styles.detailSubtext}>
-                                    {ride.booked_seats} booked
+                                    {ride.booked_seats} {t('rideDetails.details.booked')}
                                 </Text>
                             </View>
 
                             <View style={styles.detailCard}>
                                 <View style={styles.detailIcon}>
-                                    <FontAwesome5 name="dollar-sign" size={16} color="#4CAF50" />
+                                    <FontAwesome5 name="money-bill-wave" size={16} color="#4CAF50" />
                                 </View>
-                                <Text style={styles.detailLabel}>Price</Text>
-                                <Text style={[styles.detailValue, styles.priceText]}>${ride.price}</Text>
-                                <Text style={styles.detailSubtext}>per seat</Text>
+                                <Text style={styles.detailLabel}>{t('rideDetails.details.price')}</Text>
+                                <Text style={[styles.detailValue, styles.priceText]}>{ride.price} RWF</Text>
+                                <Text style={styles.detailSubtext}>{t('rideDetails.details.perSeat')}</Text>
                             </View>
                         </View>
 
@@ -249,12 +275,12 @@ export default function RideDetails() {
                                 color="#6c757d"
                             />
                             <Text style={styles.agencyLabel}>
-                                {ride.isPrivate ? 'Driver' : 'Operated by'}
+                                {ride.isPrivate ? t('rideDetails.agency.driver') : t('rideDetails.agency.operatedBy')}
                             </Text>
                             <Text style={styles.agencyName}>
                                 {ride.isPrivate
-                                    ? (ride.userId?.name || 'Unknown Driver')
-                                    : (ride.agencyId?.name || 'Unknown Agency')
+                                    ? (ride.userId?.name || t('rideDetails.agency.unknownDriver'))
+                                    : (ride.agencyId?.name || t('rideDetails.agency.unknownAgency'))
                                 }
                             </Text>
                         </View>
@@ -276,9 +302,9 @@ export default function RideDetails() {
                             style={styles.buttonIcon}
                         />
                         <Text style={styles.bookButtonText}>
-                            {isBooking ? 'Booking...' :
-                                ride.statusDisplay === 'Full' ? 'Ride Full' :
-                                    'Book This Ride'}
+                            {isBooking ? t('rideDetails.booking.booking') :
+                                ride.statusDisplay === 'Full' ? t('rideDetails.booking.rideFull') :
+                                    t('rideDetails.booking.bookThisRide')}
                         </Text>
                     </TouchableOpacity>
                 </View>

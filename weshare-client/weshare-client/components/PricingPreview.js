@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } fr
 import { FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
 import { useAuth } from '../app/context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const PricingPreview = ({
     startLocation,
@@ -13,6 +14,7 @@ const PricingPreview = ({
     onPriceCalculated,
     style = {}
 }) => {
+    const { t } = useTranslation();
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [systemFuelPrice, setSystemFuelPrice] = useState(null);
@@ -109,21 +111,24 @@ const PricingPreview = ({
                 if (err.response.status === 400) {
                     const errorMessage = err.response.data.error;
                     if (errorMessage.includes('fuel efficiency')) {
-                        setError(`Fuel efficiency validation error: ${errorMessage}`);
+                        setError(t('validation.fuelEfficiencyRange', {
+                            min: systemSettings?.fuelEfficiencyMin || 6,
+                            max: systemSettings?.fuelEfficiencyMax || 10
+                        }));
                     } else if (errorMessage.includes('Missing required parameters')) {
-                        setError('Please fill in all required fields (locations, seats, fuel efficiency)');
+                        setError(t('validation.missingInformation'));
                     } else {
                         setError(errorMessage);
                     }
                 } else if (err.response.status === 500) {
-                    setError('Server error. Please try again later.');
+                    setError(t('common.error'));
                 } else {
-                    setError('Unable to calculate pricing. Please check your inputs.');
+                    setError(t('validation.missingInformation'));
                 }
             } else if (err.request) {
-                setError('Network error. Please check your connection.');
+                setError(t('common.error'));
             } else {
-                setError('Unable to calculate pricing');
+                setError(t('common.error'));
             }
         } finally {
             setLoading(false);
@@ -147,7 +152,7 @@ const PricingPreview = ({
             >
                 <View style={styles.headerContent}>
                     <FontAwesome5 name="calculator" size={16} color="#4CAF50" />
-                    <Text style={styles.headerTitle}>Pricing Preview</Text>
+                    <Text style={styles.headerTitle}>{t('rideForm.pricingPreview')}</Text>
                 </View>
                 {loading ? (
                     <ActivityIndicator size="small" color="#4CAF50" />
@@ -171,7 +176,10 @@ const PricingPreview = ({
                 <View style={styles.warningContainer}>
                     <FontAwesome5 name="exclamation-triangle" size={14} color="#ff9800" />
                     <Text style={styles.warningText}>
-                        Fuel efficiency ({fuelEfficiency} L/100km) is outside the valid range ({systemSettings?.fuelEfficiencyMin}-{systemSettings?.fuelEfficiencyMax} L/100km)
+                        {t('validation.fuelEfficiencyRange', {
+                            min: systemSettings?.fuelEfficiencyMin || 6,
+                            max: systemSettings?.fuelEfficiencyMax || 10
+                        })} ({fuelEfficiency} L/100km)
                     </Text>
                 </View>
             )}
@@ -182,14 +190,14 @@ const PricingPreview = ({
                     <View style={styles.routeSection}>
                         <View style={styles.routeHeader}>
                             <FontAwesome5 name="route" size={14} color="#2196F3" />
-                            <Text style={styles.routeTitle}>Route Details</Text>
+                            <Text style={styles.routeTitle}>{t('pricing.routeDetails')}</Text>
                         </View>
                         <View style={styles.routeInfo}>
                             <Text style={styles.routeText}>
                                 {startLocation.name} → {endLocation.name}
                             </Text>
                             <Text style={styles.distanceText}>
-                                Distance: {pricing.distance.toFixed(1)} km
+                                {t('pricing.distance')}: {pricing.distance.toFixed(1)} km
                             </Text>
                         </View>
                     </View>
@@ -198,27 +206,27 @@ const PricingPreview = ({
                     <View style={styles.fuelSection}>
                         <View style={styles.fuelHeader}>
                             <FontAwesome5 name="gas-pump" size={14} color="#FF9800" />
-                            <Text style={styles.fuelTitle}>Fuel Cost Calculation</Text>
+                            <Text style={styles.fuelTitle}>{t('pricing.fuelCostCalculation')}</Text>
                         </View>
                         <View style={styles.fuelBreakdown}>
                             <View style={styles.fuelRow}>
-                                <Text style={styles.fuelLabel}>Distance:</Text>
+                                <Text style={styles.fuelLabel}>{t('pricing.distance')}:</Text>
                                 <Text style={styles.fuelValue}>{pricing.distance.toFixed(1)} km</Text>
                             </View>
                             <View style={styles.fuelRow}>
-                                <Text style={styles.fuelLabel}>Fuel Efficiency:</Text>
+                                <Text style={styles.fuelLabel}>{t('pricing.efficiency')}:</Text>
                                 <Text style={styles.fuelValue}>{fuelEfficiency} L/100km</Text>
                             </View>
                             <View style={styles.fuelRow}>
-                                <Text style={styles.fuelLabel}>Fuel Needed:</Text>
+                                <Text style={styles.fuelLabel}>{t('pricing.fuelNeeded')}:</Text>
                                 <Text style={styles.fuelValue}>{pricing.fuelLiters.toFixed(1)} L</Text>
                             </View>
                             <View style={styles.fuelRow}>
-                                <Text style={styles.fuelLabel}>Price per Liter:</Text>
+                                <Text style={styles.fuelLabel}>{t('pricing.pricePerLiter')}:</Text>
                                 <Text style={styles.fuelValue}>{effectiveFuelPrice?.toLocaleString() || '0'} RWF</Text>
                             </View>
                             <View style={[styles.fuelRow, styles.totalRow]}>
-                                <Text style={styles.totalLabel}>Total Fuel Cost:</Text>
+                                <Text style={styles.totalLabel}>{t('pricing.totalFuelCost')}:</Text>
                                 <Text style={styles.totalValue}>
                                     {pricing.totalFuelCost?.toLocaleString() || '0'} RWF
                                 </Text>
@@ -231,24 +239,24 @@ const PricingPreview = ({
                         <View style={styles.costSharingSection}>
                             <View style={styles.costSharingHeader}>
                                 <FontAwesome5 name="users" size={14} color="#9C27B0" />
-                                <Text style={styles.costSharingTitle}>Cost Sharing Breakdown</Text>
+                                <Text style={styles.costSharingTitle}>{t('pricing.costSharingBreakdown')}</Text>
                             </View>
 
                             <View style={styles.sharingBreakdown}>
                                 <View style={styles.sharingRow}>
-                                    <Text style={styles.sharingLabel}>Driver Contribution (25%):</Text>
+                                    <Text style={styles.sharingLabel}>{t('pricing.driverContribution')}:</Text>
                                     <Text style={styles.driverAmount}>
                                         {pricing.costSharing?.driverShare?.toLocaleString() || '0'} RWF
                                     </Text>
                                 </View>
                                 <View style={styles.sharingRow}>
-                                    <Text style={styles.sharingLabel}>Passenger Share (75%):</Text>
+                                    <Text style={styles.sharingLabel}>{t('pricing.passengerShare')}:</Text>
                                     <Text style={styles.passengerAmount}>
                                         {pricing.costSharing?.passengerShare?.toLocaleString() || '0'} RWF
                                     </Text>
                                 </View>
                                 <View style={styles.sharingRow}>
-                                    <Text style={styles.sharingLabel}>Per Seat Cost:</Text>
+                                    <Text style={styles.sharingLabel}>{t('pricing.perSeatCost')}:</Text>
                                     <Text style={styles.perSeatAmount}>
                                         {pricing.costSharing?.perPassengerCost?.toLocaleString() || '0'} RWF
                                     </Text>
@@ -259,21 +267,21 @@ const PricingPreview = ({
 
                     {/* Summary */}
                     <View style={styles.summarySection}>
-                        <Text style={styles.summaryTitle}>Pricing Summary</Text>
+                        <Text style={styles.summaryTitle}>{t('pricing.pricingSummary')}</Text>
                         <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Total Fuel Cost:</Text>
+                            <Text style={styles.summaryLabel}>{t('pricing.totalFuelCost')}:</Text>
                             <Text style={styles.summaryValue}>
                                 {pricing.totalFuelCost?.toLocaleString() || '0'} RWF
                             </Text>
                         </View>
                         <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Driver Pays:</Text>
+                            <Text style={styles.summaryLabel}>{t('pricing.driverPays')}:</Text>
                             <Text style={styles.summaryValue}>
                                 {pricing.costSharing?.driverShare?.toLocaleString() || '0'} RWF
                             </Text>
                         </View>
                         <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Each Passenger Pays:</Text>
+                            <Text style={styles.summaryLabel}>{t('pricing.eachPassengerPays')}:</Text>
                             <Text style={[styles.summaryValue, styles.highlightedValue]}>
                                 {pricing.costSharing?.perPassengerCost?.toLocaleString() || '0'} RWF
                             </Text>
@@ -284,14 +292,14 @@ const PricingPreview = ({
                     <View style={styles.vehicleSection}>
                         <View style={styles.vehicleHeader}>
                             <FontAwesome5 name="car" size={14} color="#607D8B" />
-                            <Text style={styles.vehicleTitle}>Vehicle Settings</Text>
+                            <Text style={styles.vehicleTitle}>{t('pricing.vehicleSettings')}</Text>
                         </View>
                         <View style={styles.vehicleInfo}>
                             <Text style={styles.vehicleText}>
-                                Seats: {seats} • Efficiency: {fuelEfficiency} L/100km
+                                {t('pricing.seats')}: {seats} • {t('pricing.efficiency')}: {fuelEfficiency} L/100km
                             </Text>
                             <Text style={styles.vehicleText}>
-                                Fuel Price: {pricePerLiter?.toLocaleString() || '0'} RWF/L
+                                {t('pricing.fuelPrice')}: {pricePerLiter?.toLocaleString() || '0'} RWF/L
                             </Text>
                         </View>
                     </View>
